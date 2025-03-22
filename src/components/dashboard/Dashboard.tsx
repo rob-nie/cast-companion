@@ -18,17 +18,19 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_1fr]">
-      <div className="lg:col-span-2">
+    <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 h-[calc(100vh-5rem)] overflow-hidden">
+      <div className="lg:col-span-2 h-full">
         <InterviewNotesPanel 
           showLiveNotes={showLiveNotes} 
           setShowLiveNotes={setShowLiveNotes} 
         />
       </div>
       
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-1 md:grid-rows-[auto_1fr] lg:row-span-1">
+      <div className="flex flex-col gap-6 h-full">
         <WatchTile showLiveNotes={showLiveNotes} />
-        <MessengerTile />
+        <div className="flex-1">
+          <MessengerTile />
+        </div>
       </div>
     </div>
   );

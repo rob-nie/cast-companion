@@ -35,7 +35,7 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
     if (isRunning && startTime) {
       interval = setInterval(() => {
         setElapsedTime(Date.now() - startTime);
-      }, 10); // Update every 10ms for smooth display
+      }, 1000); // Update every second since we don't need milliseconds
     }
     
     return () => {
@@ -63,13 +63,12 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const formatStopwatchTime = (timeMs: number) => {
-    // Format time as hh:mm:ss.ms
-    const ms = Math.floor((timeMs % 1000) / 10); // Get only tens of ms (2 digits)
+    // Format time as hh:mm:ss without milliseconds
     const seconds = Math.floor((timeMs / 1000) % 60);
     const minutes = Math.floor((timeMs / (1000 * 60)) % 60);
     const hours = Math.floor(timeMs / (1000 * 60 * 60));
     
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
