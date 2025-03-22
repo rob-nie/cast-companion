@@ -63,12 +63,13 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const formatStopwatchTime = (timeMs: number) => {
-    // Format time as mm:ss.ms
+    // Format time as hh:mm:ss.ms
     const ms = Math.floor((timeMs % 1000) / 10); // Get only tens of ms (2 digits)
     const seconds = Math.floor((timeMs / 1000) % 60);
-    const minutes = Math.floor(timeMs / (1000 * 60));
+    const minutes = Math.floor((timeMs / (1000 * 60)) % 60);
+    const hours = Math.floor(timeMs / (1000 * 60 * 60));
     
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
   };
 
   return (
