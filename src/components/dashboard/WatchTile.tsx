@@ -40,7 +40,7 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
   });
   
   return (
-    <div className="tile flex flex-col p-3 h-auto">
+    <div className="tile flex flex-col p-3 w-full">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-lg font-semibold">Watch</h2>
       </div>

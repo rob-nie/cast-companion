@@ -27,8 +27,10 @@ const Dashboard = () => {
       </div>
       
       <div className="flex flex-col gap-6 h-full">
-        <WatchTile showLiveNotes={showLiveNotes} />
-        <div className="flex-1">
+        <div className="flex-shrink-0">
+          <WatchTile showLiveNotes={showLiveNotes} />
+        </div>
+        <div className="flex-1 overflow-hidden">
           <MessengerTile />
         </div>
       </div>
