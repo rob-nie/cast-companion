@@ -27,7 +27,6 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
     addNote({
       projectId: currentProject.id,
       content: '',
-      timestamp: new Date(),
       stopwatchTime: elapsedTime,
       isLiveNote: true,
     });
@@ -38,7 +37,6 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
       addNote({
         projectId: currentProject.id,
         content: newNote,
-        timestamp: new Date(),
         stopwatchTime: elapsedTime,
         isLiveNote: true,
       });
