@@ -1,5 +1,6 @@
 
 import React, { useRef, useEffect } from 'react';
+import { useTheme } from '@/context/ThemeContext';
 
 interface RichTextEditorProps {
   initialContent: string;
@@ -9,13 +10,44 @@ interface RichTextEditorProps {
 
 const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   // Initialize editor with content
   useEffect(() => {
     if (editorRef.current) {
-      editorRef.current.innerHTML = initialContent;
+      editorRef.current.innerHTML = initialContent || '';
+      
+      // Set text color based on theme
+      const color = theme === 'dark' ? 'white' : 'black';
+      editorRef.current.style.color = color;
     }
-  }, [initialContent]);
+  }, [initialContent, theme]);
+
+  // Normalize pasted content to use theme colors
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (readOnly) return;
+      
+      e.preventDefault();
+      
+      // Get plain text
+      const text = e.clipboardData?.getData('text/plain') || '';
+      
+      // Insert at cursor position
+      document.execCommand('insertText', false, text);
+    };
+    
+    const editorElement = editorRef.current;
+    if (editorElement) {
+      editorElement.addEventListener('paste', handlePaste);
+    }
+    
+    return () => {
+      if (editorElement) {
+        editorElement.removeEventListener('paste', handlePaste);
+      }
+    };
+  }, [readOnly]);
 
   const handleInput = () => {
     if (editorRef.current && !readOnly) {
@@ -107,7 +139,10 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
         contentEditable={!readOnly}
         onInput={handleInput}
         className={`flex-1 p-4 overflow-auto focus:outline-none ${readOnly ? 'cursor-default' : ''}`}
-        style={{ minHeight: '10rem' }}
+        style={{ 
+          minHeight: '10rem',
+          color: theme === 'dark' ? 'white' : 'black'
+        }}
       />
     </div>
   );

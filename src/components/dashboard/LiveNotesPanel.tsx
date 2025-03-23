@@ -17,30 +17,22 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   const { liveNotes, addNote, updateNote, deleteNote, exportLiveNotesAsCSV } = useNotes();
   const { elapsedTime, formatStopwatchTime } = useWatch();
   
-  const [newNote, setNewNote] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
 
   if (!currentProject) return null;
 
   const handleAddEmptyNote = () => {
-    addNote({
+    const note = addNote({
       projectId: currentProject.id,
       content: '',
       stopwatchTime: elapsedTime,
       isLiveNote: true,
     });
-  };
-  
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      addNote({
-        projectId: currentProject.id,
-        content: newNote,
-        stopwatchTime: elapsedTime,
-        isLiveNote: true,
-      });
-      setNewNote('');
+    // Auto-enter edit mode for the new note
+    if (note?.id) {
+      setEditingNoteId(note.id);
+      setEditingContent('');
     }
   };
   
@@ -66,6 +58,13 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
     deleteNote(noteId);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveEditedNote();
+    }
+  };
+
   const handleExportCSV = () => {
     if (!currentProject) return;
     
@@ -85,18 +84,18 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
     document.body.removeChild(link);
   };
 
+  // Sort notes - newest at the bottom (higher stopwatchTime)
+  const sortedNotes = [...liveNotes].sort((a, b) => (a.stopwatchTime || 0) - (b.stopwatchTime || 0));
+
   return (
     <div className={cn('flex flex-col h-full', className)}>
       <div className="flex items-center justify-between mb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1"
-          onClick={handleAddEmptyNote}
-        >
-          <Plus className="h-4 w-4" />
-          New Live Note
-        </Button>
+        <div className="invisible">
+          {/* Placeholder to maintain layout with button on right */}
+          <Button variant="outline" size="sm" className="opacity-0">
+            Placeholder
+          </Button>
+        </div>
         
         <Button
           variant="outline"
@@ -111,65 +110,64 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
       </div>
 
       <div className="flex-1 overflow-auto mb-4 border border-border/40 rounded-md">
-        {liveNotes.length > 0 ? (
+        {sortedNotes.length > 0 ? (
           <div className="divide-y divide-border/30">
-            {liveNotes
-              .sort((a, b) => (b.stopwatchTime || 0) - (a.stopwatchTime || 0))
-              .map((note) => (
-                <div
-                  key={note.id}
-                  className="p-3 hover:bg-muted/20 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        {note.stopwatchTime !== undefined
-                          ? formatStopwatchTime(note.stopwatchTime)
-                          : 'No timestamp'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6" 
-                        onClick={() => startEditingNote(note.id, note.content)}
-                      >
-                        <Edit className="h-3 w-3" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 text-destructive hover:text-destructive" 
-                        onClick={() => handleDeleteNote(note.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
+            {sortedNotes.map((note) => (
+              <div
+                key={note.id}
+                className="p-3 hover:bg-muted/20 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>
+                      {note.stopwatchTime !== undefined
+                        ? formatStopwatchTime(note.stopwatchTime)
+                        : 'No timestamp'}
+                    </span>
                   </div>
                   
-                  {editingNoteId === note.id ? (
-                    <div className="flex flex-col gap-2">
-                      <Input
-                        value={editingContent}
-                        onChange={(e) => setEditingContent(e.target.value)}
-                        autoFocus
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveEditedNote}>Save</Button>
-                        <Button size="sm" variant="outline" onClick={cancelEditing}>Cancel</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm">{note.content}</p>
-                  )}
+                  <div className="flex gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6" 
+                      onClick={() => startEditingNote(note.id, note.content)}
+                    >
+                      <Edit className="h-3 w-3" />
+                      <span className="sr-only">Edit</span>
+                    </Button>
+                    
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 text-destructive hover:text-destructive" 
+                      onClick={() => handleDeleteNote(note.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </div>
                 </div>
-              ))}
+                
+                {editingNoteId === note.id ? (
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                      autoFocus
+                      onKeyDown={handleKeyDown}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={saveEditedNote}>Save</Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditing}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm">{note.content}</p>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground">
@@ -180,19 +178,15 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
         )}
       </div>
 
-      <div className="flex gap-2">
-        <Input
-          value={newNote}
-          onChange={(e) => setNewNote(e.target.value)}
-          placeholder="Add a note with current timestamp..."
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              handleAddNote();
-            }
-          }}
-        />
-        <Button onClick={handleAddNote} disabled={!newNote.trim()}>
-          Add
+      <div className="mt-auto">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-1"
+          onClick={handleAddEmptyNote}
+        >
+          <Plus className="h-4 w-4" />
+          New Live Note
         </Button>
       </div>
     </div>

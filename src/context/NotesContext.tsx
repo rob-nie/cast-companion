@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useProjects } from "./ProjectContext";
 
@@ -15,7 +14,7 @@ type NotesContextType = {
   notes: Note[];
   interviewNotes: Note | null;
   liveNotes: Note[];
-  addNote: (note: Omit<Note, "id" | "timestamp">) => void;
+  addNote: (note: Omit<Note, "id" | "timestamp">) => Note;
   updateNote: (id: string, updates: Partial<Omit<Note, "id">>) => void;
   deleteNote: (id: string) => void;
   exportLiveNotesAsCSV: (projectId: string) => string;
@@ -90,6 +89,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     };
     
     setNotes((prev) => [...prev, newNote]);
+    return newNote;
   };
 
   const updateNote = (id: string, updates: Partial<Omit<Note, "id">>) => {
@@ -105,6 +105,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const exportLiveNotesAsCSV = (projectId: string) => {
+    
     const projectNotes = notes.filter(
       (note) => note.projectId === projectId && note.isLiveNote
     );
