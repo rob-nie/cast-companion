@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { Play, Pause, RotateCcw, Clock } from 'lucide-react';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWatch } from '@/context/WatchContext';
 import { useProjects } from '@/context/ProjectContext';
@@ -41,14 +41,9 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
   
   return (
     <div className="tile flex flex-col p-3 w-full">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="text-lg font-semibold">Watch</h2>
-      </div>
-      
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col items-center">
           <div className="flex items-center justify-center">
-            <Clock className="h-4 w-4 mr-1 text-muted-foreground" />
             <span className="text-base font-mono tracking-tight">{timeDisplay}</span>
           </div>
           <div className="text-xs text-muted-foreground">

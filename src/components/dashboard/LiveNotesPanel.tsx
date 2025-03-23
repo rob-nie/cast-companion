@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { FileDown, Clock, MessageCircle } from 'lucide-react';
+import { FileDown, Clock, MessageCircle, Plus, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNotes } from '@/context/NotesContext';
@@ -14,13 +14,25 @@ interface LiveNotesPanelProps {
 
 const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   const { currentProject } = useProjects();
-  const { liveNotes, addNote, exportLiveNotesAsCSV } = useNotes();
+  const { liveNotes, addNote, updateNote, deleteNote, exportLiveNotesAsCSV } = useNotes();
   const { elapsedTime, formatStopwatchTime } = useWatch();
   
   const [newNote, setNewNote] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
 
   if (!currentProject) return null;
 
+  const handleAddEmptyNote = () => {
+    addNote({
+      projectId: currentProject.id,
+      content: '',
+      timestamp: new Date(),
+      stopwatchTime: elapsedTime,
+      isLiveNote: true,
+    });
+  };
+  
   const handleAddNote = () => {
     if (newNote.trim()) {
       addNote({
@@ -32,6 +44,28 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
       });
       setNewNote('');
     }
+  };
+  
+  const startEditingNote = (noteId: string, content: string) => {
+    setEditingNoteId(noteId);
+    setEditingContent(content);
+  };
+  
+  const saveEditedNote = () => {
+    if (editingNoteId) {
+      updateNote(editingNoteId, { content: editingContent });
+      setEditingNoteId(null);
+      setEditingContent('');
+    }
+  };
+  
+  const cancelEditing = () => {
+    setEditingNoteId(null);
+    setEditingContent('');
+  };
+  
+  const handleDeleteNote = (noteId: string) => {
+    deleteNote(noteId);
   };
 
   const handleExportCSV = () => {
@@ -56,7 +90,16 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   return (
     <div className={cn('flex flex-col h-full', className)}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Live Notes</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1"
+          onClick={handleAddEmptyNote}
+        >
+          <Plus className="h-4 w-4" />
+          New Live Note
+        </Button>
+        
         <Button
           variant="outline"
           size="sm"
@@ -79,15 +122,54 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
                   key={note.id}
                   className="p-3 hover:bg-muted/20 transition-colors"
                 >
-                  <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      {note.stopwatchTime !== undefined
-                        ? formatStopwatchTime(note.stopwatchTime)
-                        : 'No timestamp'}
-                    </span>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        {note.stopwatchTime !== undefined
+                          ? formatStopwatchTime(note.stopwatchTime)
+                          : 'No timestamp'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6" 
+                        onClick={() => startEditingNote(note.id, note.content)}
+                      >
+                        <Edit className="h-3 w-3" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-destructive hover:text-destructive" 
+                        onClick={() => handleDeleteNote(note.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
                   </div>
-                  <p className="text-sm">{note.content}</p>
+                  
+                  {editingNoteId === note.id ? (
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={saveEditedNote}>Save</Button>
+                        <Button size="sm" variant="outline" onClick={cancelEditing}>Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm">{note.content}</p>
+                  )}
                 </div>
               ))}
           </div>
@@ -95,7 +177,7 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
           <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground">
             <MessageCircle className="h-8 w-8 mb-2 opacity-30" />
             <p>No live notes yet</p>
-            <p className="text-sm">Use the form below to add notes during the interview</p>
+            <p className="text-sm">Add notes during the interview</p>
           </div>
         )}
       </div>

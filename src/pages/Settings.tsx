@@ -20,9 +20,9 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="appearance" className="w-full">
-          <TabsList className="w-full max-w-md mb-6">
+          <TabsList className="grid grid-cols-2 w-full max-w-md mb-6">
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
-            <TabsTrigger value="quick-phrases" className="flex items-center gap-1">
+            <TabsTrigger value="quick-phrases" className="flex items-center justify-center gap-1">
               <MessageSquare className="h-4 w-4" />
               <span>Quick Phrases</span>
             </TabsTrigger>

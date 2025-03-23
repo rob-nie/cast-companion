@@ -1,7 +1,5 @@
 
 import React, { useRef, useEffect } from 'react';
-import { useNotes } from '@/context/NotesContext';
-import { useProjects } from '@/context/ProjectContext';
 
 interface RichTextEditorProps {
   initialContent: string;
@@ -25,11 +23,17 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     }
   };
 
-  // Simple formatting actions
+  // Formatting actions
   const formatText = (command: string, value: string = '') => {
     if (readOnly) return;
-    document.execCommand(command, false, value);
+    
+    // Focus the editor before applying formatting
     editorRef.current?.focus();
+    
+    // Execute the command
+    document.execCommand(command, false, value);
+    
+    // Update content after formatting
     handleInput();
   };
 

@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { Check, Star, StarOff, Send, MessageSquare, Flag, FlagOff } from 'lucide-react';
+import { Check, Send, MessageSquare, Flag, FlagOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMessages } from '@/context/MessagesContext';
@@ -56,38 +56,9 @@ const MessengerTile = () => {
   
   return (
     <div className="tile flex flex-col h-full">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-semibold">Messenger</h2>
-        {userQuickPhrases.length > 0 && (
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => setShowQuickPhrases(!showQuickPhrases)}
-            className="text-xs h-8 px-2"
-          >
-            {showQuickPhrases ? 'Hide' : 'Quick Phrases'}
-          </Button>
-        )}
-      </div>
-      
-      {showQuickPhrases && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {userQuickPhrases.map((phrase) => (
-            <Badge 
-              key={phrase.id}
-              variant="outline"
-              className="cursor-pointer hover:bg-secondary transition-colors py-1.5"
-              onClick={() => handleSendMessage(phrase.content)}
-            >
-              {phrase.content}
-            </Badge>
-          ))}
-        </div>
-      )}
-      
       <ScrollArea className="flex-1 pr-3 mb-3">
         {currentMessages.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {currentMessages.map((message) => {
               const isOwnMessage = message.sender === CURRENT_USER;
               
@@ -105,13 +76,13 @@ const MessengerTile = () => {
                           "max-w-[80%] rounded-lg px-3 py-2 text-sm",
                           isOwnMessage 
                             ? message.isImportant 
-                              ? "bg-primary text-primary-foreground border border-red-400" 
-                              : "bg-primary text-primary-foreground"
+                              ? "bg-important text-white border border-important/20 animate-pulse-subtle" 
+                              : "bg-secondary/80 text-secondary-foreground"
                             : message.isImportant
                               ? "bg-important text-white border border-important/20 animate-pulse-subtle"
                               : message.isRead
                                 ? "bg-read text-secondary-foreground/80"
-                                : "bg-secondary text-secondary-foreground"
+                                : "bg-muted/50 text-secondary-foreground"
                         )}
                       >
                         <p>{message.content}</p>
@@ -128,54 +99,51 @@ const MessengerTile = () => {
                         </div>
                       </div>
                       
-                      {!isOwnMessage && (
-                        <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1">
+                        {!isOwnMessage && !message.isRead && (
                           <Button
                             size="icon"
                             variant="ghost"
                             className="h-6 w-6"
                             onClick={() => markAsRead(message.id)}
-                            disabled={message.isRead}
                             title="Mark as read"
                           >
                             <Check className="h-3 w-3" />
                             <span className="sr-only">Mark as read</span>
                           </Button>
-                          
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6"
-                            onClick={() => toggleImportant(message.id)}
-                            title={message.isImportant ? "Remove importance" : "Mark as important"}
-                          >
-                            {message.isImportant ? (
-                              <FlagOff className="h-3 w-3" />
-                            ) : (
-                              <Flag className="h-3 w-3" />
-                            )}
-                            <span className="sr-only">Toggle importance</span>
-                          </Button>
-                        </div>
-                      )}
+                        )}
+                        
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => toggleImportant(message.id)}
+                          title={message.isImportant ? "Remove importance" : "Mark as important"}
+                        >
+                          {message.isImportant ? (
+                            <FlagOff className="h-3 w-3" />
+                          ) : (
+                            <Flag className="h-3 w-3" />
+                          )}
+                          <span className="sr-only">Toggle importance</span>
+                        </Button>
+                      </div>
                     </div>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
-                    {isOwnMessage && (
-                      <ContextMenuItem onClick={() => toggleImportant(message.id)}>
-                        {message.isImportant ? (
-                          <>
-                            <FlagOff className="h-4 w-4 mr-2" />
-                            Remove importance
-                          </>
-                        ) : (
-                          <>
-                            <Flag className="h-4 w-4 mr-2" />
-                            Mark as important
-                          </>
-                        )}
-                      </ContextMenuItem>
-                    )}
+                    <ContextMenuItem onClick={() => toggleImportant(message.id)}>
+                      {message.isImportant ? (
+                        <>
+                          <FlagOff className="h-4 w-4 mr-2" />
+                          Remove importance
+                        </>
+                      ) : (
+                        <>
+                          <Flag className="h-4 w-4 mr-2" />
+                          Mark as important
+                        </>
+                      )}
+                    </ContextMenuItem>
                     {!isOwnMessage && !message.isRead && (
                       <ContextMenuItem onClick={() => markAsRead(message.id)}>
                         <Check className="h-4 w-4 mr-2" />
@@ -198,20 +166,6 @@ const MessengerTile = () => {
       </ScrollArea>
       
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <Checkbox 
-            id="mark-important"
-            checked={isImportant}
-            onCheckedChange={(checked) => setIsImportant(checked === true)}
-          />
-          <label 
-            htmlFor="mark-important" 
-            className="text-sm cursor-pointer"
-          >
-            Mark as important
-          </label>
-        </div>
-        
         <div className="flex gap-2">
           <Input
             value={newMessage}
@@ -229,6 +183,48 @@ const MessengerTile = () => {
             <span className="sr-only">Send</span>
           </Button>
         </div>
+        
+        <div className="flex items-center gap-2">
+          <Checkbox 
+            id="mark-important"
+            checked={isImportant}
+            onCheckedChange={(checked) => setIsImportant(checked === true)}
+          />
+          <label 
+            htmlFor="mark-important" 
+            className="text-sm cursor-pointer"
+          >
+            Mark as important
+          </label>
+        </div>
+        
+        {userQuickPhrases.length > 0 && (
+          <div className="mt-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setShowQuickPhrases(!showQuickPhrases)}
+              className="text-xs h-7 px-2 mb-1"
+            >
+              {showQuickPhrases ? 'Hide Quick Phrases' : 'Show Quick Phrases'}
+            </Button>
+            
+            {showQuickPhrases && (
+              <div className="flex flex-wrap gap-2">
+                {userQuickPhrases.map((phrase) => (
+                  <Badge 
+                    key={phrase.id}
+                    variant="outline"
+                    className="cursor-pointer hover:bg-secondary transition-colors py-1.5"
+                    onClick={() => handleSendMessage(phrase.content)}
+                  >
+                    {phrase.content}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
