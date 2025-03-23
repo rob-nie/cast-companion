@@ -26,14 +26,11 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             className={cn(
               "max-w-[80%] rounded-lg px-3 py-2 text-sm",
               isOwnMessage 
-                ? message.isImportant 
-                  ? "bg-important text-white border border-important/20" 
-                  : "bg-secondary text-secondary-foreground"
-                : message.isImportant
-                  ? "bg-important text-white border border-important/20"
-                  : message.isRead
-                    ? "bg-read text-secondary-foreground/80"
-                    : "bg-muted text-secondary-foreground"
+                ? "bg-secondary text-secondary-foreground"
+                : message.isRead
+                  ? "bg-read text-secondary-foreground/80"
+                  : "bg-muted text-secondary-foreground",
+              message.isImportant && "border-2 border-important/70"
             )}
           >
             <p className="break-words">{message.content}</p>
@@ -45,12 +42,12 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
               )}
               
               {message.isImportant && (
-                <Flag className="h-3 w-3 text-red-400" />
+                <Flag className="h-3 w-3 text-important/80" />
               )}
             </div>
           </div>
           
-          {/* Controls - mark important only for own messages */}
+          {/* Controls */}
           <div className="flex flex-col gap-1">
             {!isOwnMessage && !message.isRead && (
               <Button
@@ -65,6 +62,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
               </Button>
             )}
             
+            {/* Only allow marking messages as important by the sender */}
             {isOwnMessage && (
               <Button
                 size="icon"
@@ -84,6 +82,8 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
           </div>
         </div>
       </ContextMenuTrigger>
+      
+      {/* Context menu - only show toggle important for sender */}
       {isOwnMessage && (
         <ContextMenuContent>
           <ContextMenuItem onClick={() => toggleImportant(message.id)}>

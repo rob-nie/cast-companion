@@ -36,6 +36,7 @@ const MessengerTile = () => {
   
   return (
     <div className="tile flex flex-col h-full">
+      {/* This is the fixed height container for messages */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <MessageList 
           messages={currentMessages}
@@ -45,7 +46,8 @@ const MessengerTile = () => {
         />
       </div>
       
-      <div className="mt-auto">
+      {/* Message input positioned at the bottom */}
+      <div className="mt-auto pt-2 border-t border-border/30">
         <MessageInput onSendMessage={handleSendMessage} />
         
         <QuickPhrases 

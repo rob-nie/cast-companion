@@ -36,7 +36,7 @@ const MessageInput = ({ onSendMessage }: MessageInputProps) => {
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type a message..."
           onKeyDown={handleKeyDown}
-          className="flex-1 min-h-[2.5rem] max-h-[8rem] resize-none"
+          className="flex-1 min-h-[2.5rem] max-h-[8rem] resize-y"
           rows={1}
         />
         <Button 

@@ -16,7 +16,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  // Auto-scroll to latest message
+  // Auto-scroll to latest message whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -33,7 +33,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
 
   return (
     <ScrollArea className="h-full pr-2 mb-2" ref={scrollAreaRef}>
-      <div className="space-y-0">
+      <div className="space-y-0 py-2">
         {messages.map((message) => {
           const isOwnMessage = message.sender === currentUserId;
           
