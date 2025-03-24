@@ -13,6 +13,16 @@ interface MessageProps {
 }
 
 const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }: MessageProps) => {
+  // Handle mark as read
+  const handleMarkAsRead = () => {
+    markAsRead(message.id);
+  };
+  
+  // Handle toggle important
+  const handleToggleImportant = () => {
+    toggleImportant(message.id);
+  };
+  
   return (
     <ContextMenu>
       <ContextMenuTrigger>
@@ -54,7 +64,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
                 size="icon"
                 variant="ghost"
                 className="h-6 w-6"
-                onClick={() => markAsRead(message.id)}
+                onClick={handleMarkAsRead}
                 title="Mark as read"
               >
                 <Check className="h-3 w-3" />
@@ -68,7 +78,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
                 size="icon"
                 variant="ghost"
                 className="h-6 w-6"
-                onClick={() => toggleImportant(message.id)}
+                onClick={handleToggleImportant}
                 title={message.isImportant ? "Remove importance" : "Mark as important"}
               >
                 {message.isImportant ? (
@@ -86,7 +96,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
       {/* Context menu - only show toggle important for sender */}
       {isOwnMessage && (
         <ContextMenuContent>
-          <ContextMenuItem onClick={() => toggleImportant(message.id)}>
+          <ContextMenuItem onClick={handleToggleImportant}>
             {message.isImportant ? (
               <>
                 <FlagOff className="h-4 w-4 mr-2" />
@@ -103,7 +113,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
       )}
       {!isOwnMessage && !message.isRead && (
         <ContextMenuContent>
-          <ContextMenuItem onClick={() => markAsRead(message.id)}>
+          <ContextMenuItem onClick={handleMarkAsRead}>
             <Check className="h-4 w-4 mr-2" />
             Mark as read
           </ContextMenuItem>

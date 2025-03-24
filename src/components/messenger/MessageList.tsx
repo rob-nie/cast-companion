@@ -59,14 +59,24 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
     const message = messages[index];
     const isOwnMessage = message.sender === currentUserId;
     
+    // Handle mark as read for this specific message
+    const handleMarkAsRead = (id: string) => {
+      markAsRead(id);
+    };
+    
+    // Handle toggle important for this specific message
+    const handleToggleImportant = (id: string) => {
+      toggleImportant(id);
+    };
+    
     return (
       <div style={style}>
         <MessageComponent 
           key={message.id}
           message={message}
           isOwnMessage={isOwnMessage}
-          markAsRead={markAsRead}
-          toggleImportant={toggleImportant}
+          markAsRead={handleMarkAsRead}
+          toggleImportant={handleToggleImportant}
         />
       </div>
     );
