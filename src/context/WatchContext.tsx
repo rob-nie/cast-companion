@@ -1,65 +1,107 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-type WatchContextType = {
+type ProjectStopwatch = {
   isRunning: boolean;
   startTime: number | null;
   elapsedTime: number;
+};
+
+type WatchContextType = {
+  projectStopwatches: Record<string, ProjectStopwatch>;
   currentTime: Date;
-  startStopwatch: () => void;
-  stopStopwatch: () => void;
-  resetStopwatch: () => void;
+  startStopwatch: (projectId: string) => void;
+  stopStopwatch: (projectId: string) => void;
+  resetStopwatch: (projectId: string) => void;
   formatStopwatchTime: (timeMs: number) => string;
+  getProjectStopwatch: (projectId: string) => ProjectStopwatch;
 };
 
 const WatchContext = createContext<WatchContextType | undefined>(undefined);
 
+const defaultStopwatch: ProjectStopwatch = {
+  isRunning: false,
+  startTime: null,
+  elapsedTime: 0,
+};
+
 export const WatchProvider = ({ children }: { children: ReactNode }) => {
-  const [isRunning, setIsRunning] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [projectStopwatches, setProjectStopwatches] = useState<Record<string, ProjectStopwatch>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Update current time every second
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
+      
+      // Update all running stopwatches
+      setProjectStopwatches(prev => {
+        const updated = { ...prev };
+        let hasChanges = false;
+        
+        Object.entries(updated).forEach(([projectId, stopwatch]) => {
+          if (stopwatch.isRunning && stopwatch.startTime) {
+            updated[projectId] = {
+              ...stopwatch,
+              elapsedTime: Date.now() - stopwatch.startTime
+            };
+            hasChanges = true;
+          }
+        });
+        
+        return hasChanges ? updated : prev;
+      });
     }, 1000);
+    
     return () => clearInterval(interval);
   }, []);
 
-  // Update stopwatch when running
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isRunning && startTime) {
-      interval = setInterval(() => {
-        setElapsedTime(Date.now() - startTime);
-      }, 1000); // Update every second since we don't need milliseconds
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRunning, startTime]);
-
-  const startStopwatch = () => {
-    if (!isRunning) {
-      setIsRunning(true);
-      setStartTime(Date.now() - elapsedTime);
-    }
+  const getProjectStopwatch = (projectId: string): ProjectStopwatch => {
+    return projectStopwatches[projectId] || defaultStopwatch;
   };
 
-  const stopStopwatch = () => {
-    if (isRunning) {
-      setIsRunning(false);
-    }
+  const startStopwatch = (projectId: string) => {
+    setProjectStopwatches(prev => {
+      const current = prev[projectId] || defaultStopwatch;
+      
+      if (current.isRunning) return prev;
+      
+      return {
+        ...prev,
+        [projectId]: {
+          ...current,
+          isRunning: true,
+          startTime: Date.now() - current.elapsedTime
+        }
+      };
+    });
   };
 
-  const resetStopwatch = () => {
-    setIsRunning(false);
-    setElapsedTime(0);
-    setStartTime(null);
+  const stopStopwatch = (projectId: string) => {
+    setProjectStopwatches(prev => {
+      const current = prev[projectId] || defaultStopwatch;
+      
+      if (!current.isRunning) return prev;
+      
+      return {
+        ...prev,
+        [projectId]: {
+          ...current,
+          isRunning: false
+        }
+      };
+    });
+  };
+
+  const resetStopwatch = (projectId: string) => {
+    setProjectStopwatches(prev => ({
+      ...prev,
+      [projectId]: {
+        isRunning: false,
+        startTime: null,
+        elapsedTime: 0
+      }
+    }));
   };
 
   const formatStopwatchTime = (timeMs: number) => {
@@ -74,14 +116,13 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
   return (
     <WatchContext.Provider
       value={{
-        isRunning,
-        startTime,
-        elapsedTime,
+        projectStopwatches,
         currentTime,
         startStopwatch,
         stopStopwatch,
         resetStopwatch,
         formatStopwatchTime,
+        getProjectStopwatch,
       }}
     >
       {children}

@@ -12,14 +12,14 @@ interface WatchTileProps {
 const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
   const { currentProject } = useProjects();
   const { 
-    isRunning, 
-    elapsedTime, 
+    getProjectStopwatch,
     startStopwatch, 
     stopStopwatch, 
     resetStopwatch, 
     formatStopwatchTime,
     currentTime
   } = useWatch();
+  
   const [timeDisplay, setTimeDisplay] = useState('');
   
   // Update clock display every second
@@ -38,21 +38,44 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
     month: 'short',
     day: 'numeric'
   });
+
+  // Use a default project id if none is selected
+  const projectId = currentProject?.id || 'default';
+  const stopwatch = getProjectStopwatch(projectId);
+  const { isRunning, elapsedTime } = stopwatch;
+  
+  const handleStart = () => {
+    if (currentProject) {
+      startStopwatch(currentProject.id);
+    }
+  };
+  
+  const handleStop = () => {
+    if (currentProject) {
+      stopStopwatch(currentProject.id);
+    }
+  };
+  
+  const handleReset = () => {
+    if (currentProject) {
+      resetStopwatch(currentProject.id);
+    }
+  };
   
   return (
     <div className="tile flex flex-col p-3 w-full">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col items-center">
+      <div className="grid grid-cols-2 gap-3 h-full items-center">
+        <div className="flex flex-col items-center justify-center">
           <div className="flex items-center justify-center">
-            <span className="text-base font-mono tracking-tight">{timeDisplay}</span>
+            <span className="text-base font-sans tracking-tight">{timeDisplay}</span>
           </div>
           <div className="text-xs text-muted-foreground">
             {currentDateStr}
           </div>
         </div>
         
-        <div className="flex flex-col items-center">
-          <div className="text-xl font-mono font-bold tracking-tight">
+        <div className="flex flex-col items-center justify-center">
+          <div className="text-xl font-sans font-bold tracking-tight">
             {formatStopwatchTime(elapsedTime)}
           </div>
           
@@ -61,7 +84,7 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={stopStopwatch}
+                onClick={handleStop}
                 className="h-8 w-8 rounded-full transition-all duration-300"
               >
                 <Pause className="h-4 w-4" />
@@ -71,7 +94,7 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
               <Button
                 variant="default"
                 size="icon"
-                onClick={startStopwatch}
+                onClick={handleStart}
                 className={`h-8 w-8 rounded-full transition-all duration-300 ${elapsedTime > 0 ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
               >
                 <Play className="h-4 w-4" />
@@ -82,7 +105,7 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
             <Button
               variant="outline"
               size="icon"
-              onClick={resetStopwatch}
+              onClick={handleReset}
               disabled={elapsedTime === 0}
               className="h-8 w-8 rounded-full transition-all duration-300"
             >
