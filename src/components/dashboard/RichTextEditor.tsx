@@ -26,6 +26,45 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     onChange(value);
   };
 
+  // Configure clipboard handling for better formatted text support
+  useEffect(() => {
+    if (quillRef.current && !readOnly) {
+      const quillEditor = quillRef.current.getEditor();
+      
+      // Handle paste events to preserve formatting from clipboard
+      const handlePaste = function(e: ClipboardEvent) {
+        if (e.clipboardData) {
+          // Try to get HTML content from clipboard first
+          const html = e.clipboardData.getData('text/html');
+          
+          if (html) {
+            // If HTML is available, prevent default paste behavior
+            e.preventDefault();
+            
+            // Get current cursor position
+            const range = quillEditor.getSelection();
+            
+            if (range) {
+              // Insert the HTML content at cursor position
+              quillEditor.clipboard.dangerouslyPasteHTML(range.index, html);
+            }
+          }
+        }
+      };
+      
+      // Get the editor element
+      const editorElement = quillEditor.root;
+      
+      // Add event listener for paste events
+      editorElement.addEventListener('paste', handlePaste);
+      
+      // Clean up event listener when component unmounts
+      return () => {
+        editorElement.removeEventListener('paste', handlePaste);
+      };
+    }
+  }, [readOnly]);
+
   // Toolbar configuration
   const modules = {
     toolbar: readOnly ? false : [
@@ -34,6 +73,10 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       [{'list': 'ordered'}, {'list': 'bullet'}],
       ['clean']
     ],
+    clipboard: {
+      // Use custom matcher for better clipboard handling
+      matchVisual: false,
+    },
   };
 
   // Format options
