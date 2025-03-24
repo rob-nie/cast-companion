@@ -1,6 +1,9 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { useTheme } from '@/context/ThemeContext';
+import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
   initialContent: string;
@@ -9,140 +12,95 @@ interface RichTextEditorProps {
 }
 
 const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichTextEditorProps) => {
-  const editorRef = useRef<HTMLDivElement>(null);
+  const [content, setContent] = useState(initialContent);
   const { theme } = useTheme();
+  const quillRef = useRef<ReactQuill>(null);
 
-  // Initialize editor with content
+  // Update content when initialContent changes (e.g., when switching projects)
   useEffect(() => {
-    if (editorRef.current) {
-      editorRef.current.innerHTML = initialContent || '';
-      
-      // Set text color based on theme
-      const color = theme === 'dark' ? 'white' : 'black';
-      editorRef.current.style.color = color;
-    }
-  }, [initialContent, theme]);
+    setContent(initialContent);
+  }, [initialContent]);
 
-  // Normalize pasted content to use theme colors
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      if (readOnly) return;
-      
-      e.preventDefault();
-      
-      // Get plain text
-      const text = e.clipboardData?.getData('text/plain') || '';
-      
-      // Insert at cursor position
-      document.execCommand('insertText', false, text);
-    };
-    
-    const editorElement = editorRef.current;
-    if (editorElement) {
-      editorElement.addEventListener('paste', handlePaste);
-    }
-    
-    return () => {
-      if (editorElement) {
-        editorElement.removeEventListener('paste', handlePaste);
-      }
-    };
-  }, [readOnly]);
-
-  const handleInput = () => {
-    if (editorRef.current && !readOnly) {
-      onChange(editorRef.current.innerHTML);
-    }
+  const handleChange = (value: string) => {
+    setContent(value);
+    onChange(value);
   };
 
-  // Formatting actions
-  const formatText = (command: string, value: string = '') => {
-    if (readOnly) return;
-    
-    // Focus the editor before applying formatting
-    editorRef.current?.focus();
-    
-    // Execute the command
-    document.execCommand(command, false, value);
-    
-    // Update content after formatting
-    handleInput();
+  // Toolbar configuration
+  const modules = {
+    toolbar: readOnly ? false : [
+      [{ 'header': [1, 2, false] }],
+      ['bold', 'italic', 'underline'],
+      [{'list': 'ordered'}, {'list': 'bullet'}],
+      ['clean']
+    ],
   };
+
+  // Format options
+  const formats = [
+    'header',
+    'bold', 'italic', 'underline',
+    'list', 'bullet'
+  ];
+
+  // Add custom theme classes
+  const editorClass = cn(
+    'flex-1 overflow-auto focus:outline-none rounded-md',
+    theme === 'dark' 
+      ? 'text-white quill-dark' 
+      : 'text-black quill-light',
+    readOnly ? 'quill-readonly' : ''
+  );
 
   return (
     <div className="flex flex-col h-full">
-      {!readOnly && (
-        <div className="flex flex-wrap gap-1 mb-2 p-2 border-b border-border/60 bg-secondary/50 rounded-t-md">
-          <button
-            onClick={() => formatText('bold')}
-            className="p-1.5 rounded hover:bg-secondary/80 focus-ring text-foreground/80"
-            title="Bold"
-            type="button"
-          >
-            <span className="font-bold">B</span>
-          </button>
-          <button
-            onClick={() => formatText('italic')}
-            className="p-1.5 rounded hover:bg-secondary/80 focus-ring text-foreground/80"
-            title="Italic"
-            type="button"
-          >
-            <span className="italic">I</span>
-          </button>
-          <button
-            onClick={() => formatText('underline')}
-            className="p-1.5 rounded hover:bg-secondary/80 focus-ring text-foreground/80"
-            title="Underline"
-            type="button"
-          >
-            <span className="underline">U</span>
-          </button>
-          <span className="mx-1 text-border">|</span>
-          <button
-            onClick={() => formatText('formatBlock', '<h1>')}
-            className="p-1.5 rounded hover:bg-secondary/80 focus-ring text-foreground/80"
-            title="Heading 1"
-            type="button"
-          >
-            H1
-          </button>
-          <button
-            onClick={() => formatText('formatBlock', '<h2>')}
-            className="p-1.5 rounded hover:bg-secondary/80 focus-ring text-foreground/80"
-            title="Heading 2"
-            type="button"
-          >
-            H2
-          </button>
-          <span className="mx-1 text-border">|</span>
-          <button
-            onClick={() => formatText('insertUnorderedList')}
-            className="p-1.5 rounded hover:bg-secondary/80 focus-ring text-foreground/80"
-            title="Bullet List"
-            type="button"
-          >
-            • List
-          </button>
-          <button
-            onClick={() => formatText('insertOrderedList')}
-            className="p-1.5 rounded hover:bg-secondary/80 focus-ring text-foreground/80"
-            title="Numbered List"
-            type="button"
-          >
-            1. List
-          </button>
-        </div>
-      )}
+      <style jsx>{`
+        /* Global styles for Quill editor based on theme */
+        .quill-dark .ql-toolbar {
+          background-color: #2d3748;
+          border-color: #4a5568;
+        }
+        
+        .quill-dark .ql-container {
+          border-color: #4a5568;
+        }
+        
+        .quill-dark .ql-editor {
+          color: white;
+        }
+        
+        .quill-dark .ql-snow .ql-stroke {
+          stroke: #e2e8f0;
+        }
+        
+        .quill-dark .ql-snow .ql-fill {
+          fill: #e2e8f0;
+        }
+        
+        .quill-readonly .ql-toolbar {
+          display: none;
+        }
+        
+        /* Ensure editor takes full height */
+        .ql-container {
+          min-height: 10rem;
+          height: calc(100% - 42px); /* 42px is the approximate height of the toolbar */
+        }
+        
+        .quill-readonly .ql-container {
+          height: 100%;
+        }
+      `}</style>
       
-      <div 
-        ref={editorRef}
-        contentEditable={!readOnly}
-        onInput={handleInput}
-        className={`flex-1 p-4 overflow-auto focus:outline-none ${readOnly ? 'cursor-default' : ''}`}
-        style={{ 
-          minHeight: '10rem',
-          color: theme === 'dark' ? 'white' : 'black'
-        }}
+      <ReactQuill
+        ref={quillRef}
+        theme="snow"
+        value={content}
+        onChange={handleChange}
+        modules={modules}
+        formats={formats}
+        readOnly={readOnly}
+        className={editorClass}
       />
     </div>
   );
