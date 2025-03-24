@@ -54,7 +54,8 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
 
   return (
     <div className="flex flex-col h-full">
-      <style jsx>{`
+      <style>
+        {`
         /* Global styles for Quill editor based on theme */
         .quill-dark .ql-toolbar {
           background-color: #2d3748;
@@ -90,7 +91,8 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
         .quill-readonly .ql-container {
           height: 100%;
         }
-      `}</style>
+        `}
+      </style>
       
       <ReactQuill
         ref={quillRef}
