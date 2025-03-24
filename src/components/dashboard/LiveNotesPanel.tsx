@@ -17,18 +17,21 @@ interface LiveNotesPanelProps {
 const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   const { currentProject } = useProjects();
   const { liveNotes, addNote, updateNote, deleteNote, exportLiveNotesAsCSV } = useNotes();
-  const { elapsedTime, formatStopwatchTime } = useWatch();
+  const { getProjectStopwatch, formatStopwatchTime } = useWatch();
   
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
 
   if (!currentProject) return null;
+  
+  // Get the current project's stopwatch
+  const projectStopwatch = getProjectStopwatch(currentProject.id);
 
   const handleAddEmptyNote = () => {
     const note = addNote({
       projectId: currentProject.id,
       content: '',
-      stopwatchTime: elapsedTime,
+      stopwatchTime: projectStopwatch.elapsedTime,
       isLiveNote: true,
     });
     // Auto-enter edit mode for the new note
