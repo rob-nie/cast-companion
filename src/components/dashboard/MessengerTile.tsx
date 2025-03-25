@@ -22,6 +22,7 @@ const MessengerTile = () => {
   } = useMessages();
   const { toast } = useToast();
   const lastMessageCountRef = useRef(currentMessages.length);
+  const [showQuickPhrases, setShowQuickPhrases] = useState(true);
   
   // Track new messages for notification
   useEffect(() => {
@@ -67,8 +68,8 @@ const MessengerTile = () => {
   
   return (
     <div className="tile flex flex-col h-full">
-      {/* Message list with fixed height container */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      {/* Message list with fixed height container - taking remaining space */}
+      <div className="flex-1 overflow-hidden">
         <MessageList 
           messages={currentMessages}
           currentUserId={CURRENT_USER}
@@ -78,13 +79,24 @@ const MessengerTile = () => {
       </div>
       
       {/* Message input and quick phrases positioned at the bottom */}
-      <div className="mt-auto pt-3 border-t border-border/30">
+      <div className="mt-auto pt-3 border-t border-border/30 flex-shrink-0">
         <MessageInput onSendMessage={handleSendMessage} />
         
-        <QuickPhrases 
-          quickPhrases={userQuickPhrases}
-          onSelectPhrase={(content, isImportant) => handleSendMessage(content, isImportant)}
-        />
+        <div className="mt-2">
+          <button 
+            onClick={() => setShowQuickPhrases(!showQuickPhrases)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
+          >
+            {showQuickPhrases ? 'Quick Phrases ausblenden ▲' : 'Quick Phrases einblenden ▼'}
+          </button>
+          
+          {showQuickPhrases && (
+            <QuickPhrases 
+              quickPhrases={userQuickPhrases}
+              onSelectPhrase={(content, isImportant) => handleSendMessage(content, isImportant)}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

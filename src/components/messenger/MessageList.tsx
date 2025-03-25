@@ -53,7 +53,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground">
+      <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
         <MessageSquare className="h-8 w-8 mb-2 opacity-30" />
         <p>Noch keine Nachrichten</p>
         <p className="text-sm">Sende eine Nachricht, um zu beginnen</p>
