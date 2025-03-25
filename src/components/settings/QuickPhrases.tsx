@@ -4,7 +4,8 @@ import { PlusCircle, X, Pencil, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { useMessages, QuickPhrase } from '@/context/MessagesContext';
+import { useMessages } from '@/context/MessagesContext';
+import { QuickPhrase } from '@/types/messenger';
 
 // Mock user ID - would come from auth in a real app
 const CURRENT_USER = "user-1";
