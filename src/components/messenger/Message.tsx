@@ -13,13 +13,15 @@ interface MessageProps {
 }
 
 const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }: MessageProps) => {
-  // Handle mark as read
+  console.log('Message component rendered:', message.id, 'isRead:', message.isRead, 'isImportant:', message.isImportant);
+  
   const handleMarkAsRead = () => {
+    console.log('Marking as read:', message.id);
     markAsRead(message.id);
   };
   
-  // Handle toggle important
   const handleToggleImportant = () => {
+    console.log('Toggling important flag:', message.id, 'current state:', message.isImportant);
     toggleImportant(message.id);
   };
   

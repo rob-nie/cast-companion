@@ -19,6 +19,15 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
   const listRef = useRef<List>(null);
   const [listHeight, setListHeight] = useState(300); // Default height
   
+  // For debugging
+  useEffect(() => {
+    console.log('MessageList rendered with messages:', messages.map(m => ({
+      id: m.id, 
+      isRead: m.isRead, 
+      isImportant: m.isImportant
+    })));
+  }, [messages]);
+  
   // Update list height based on container size
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -59,24 +68,14 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
     const message = messages[index];
     const isOwnMessage = message.sender === currentUserId;
     
-    // Handle mark as read for this specific message
-    const handleMarkAsRead = (id: string) => {
-      markAsRead(id);
-    };
-    
-    // Handle toggle important for this specific message
-    const handleToggleImportant = (id: string) => {
-      toggleImportant(id);
-    };
-    
     return (
       <div style={style}>
         <MessageComponent 
           key={message.id}
           message={message}
           isOwnMessage={isOwnMessage}
-          markAsRead={handleMarkAsRead}
-          toggleImportant={handleToggleImportant}
+          markAsRead={markAsRead}
+          toggleImportant={toggleImportant}
         />
       </div>
     );

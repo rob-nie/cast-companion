@@ -1,22 +1,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useProjects } from "./ProjectContext";
-
-export type Message = {
-  id: string;
-  projectId: string;
-  sender: string;
-  content: string;
-  timestamp: Date;
-  isRead: boolean;
-  isImportant: boolean;
-};
-
-export type QuickPhrase = {
-  id: string;
-  userId: string;
-  content: string;
-};
+import { Message, QuickPhrase } from "@/types/messenger";
 
 type MessagesContextType = {
   messages: Message[];
@@ -115,19 +100,29 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const markAsRead = (id: string) => {
-    setMessages((prev) =>
-      prev.map((message) =>
+    console.log('MessagesContext: Marking message as read:', id);
+    setMessages((prev) => {
+      const updated = prev.map((message) =>
         message.id === id ? { ...message, isRead: true } : message
-      )
-    );
+      );
+      console.log('Updated messages after markAsRead:', 
+        updated.filter(m => m.id === id).map(m => ({ id: m.id, isRead: m.isRead }))
+      );
+      return updated;
+    });
   };
 
   const toggleImportant = (id: string) => {
-    setMessages((prev) =>
-      prev.map((message) =>
+    console.log('MessagesContext: Toggling message importance:', id);
+    setMessages((prev) => {
+      const updated = prev.map((message) =>
         message.id === id ? { ...message, isImportant: !message.isImportant } : message
-      )
-    );
+      );
+      console.log('Updated messages after toggleImportant:', 
+        updated.filter(m => m.id === id).map(m => ({ id: m.id, isImportant: m.isImportant }))
+      );
+      return updated;
+    });
   };
 
   const addQuickPhrase = (content: string, userId: string) => {

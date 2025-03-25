@@ -23,6 +23,17 @@ const MessengerTile = () => {
   
   const userQuickPhrases = getQuickPhrasesForUser(CURRENT_USER);
   
+  // Debug handler functions
+  const handleMarkAsRead = (id: string) => {
+    console.log('MessengerTile: marking message as read:', id);
+    markAsRead(id);
+  };
+  
+  const handleToggleImportant = (id: string) => {
+    console.log('MessengerTile: toggling message importance:', id);
+    toggleImportant(id);
+  };
+  
   const handleSendMessage = (content: string, isImportant: boolean) => {
     if (!content.trim() || !currentProject) return;
     
@@ -41,8 +52,8 @@ const MessengerTile = () => {
         <MessageList 
           messages={currentMessages}
           currentUserId={CURRENT_USER}
-          markAsRead={markAsRead}
-          toggleImportant={toggleImportant}
+          markAsRead={handleMarkAsRead}
+          toggleImportant={handleToggleImportant}
         />
       </div>
       
