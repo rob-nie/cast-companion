@@ -4,6 +4,7 @@ import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 
 interface MessageInputProps {
   onSendMessage: (content: string, isImportant: boolean) => void;
@@ -12,13 +13,20 @@ interface MessageInputProps {
 const MessageInput = ({ onSendMessage }: MessageInputProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [isImportant, setIsImportant] = useState(false);
+  const { toast } = useToast();
 
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
     
     onSendMessage(newMessage, isImportant);
     setNewMessage('');
-    setIsImportant(false);
+    
+    if (isImportant) {
+      toast({
+        description: "Wichtige Nachricht gesendet",
+      });
+      setIsImportant(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -34,7 +42,7 @@ const MessageInput = ({ onSendMessage }: MessageInputProps) => {
         <Textarea
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message..."
+          placeholder="Nachricht schreiben..."
           onKeyDown={handleKeyDown}
           className="flex-1 min-h-[2.5rem] max-h-[8rem] resize-y"
           rows={1}
@@ -46,7 +54,7 @@ const MessageInput = ({ onSendMessage }: MessageInputProps) => {
           className="h-auto"
         >
           <Send className="h-4 w-4" />
-          <span className="sr-only">Send</span>
+          <span className="sr-only">Senden</span>
         </Button>
       </div>
       
@@ -60,7 +68,7 @@ const MessageInput = ({ onSendMessage }: MessageInputProps) => {
           htmlFor="mark-important" 
           className="text-sm cursor-pointer"
         >
-          Mark as important
+          Als wichtig markieren
         </label>
       </div>
     </div>

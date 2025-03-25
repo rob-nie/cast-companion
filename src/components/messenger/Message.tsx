@@ -13,8 +13,6 @@ interface MessageProps {
 }
 
 const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }: MessageProps) => {
-  console.log('Message component rendered:', message.id, 'isRead:', message.isRead, 'isImportant:', message.isImportant);
-  
   const handleMarkAsRead = () => {
     console.log('Marking as read:', message.id);
     markAsRead(message.id);
@@ -28,23 +26,38 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
   return (
     <ContextMenu>
       <ContextMenuTrigger>
-        <div 
-          className={cn(
-            "flex gap-1 mb-3",
-            isOwnMessage ? "justify-end" : "justify-start"
+        <div className={cn(
+          "flex gap-2 mb-3",
+          isOwnMessage ? "justify-end" : "justify-start"
+        )}>
+          {/* Action buttons for non-sender, should appear before message for left alignment */}
+          {!isOwnMessage && (
+            <div className="flex flex-col justify-start gap-1 mt-1">
+              {!message.isRead && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleMarkAsRead}
+                  className="h-6 w-6"
+                  title="Als gelesen markieren"
+                >
+                  <Check className="h-3 w-3" />
+                  <span className="sr-only">Als gelesen markieren</span>
+                </Button>
+              )}
+            </div>
           )}
-        >
-          <div 
-            className={cn(
-              "max-w-[80%] rounded-lg px-3 py-2 text-sm",
-              isOwnMessage 
-                ? "bg-secondary text-secondary-foreground"
-                : message.isRead
-                  ? "bg-read text-secondary-foreground/80"
-                  : "bg-muted text-secondary-foreground",
-              message.isImportant && "border-2 border-important/70"
-            )}
-          >
+          
+          {/* Message bubble */}
+          <div className={cn(
+            "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+            isOwnMessage 
+              ? "bg-secondary text-secondary-foreground"
+              : message.isRead
+                ? "bg-muted/50 text-muted-foreground"
+                : "bg-muted text-secondary-foreground",
+            message.isImportant && "border-2 border-important/70"
+          )}>
             <p className="break-words">{message.content}</p>
             <div className="flex items-center justify-end mt-1 gap-1 text-[0.65rem] opacity-80">
               {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -59,68 +72,53 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             </div>
           </div>
           
-          {/* Controls - fixed pointer-events issues */}
-          <div className="flex flex-col gap-1">
-            {!isOwnMessage && !message.isRead && (
+          {/* Action buttons for sender, should appear after message for right alignment */}
+          {isOwnMessage && (
+            <div className="flex flex-col justify-start gap-1 mt-1">
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-6 w-6 pointer-events-auto"
-                onClick={handleMarkAsRead}
-                title="Mark as read"
-              >
-                <Check className="h-3 w-3 pointer-events-none" />
-                <span className="sr-only">Mark as read</span>
-              </Button>
-            )}
-            
-            {/* Only allow marking messages as important by the sender */}
-            {isOwnMessage && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 pointer-events-auto"
                 onClick={handleToggleImportant}
-                title={message.isImportant ? "Remove importance" : "Mark as important"}
+                className="h-6 w-6"
+                title={message.isImportant ? "Wichtig entfernen" : "Als wichtig markieren"}
               >
                 {message.isImportant ? (
-                  <FlagOff className="h-3 w-3 pointer-events-none" />
+                  <FlagOff className="h-3 w-3" />
                 ) : (
-                  <Flag className="h-3 w-3 pointer-events-none" />
+                  <Flag className="h-3 w-3" />
                 )}
-                <span className="sr-only">Toggle importance</span>
+                <span className="sr-only">Wichtig umschalten</span>
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </ContextMenuTrigger>
       
-      {/* Context menu - only show toggle important for sender */}
-      {isOwnMessage && (
-        <ContextMenuContent>
-          <ContextMenuItem onClick={handleToggleImportant} className="pointer-events-auto">
+      {/* Context menu */}
+      <ContextMenuContent>
+        {isOwnMessage ? (
+          <ContextMenuItem onClick={handleToggleImportant}>
             {message.isImportant ? (
               <>
-                <FlagOff className="h-4 w-4 mr-2 pointer-events-none" />
-                Remove importance
+                <FlagOff className="h-4 w-4 mr-2" />
+                Wichtig entfernen
               </>
             ) : (
               <>
-                <Flag className="h-4 w-4 mr-2 pointer-events-none" />
-                Mark as important
+                <Flag className="h-4 w-4 mr-2" />
+                Als wichtig markieren
               </>
             )}
           </ContextMenuItem>
-        </ContextMenuContent>
-      )}
-      {!isOwnMessage && !message.isRead && (
-        <ContextMenuContent>
-          <ContextMenuItem onClick={handleMarkAsRead} className="pointer-events-auto">
-            <Check className="h-4 w-4 mr-2 pointer-events-none" />
-            Mark as read
-          </ContextMenuItem>
-        </ContextMenuContent>
-      )}
+        ) : (
+          !message.isRead && (
+            <ContextMenuItem onClick={handleMarkAsRead}>
+              <Check className="h-4 w-4 mr-2" />
+              Als gelesen markieren
+            </ContextMenuItem>
+          )
+        )}
+      </ContextMenuContent>
     </ContextMenu>
   );
 };

@@ -1,6 +1,8 @@
 
+import { useState, useEffect, useRef } from 'react';
 import { useMessages } from '@/context/MessagesContext';
 import { useProjects } from '@/context/ProjectContext';
+import { useToast } from '@/hooks/use-toast';
 import MessageList from '../messenger/MessageList';
 import MessageInput from '../messenger/MessageInput';
 import QuickPhrases from '../messenger/QuickPhrases';
@@ -18,12 +20,30 @@ const MessengerTile = () => {
     toggleImportant, 
     getQuickPhrasesForUser 
   } = useMessages();
+  const { toast } = useToast();
+  const lastMessageCountRef = useRef(currentMessages.length);
+  
+  // Track new messages for notification
+  useEffect(() => {
+    if (currentMessages.length > lastMessageCountRef.current) {
+      // Check if the newest message is from the other user
+      const newestMessage = currentMessages[currentMessages.length - 1];
+      if (newestMessage && newestMessage.sender !== CURRENT_USER) {
+        // Show notification for new message
+        toast({
+          description: "Neue Nachricht erhalten",
+          duration: 3000,
+        });
+      }
+    }
+    lastMessageCountRef.current = currentMessages.length;
+  }, [currentMessages, toast]);
   
   if (!currentProject) return null;
   
   const userQuickPhrases = getQuickPhrasesForUser(CURRENT_USER);
   
-  // Debug handler functions
+  // Handler functions
   const handleMarkAsRead = (id: string) => {
     console.log('MessengerTile: marking message as read:', id);
     markAsRead(id);
@@ -47,7 +67,7 @@ const MessengerTile = () => {
   
   return (
     <div className="tile flex flex-col h-full">
-      {/* This is the fixed height container for messages */}
+      {/* Message list with fixed height container */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <MessageList 
           messages={currentMessages}
@@ -57,13 +77,13 @@ const MessengerTile = () => {
         />
       </div>
       
-      {/* Message input positioned at the bottom */}
-      <div className="mt-auto pt-2 border-t border-border/30">
+      {/* Message input and quick phrases positioned at the bottom */}
+      <div className="mt-auto pt-3 border-t border-border/30">
         <MessageInput onSendMessage={handleSendMessage} />
         
         <QuickPhrases 
           quickPhrases={userQuickPhrases}
-          onSelectPhrase={(content) => handleSendMessage(content, false)}
+          onSelectPhrase={(content, isImportant) => handleSendMessage(content, isImportant)}
         />
       </div>
     </div>

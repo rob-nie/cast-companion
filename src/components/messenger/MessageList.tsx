@@ -1,8 +1,8 @@
 
 import { useRef, useEffect, useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, ArrowDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FixedSizeList as List } from 'react-window';
+import { Button } from '@/components/ui/button';
 import MessageComponent from './Message';
 import { Message } from '@/types/messenger';
 
@@ -14,89 +14,86 @@ interface MessageListProps {
 }
 
 const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: MessageListProps) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<List>(null);
-  const [listHeight, setListHeight] = useState(300); // Default height
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   
-  // For debugging
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
-    console.log('MessageList rendered with messages:', messages.map(m => ({
-      id: m.id, 
-      isRead: m.isRead, 
-      isImportant: m.isImportant
-    })));
-  }, [messages]);
-  
-  // Update list height based on container size
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      const updateHeight = () => {
-        if (scrollAreaRef.current) {
-          setListHeight(scrollAreaRef.current.clientHeight || 300);
-        }
-      };
-      
-      // Initial height
-      updateHeight();
-      
-      // Update on resize
-      window.addEventListener('resize', updateHeight);
-      return () => window.removeEventListener('resize', updateHeight);
+    if (messages.length > 0 && isAtBottom) {
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else if (messages.length > 0 && !isAtBottom) {
+      setHasNewMessage(true);
     }
-  }, []);
+  }, [messages.length, isAtBottom]);
   
-  // Auto-scroll to latest message whenever messages change
-  useEffect(() => {
-    if (messages.length > 0 && listRef.current) {
-      listRef.current.scrollToItem(messages.length - 1, 'end');
+  // Handle scroll events to track if user is at bottom
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!scrollAreaRef.current) return;
+    
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+    
+    setIsAtBottom(isScrolledToBottom);
+    
+    if (isScrolledToBottom && hasNewMessage) {
+      setHasNewMessage(false);
     }
-  }, [messages]);
+  };
+  
+  // Scroll to the latest message
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setHasNewMessage(false);
+    setIsAtBottom(true);
+  };
 
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground">
         <MessageSquare className="h-8 w-8 mb-2 opacity-30" />
-        <p>No messages yet</p>
-        <p className="text-sm">Send a message to get started</p>
+        <p>Noch keine Nachrichten</p>
+        <p className="text-sm">Sende eine Nachricht, um zu beginnen</p>
       </div>
     );
   }
 
-  // Render each message row
-  const MessageRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const message = messages[index];
-    const isOwnMessage = message.sender === currentUserId;
-    
-    return (
-      <div style={style}>
-        <MessageComponent 
-          key={message.id}
-          message={message}
-          isOwnMessage={isOwnMessage}
-          markAsRead={markAsRead}
-          toggleImportant={toggleImportant}
-        />
-      </div>
-    );
-  };
-
   return (
-    <ScrollArea className="h-full pr-2 mb-2" ref={scrollAreaRef}>
-      <div className="space-y-0 py-2">
-        <List
-          ref={listRef}
-          height={listHeight}
-          width="100%"
-          itemCount={messages.length}
-          itemSize={90} // Approximate height of each message
-          overscanCount={5} // Number of items to render outside of the visible area
+    <div className="relative h-full">
+      <ScrollArea 
+        className="h-full pr-4 pb-2" 
+        onScroll={handleScroll}
+        ref={scrollAreaRef}
+      >
+        <div className="py-2 space-y-1">
+          {messages.map((message) => (
+            <MessageComponent 
+              key={message.id}
+              message={message}
+              isOwnMessage={message.sender === currentUserId}
+              markAsRead={markAsRead}
+              toggleImportant={toggleImportant}
+            />
+          ))}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+      
+      {/* New message indicator button */}
+      {hasNewMessage && !isAtBottom && (
+        <Button
+          size="sm"
+          className="absolute bottom-4 right-2 flex items-center gap-1 bg-primary text-primary-foreground shadow-md animate-fade-in"
+          onClick={scrollToBottom}
         >
-          {MessageRow}
-        </List>
-        <div ref={messagesEndRef} />
-      </div>
-    </ScrollArea>
+          <ArrowDown className="h-4 w-4" />
+          <span>Neue Nachricht</span>
+        </Button>
+      )}
+    </div>
   );
 };
 
