@@ -59,17 +59,17 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             </div>
           </div>
           
-          {/* Controls */}
+          {/* Controls - fixed pointer-events issues */}
           <div className="flex flex-col gap-1">
             {!isOwnMessage && !message.isRead && (
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-6 w-6"
+                className="h-6 w-6 pointer-events-auto"
                 onClick={handleMarkAsRead}
                 title="Mark as read"
               >
-                <Check className="h-3 w-3" />
+                <Check className="h-3 w-3 pointer-events-none" />
                 <span className="sr-only">Mark as read</span>
               </Button>
             )}
@@ -79,14 +79,14 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-6 w-6"
+                className="h-6 w-6 pointer-events-auto"
                 onClick={handleToggleImportant}
                 title={message.isImportant ? "Remove importance" : "Mark as important"}
               >
                 {message.isImportant ? (
-                  <FlagOff className="h-3 w-3" />
+                  <FlagOff className="h-3 w-3 pointer-events-none" />
                 ) : (
-                  <Flag className="h-3 w-3" />
+                  <Flag className="h-3 w-3 pointer-events-none" />
                 )}
                 <span className="sr-only">Toggle importance</span>
               </Button>
@@ -98,15 +98,15 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
       {/* Context menu - only show toggle important for sender */}
       {isOwnMessage && (
         <ContextMenuContent>
-          <ContextMenuItem onClick={handleToggleImportant}>
+          <ContextMenuItem onClick={handleToggleImportant} className="pointer-events-auto">
             {message.isImportant ? (
               <>
-                <FlagOff className="h-4 w-4 mr-2" />
+                <FlagOff className="h-4 w-4 mr-2 pointer-events-none" />
                 Remove importance
               </>
             ) : (
               <>
-                <Flag className="h-4 w-4 mr-2" />
+                <Flag className="h-4 w-4 mr-2 pointer-events-none" />
                 Mark as important
               </>
             )}
@@ -115,8 +115,8 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
       )}
       {!isOwnMessage && !message.isRead && (
         <ContextMenuContent>
-          <ContextMenuItem onClick={handleMarkAsRead}>
-            <Check className="h-4 w-4 mr-2" />
+          <ContextMenuItem onClick={handleMarkAsRead} className="pointer-events-auto">
+            <Check className="h-4 w-4 mr-2 pointer-events-none" />
             Mark as read
           </ContextMenuItem>
         </ContextMenuContent>
