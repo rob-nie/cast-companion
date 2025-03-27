@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useUser } from "./UserContext";
 import { toast } from "sonner";
@@ -17,7 +16,7 @@ type ProjectContextType = {
   currentProject: Project | null;
   setCurrentProject: (project: Project) => void;
   addProject: (project: Omit<Project, "id" | "createdAt" | "ownerId">) => void;
-  updateProject: (id: string, project: Partial<Project>) => void;
+  updateProject: (id: string, project: Partial<Project>, silent?: boolean) => void;
   deleteProject: (id: string) => void;
   getUserProjects: () => Project[];
   getSharedProjects: () => Project[];
@@ -72,7 +71,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
     toast.success("Projekt erstellt");
   };
 
-  const updateProject = (id: string, projectUpdate: Partial<Project>) => {
+  const updateProject = (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
     setProjects((prev) =>
       prev.map((project) =>
         project.id === id ? { ...project, ...projectUpdate } : project
@@ -84,7 +83,10 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       setCurrentProject(prev => prev ? { ...prev, ...projectUpdate } : null);
     }
     
-    toast.success("Projekt aktualisiert");
+    // Only show toast notification if silent is false
+    if (!silent) {
+      toast.success("Projekt aktualisiert");
+    }
   };
 
   const deleteProject = (id: string) => {

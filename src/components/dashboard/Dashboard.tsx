@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProjects } from "@/context/ProjectContext";
 import { useNavigate } from "react-router-dom";
 import InterviewNotesPanel from "./InterviewNotesPanel";
@@ -12,8 +12,14 @@ const Dashboard = () => {
   const [showLiveNotes, setShowLiveNotes] = useState(false);
 
   // Redirect if no project is selected
+  useEffect(() => {
+    if (!currentProject) {
+      navigate("/projects");
+    }
+  }, [currentProject, navigate]);
+
+  // Don't render anything if there's no current project
   if (!currentProject) {
-    navigate("/projects");
     return null;
   }
 

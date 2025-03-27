@@ -14,8 +14,8 @@ const InterviewDashboard = () => {
     if (!currentProject) {
       navigate("/projects");
     } else {
-      // Update last accessed timestamp
-      updateProject(currentProject.id, { lastAccessed: new Date() });
+      // Update last accessed timestamp without triggering a toast notification
+      updateProject(currentProject.id, { lastAccessed: new Date() }, true);
     }
   }, [currentProject, navigate, updateProject]);
 
