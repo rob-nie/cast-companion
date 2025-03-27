@@ -5,24 +5,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useMessages } from '@/context/MessagesContext';
+import { useUser } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { QuickPhrase } from '@/types/messenger';
 
-// Mock user ID - would come from auth in a real app
-const CURRENT_USER = "user-1";
-
 const QuickPhrases = () => {
   const { quickPhrases, addQuickPhrase, updateQuickPhrase, deleteQuickPhrase, getQuickPhrasesForUser } = useMessages();
+  const { user } = useUser();
   const { toast } = useToast();
   const [newPhrase, setNewPhrase] = useState('');
   const [editMode, setEditMode] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   
-  const userPhrases = getQuickPhrasesForUser(CURRENT_USER);
+  const currentUserId = user?.id || "user-1"; // Use authenticated user ID if available
+  const userPhrases = getQuickPhrasesForUser(currentUserId);
   
   const handleAddPhrase = () => {
     if (newPhrase.trim()) {
-      addQuickPhrase(newPhrase, CURRENT_USER);
+      addQuickPhrase(newPhrase, currentUserId);
       setNewPhrase('');
       toast({
         description: "Quick Phrase hinzugefügt",

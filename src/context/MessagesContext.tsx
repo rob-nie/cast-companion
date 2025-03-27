@@ -1,6 +1,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useProjects } from "./ProjectContext";
+import { useUser } from "./UserContext";
 import { Message, QuickPhrase } from "@/types/messenger";
 
 type MessagesContextType = {
@@ -68,6 +69,16 @@ const initialQuickPhrases: QuickPhrase[] = [
     id: "qp-3",
     userId: CURRENT_USER,
     content: "Thema abschließen",
+  },
+  {
+    id: "qp-4",
+    userId: OTHER_USER,
+    content: "Das verstehe ich nicht",
+  },
+  {
+    id: "qp-5",
+    userId: OTHER_USER,
+    content: "Können wir das vertiefen?",
   }
 ];
 
@@ -76,6 +87,7 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
   const [quickPhrases, setQuickPhrases] = useState<QuickPhrase[]>(initialQuickPhrases);
   const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
   const { currentProject } = useProjects();
+  const { user } = useUser();
 
   // Update current messages when the project changes
   useEffect(() => {
@@ -94,7 +106,7 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
       ...message,
       id: Date.now().toString(),
       timestamp: new Date(),
-      isRead: message.sender === CURRENT_USER, // Messages from current user are automatically read
+      isRead: message.sender === (user?.id || CURRENT_USER), // Messages from current user are automatically read
     };
     setMessages((prev) => [...prev, newMessage]);
   };

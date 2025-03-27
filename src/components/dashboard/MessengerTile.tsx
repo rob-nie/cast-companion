@@ -2,17 +2,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMessages } from '@/context/MessagesContext';
 import { useProjects } from '@/context/ProjectContext';
+import { useUser } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import MessageList from '../messenger/MessageList';
 import MessageInput from '../messenger/MessageInput';
 import QuickPhrases from '../messenger/QuickPhrases';
 
-// Mock user IDs - would come from an auth system in a real app
-const CURRENT_USER = "user-1";
+// Mock partner ID - would come from project data in a real app
 const OTHER_USER = "user-2";
 
 const MessengerTile = () => {
   const { currentProject } = useProjects();
+  const { user } = useUser();
   const { 
     currentMessages, 
     addMessage, 
@@ -24,12 +25,14 @@ const MessengerTile = () => {
   const lastMessageCountRef = useRef(currentMessages.length);
   const [showQuickPhrases, setShowQuickPhrases] = useState(true);
   
+  const currentUserId = user?.id || "user-1"; // Use authenticated user ID if available
+  
   // Track new messages for notification
   useEffect(() => {
     if (currentMessages.length > lastMessageCountRef.current) {
       // Check if the newest message is from the other user
       const newestMessage = currentMessages[currentMessages.length - 1];
-      if (newestMessage && newestMessage.sender !== CURRENT_USER) {
+      if (newestMessage && newestMessage.sender !== currentUserId) {
         // Show notification for new message
         toast({
           description: "Neue Nachricht erhalten",
@@ -38,11 +41,11 @@ const MessengerTile = () => {
       }
     }
     lastMessageCountRef.current = currentMessages.length;
-  }, [currentMessages, toast]);
+  }, [currentMessages, toast, currentUserId]);
   
   if (!currentProject) return null;
   
-  const userQuickPhrases = getQuickPhrasesForUser(CURRENT_USER);
+  const userQuickPhrases = getQuickPhrasesForUser(currentUserId);
   
   // Handler functions
   const handleMarkAsRead = (id: string) => {
@@ -60,7 +63,7 @@ const MessengerTile = () => {
     
     addMessage({
       projectId: currentProject.id,
-      sender: CURRENT_USER,
+      sender: currentUserId,
       content,
       isImportant,
     });
@@ -72,7 +75,7 @@ const MessengerTile = () => {
       <div className="flex-1 overflow-hidden">
         <MessageList 
           messages={currentMessages}
-          currentUserId={CURRENT_USER}
+          currentUserId={currentUserId}
           markAsRead={handleMarkAsRead}
           toggleImportant={handleToggleImportant}
         />
