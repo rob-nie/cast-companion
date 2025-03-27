@@ -35,7 +35,7 @@ const Navbar = () => {
       <div className="container flex h-16 items-center justify-between py-4">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-medium tracking-tight">InterviewSync</span>
+            <span className="text-xl font-medium tracking-tight">CastCompanion</span>
           </Link>
           
           <nav className="hidden md:flex items-center gap-6">
