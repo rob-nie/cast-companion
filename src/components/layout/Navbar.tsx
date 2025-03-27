@@ -1,17 +1,33 @@
 
-import { Link, useLocation } from "react-router-dom";
-import { Moon, Sun, Users, Settings } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Moon, Sun, Users, Settings, LogOut } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useProjects } from "@/context/ProjectContext";
+import { useUser } from "@/context/UserContext";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const { currentProject } = useProjects();
+  const { user, logout, isAuthenticated } = useUser();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
   };
 
   return (
@@ -67,6 +83,30 @@ const Navbar = () => {
             )}
             <span className="sr-only">Toggle theme</span>
           </Button>
+
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  {user?.name}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Konto</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Abmelden
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/login">
+              <Button variant="default" size="sm">
+                Anmelden
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

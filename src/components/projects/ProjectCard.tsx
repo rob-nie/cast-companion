@@ -1,75 +1,109 @@
 
+import { CalendarIcon, Share2, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { Calendar, Clock, Users, Shield } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { de } from "date-fns/locale";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Project, useProjects } from "@/context/ProjectContext";
-import { useUser } from "@/context/UserContext";
+import { useProjects } from "@/context/ProjectContext";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-interface ProjectCardProps {
-  project: Project;
-}
-
-const ProjectCard = ({ project }: ProjectCardProps) => {
-  const { setCurrentProject } = useProjects();
-  const { user, getProjectMembers } = useUser();
+const ProjectCard = ({ project }) => {
+  const { setCurrentProject, deleteProject } = useProjects();
   const navigate = useNavigate();
-  
-  const isOwner = user?.id === project.ownerId;
-  const members = getProjectMembers(project.id);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleOpenProject = () => {
     setCurrentProject(project);
     navigate("/dashboard");
   };
 
+  const handleShareProject = (e) => {
+    e.stopPropagation();
+    setCurrentProject(project);
+    navigate("/project-sharing");
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    setShowDeleteDialog(true);
+  };
+
+  const handleDelete = () => {
+    deleteProject(project.id);
+    setShowDeleteDialog(false);
+  };
+
   return (
-    <Card className="overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20 animate-fade-in h-full">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-semibold tracking-tight">{project.title}</CardTitle>
-          {isOwner && (
-            <Badge variant="outline" className="text-xs flex items-center gap-1 px-1.5 py-0">
-              <Shield className="h-3 w-3" />
-              <span>Besitzer</span>
-            </Badge>
-          )}
-        </div>
-        <CardDescription className="line-clamp-2 text-sm text-muted-foreground">
-          {project.description}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pb-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Calendar className="h-3.5 w-3.5" />
-          <span>Erstellt {formatDistanceToNow(project.createdAt, { addSuffix: true })}</span>
-        </div>
-        {project.lastAccessed && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-            <Clock className="h-3.5 w-3.5" />
-            <span>Zuletzt geöffnet {formatDistanceToNow(project.lastAccessed, { addSuffix: true })}</span>
+    <>
+      <Card 
+        className="overflow-hidden transition-all hover:shadow-md cursor-pointer"
+        onClick={handleOpenProject}
+      >
+        <CardContent className="p-6">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-lg tracking-tight">{project.title}</h3>
+            <p className="text-muted-foreground text-sm line-clamp-2">
+              {project.description || "Keine Beschreibung"}
+            </p>
           </div>
-        )}
-        {members.length > 0 && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-            <Users className="h-3.5 w-3.5" />
-            <span>{members.length} Mitglieder</span>
+        </CardContent>
+        <CardFooter className="bg-muted/50 p-4 flex items-center justify-between">
+          <div className="flex items-center text-xs text-muted-foreground">
+            <CalendarIcon className="mr-1 h-3 w-3" />
+            <span>
+              {project.lastAccessed 
+                ? `Zuletzt vor ${formatDistanceToNow(new Date(project.lastAccessed), {
+                    locale: de,
+                    addSuffix: false,
+                  })}`
+                : `Erstellt vor ${formatDistanceToNow(new Date(project.createdAt), {
+                    locale: de,
+                    addSuffix: false,
+                  })}`
+              }
+            </span>
           </div>
-        )}
-      </CardContent>
-      <CardFooter className="pt-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="w-full transition-all duration-300 hover:bg-primary hover:text-primary-foreground" 
-          onClick={handleOpenProject}
-        >
-          Projekt öffnen
-        </Button>
-      </CardFooter>
-    </Card>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" onClick={handleShareProject} className="h-8 w-8">
+              <Share2 className="h-4 w-4" />
+              <span className="sr-only">Teilen</span>
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="h-8 w-8 text-destructive">
+              <Trash2 className="h-4 w-4" />
+              <span className="sr-only">Löschen</span>
+            </Button>
+          </div>
+        </CardFooter>
+      </Card>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Projekt löschen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie das Projekt "{project.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

@@ -47,7 +47,7 @@ const initialProjects: Project[] = [
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const { user, isAuthenticated } = useUser();
+  const { user, isAuthenticated, getProjectMembers } = useUser();
 
   // Reset current project when user logs out
   useEffect(() => {
@@ -113,9 +113,16 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   // Get projects shared with the current user
   const getSharedProjects = () => {
     if (!user) return [];
-    // In a real app, this would check against a project_members table
-    // For now, we're using the mock data from UserContext
-    return [];
+    
+    // Get all project IDs that have been shared with the current user
+    const sharedProjectIds = getProjectMembers("")
+      .filter(member => member.userId === user.id)
+      .map(member => member.projectId);
+    
+    // Get all projects that have been shared with the current user, but are not owned by them
+    return projects.filter(project => 
+      sharedProjectIds.includes(project.id) && project.ownerId !== user.id
+    );
   };
 
   return (

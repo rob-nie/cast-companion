@@ -20,6 +20,7 @@ import Projects from "./pages/Projects";
 import InterviewDashboard from "./pages/InterviewDashboard";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import ProjectSharing from "./pages/ProjectSharing";
 
 const queryClient = new QueryClient();
 
@@ -40,13 +41,12 @@ const App = () => (
                       <Route path="/login" element={<Login />} />
                       <Route path="/register" element={<Register />} />
                       
-                      {/* Public routes */}
-                      <Route path="/projects" element={<Projects />} />
-                      <Route path="/settings" element={<Settings />} />
-                      
                       {/* Protected routes */}
                       <Route element={<AuthGuard />}>
+                        <Route path="/projects" element={<Projects />} />
+                        <Route path="/settings" element={<Settings />} />
                         <Route path="/dashboard" element={<InterviewDashboard />} />
+                        <Route path="/project-sharing" element={<ProjectSharing />} />
                       </Route>
                       
                       <Route path="*" element={<NotFound />} />

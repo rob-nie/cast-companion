@@ -1,66 +1,62 @@
 
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Clipboard, Clock, MessageCircle } from "lucide-react";
-import PageLayout from "@/components/layout/PageLayout";
+import { Link } from "react-router-dom";
+import { useUser } from "@/context/UserContext";
 
 const Index = () => {
-  const navigate = useNavigate();
+  const { isAuthenticated } = useUser();
 
   return (
-    <PageLayout>
-      <div className="flex flex-col items-center">
-        <div className="w-full max-w-5xl px-4 py-10 sm:py-20 text-center space-y-8">
-          <div className="animate-fade-in">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-              <span className="inline-block">Interview</span>
-              <span className="inline-block ml-2 text-primary">Sync</span>
-            </h1>
-            <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto">
-              Streamline your interviews with real-time notes, messaging, and timing - 
-              all without disrupting the conversation flow.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8 animate-slide-in">
-            <Button 
-              onClick={() => navigate("/projects")} 
-              size="lg" 
-              className="gap-2"
-            >
-              Get Started
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 mt-16 animate-slide-in">
-            <div className="glass-panel p-6 flex flex-col items-center text-center">
-              <Clipboard className="h-10 w-10 text-primary mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Interview Notes</h2>
-              <p className="text-muted-foreground">
-                Keep structured notes before and during your interviews with rich text formatting.
-              </p>
+    <div className="relative min-h-screen bg-background">
+      <header className="container mx-auto py-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">InterviewSync</h1>
+          
+          {isAuthenticated ? (
+            <Link to="/projects">
+              <Button>Meine Projekte</Button>
+            </Link>
+          ) : (
+            <div className="space-x-4">
+              <Link to="/login">
+                <Button variant="ghost">Anmelden</Button>
+              </Link>
+              <Link to="/register">
+                <Button>Registrieren</Button>
+              </Link>
             </div>
-
-            <div className="glass-panel p-6 flex flex-col items-center text-center">
-              <MessageCircle className="h-10 w-10 text-primary mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Silent Messaging</h2>
-              <p className="text-muted-foreground">
-                Communicate discreetly with team members using quick phrases and importance markers.
-              </p>
-            </div>
-
-            <div className="glass-panel p-6 flex flex-col items-center text-center">
-              <Clock className="h-10 w-10 text-primary mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Synchronized Timing</h2>
-              <p className="text-muted-foreground">
-                Track interview progress with a shared stopwatch and timestamp your observations.
-              </p>
-            </div>
-          </div>
+          )}
         </div>
-      </div>
-    </PageLayout>
+      </header>
+      
+      <main className="container mx-auto py-24 text-center space-y-10">
+        <div className="space-y-6 max-w-3xl mx-auto">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
+            Synchronisiere deine Interviews.
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Effizientes Interview-Management mit Echtzeit-Notizen, Timer und Messaging in einer zentralen Plattform.
+          </p>
+
+          {isAuthenticated ? (
+            <Link to="/projects">
+              <Button size="lg" className="mt-6">
+                Zu meinen Projekten
+              </Button>
+            </Link>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+              <Link to="/register">
+                <Button size="lg">Jetzt starten</Button>
+              </Link>
+              <Link to="/login">
+                <Button size="lg" variant="outline">Anmelden</Button>
+              </Link>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
   );
 };
 
