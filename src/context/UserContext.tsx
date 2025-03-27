@@ -198,6 +198,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getProjectMembers = (projectId: string) => {
+    // Filter members by the provided projectId
     return MOCK_PROJECT_MEMBERS.filter(member => member.projectId === projectId);
   };
 

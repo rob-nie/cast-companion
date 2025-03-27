@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useUser } from "./UserContext";
 import { toast } from "sonner";
@@ -116,14 +117,24 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const getSharedProjects = () => {
     if (!user) return [];
     
-    // Get all project IDs that have been shared with the current user
-    const sharedProjectIds = getProjectMembers("")
-      .filter(member => member.userId === user.id)
-      .map(member => member.projectId);
+    // Get all unique project IDs that have been shared with the current user
+    const sharedProjectIds = new Set();
     
-    // Get all projects that have been shared with the current user, but are not owned by them
+    // Check each project to see if the user is a member
+    projects.forEach(project => {
+      // Only consider projects not owned by the user
+      if (project.ownerId !== user.id) {
+        const members = getProjectMembers(project.id);
+        // If the user is a member of this project, add it to shared projects
+        if (members.some(member => member.userId === user.id)) {
+          sharedProjectIds.add(project.id);
+        }
+      }
+    });
+    
+    // Return all projects that are in the shared project IDs set
     return projects.filter(project => 
-      sharedProjectIds.includes(project.id) && project.ownerId !== user.id
+      sharedProjectIds.has(project.id) && project.ownerId !== user.id
     );
   };
 
