@@ -3,9 +3,7 @@ import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { useUser } from "@/context/UserContext";
 import { useProjects } from "@/context/ProjectContext";
@@ -79,13 +77,12 @@ const ProjectMembers = () => {
   
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-center">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <div className="flex justify-between items-center w-full">
           <div>
-            <CardTitle className="text-lg font-semibold">Projektmitglieder</CardTitle>
-            <CardDescription>
+            <p className="text-muted-foreground text-sm">
               Verwalte Zugriff und Berechtigungen
-            </CardDescription>
+            </p>
           </div>
           {isOwner && (
             <AddMemberDialog onAddMember={handleAddMember} />
