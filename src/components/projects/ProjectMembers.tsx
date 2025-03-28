@@ -12,8 +12,8 @@ import MembersList from "./members/MembersList";
 import { ProjectMember } from "@/types/user";
 
 const ProjectMembers = () => {
-  const { currentProject } = useProjects();
-  const { user, getProjectMembers, addProjectMember, removeProjectMember, updateProjectMemberRole } = useUser();
+  const { currentProject, shareProject, revokeAccess, changeRole } = useProjects();
+  const { user, getProjectMembers } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
@@ -47,7 +47,7 @@ const ProjectMembers = () => {
   const handleAddMember = async (email: string, role: "editor" | "viewer") => {
     setIsLoading(true);
     try {
-      await addProjectMember(currentProject.id, email, role);
+      await shareProject(currentProject.id, email, role);
       // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to add member:", error);
@@ -59,7 +59,7 @@ const ProjectMembers = () => {
   
   const handleRemoveMember = async (userId: string) => {
     try {
-      await removeProjectMember(currentProject.id, userId);
+      await revokeAccess(currentProject.id, userId);
       // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to remove member:", error);
@@ -68,7 +68,7 @@ const ProjectMembers = () => {
   
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
     try {
-      await updateProjectMemberRole(currentProject.id, userId, newRole);
+      await changeRole(currentProject.id, userId, newRole);
       // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to update role:", error);
