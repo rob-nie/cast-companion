@@ -1,7 +1,7 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useUser } from "./UserContext";
 import { toast } from "sonner";
+import { ProjectMember } from "./UserContext"; 
 
 export type Project = {
   id: string;
@@ -48,6 +48,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { user, isAuthenticated, getProjectMembers } = useUser();
+  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
 
   // Reset current project when user logs out
   useEffect(() => {
@@ -117,25 +118,14 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const getSharedProjects = () => {
     if (!user) return [];
     
-    // Get all unique project IDs that have been shared with the current user
-    const sharedProjectIds = new Set();
+    // Get projects not owned by the user
+    const notOwnedProjects = projects.filter(project => project.ownerId !== user.id);
     
-    // Check each project to see if the user is a member
-    projects.forEach(project => {
-      // Only consider projects not owned by the user
-      if (project.ownerId !== user.id) {
-        const members = getProjectMembers(project.id);
-        // If the user is a member of this project, add it to shared projects
-        if (members.some(member => member.userId === user.id)) {
-          sharedProjectIds.add(project.id);
-        }
-      }
+    // Check which projects have the user as a member
+    return notOwnedProjects.filter(project => {
+      const members = getProjectMembers(project.id);
+      return members.some(member => member.userId === user.id);
     });
-    
-    // Return all projects that are in the shared project IDs set
-    return projects.filter(project => 
-      sharedProjectIds.has(project.id) && project.ownerId !== user.id
-    );
   };
 
   return (

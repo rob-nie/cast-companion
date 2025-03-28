@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { toast } from "sonner";
 import { 
@@ -50,7 +49,7 @@ type UserContextType = {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
-  getProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
+  getProjectMembers: (projectId: string) => ProjectMember[];
   addProjectMember: (projectId: string, email: string, role: UserRole) => Promise<void>;
   removeProjectMember: (projectId: string, userId: string) => Promise<void>;
   updateProjectMemberRole: (projectId: string, userId: string, role: UserRole) => Promise<void>;
@@ -61,6 +60,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [projectMembers, setProjectMembers] = useState<Map<string, ProjectMember[]>>(new Map());
   
   // Listen for auth state changes
   useEffect(() => {
@@ -90,8 +90,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           };
           
           await set(userRef, newUser);
-          newUser.createdAt = new Date(newUser.createdAt);
-          setUser(newUser);
+          setUser({
+            ...newUser,
+            createdAt: new Date(newUser.createdAt)
+          });
         }
       } else {
         setUser(null);
@@ -187,49 +189,57 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
+  const getProjectMembers = (projectId: string): ProjectMember[] => {
+    // Return cached members if we have them
+    if (projectMembers.has(projectId)) {
+      return projectMembers.get(projectId) || [];
+    }
+    
+    // If not cached, return empty array and start fetching
+    loadProjectMembers(projectId);
+    return [];
+  };
+
+  // A separate function to load project members
+  const loadProjectMembers = async (projectId: string) => {
     try {
       const membersRef = ref(database, 'projectMembers');
       const membersQuery = query(membersRef, orderByChild('projectId'), equalTo(projectId));
       
-      return new Promise((resolve, reject) => {
-        onValue(membersQuery, async (snapshot) => {
-          if (!snapshot.exists()) {
-            resolve([]);
-            return;
+      onValue(membersQuery, async (snapshot) => {
+        if (!snapshot.exists()) {
+          setProjectMembers(prev => new Map(prev).set(projectId, []));
+          return;
+        }
+        
+        const members: ProjectMember[] = [];
+        const membersData = snapshot.val();
+        
+        for (const key in membersData) {
+          const member = membersData[key];
+          
+          // Get user details
+          const userRef = ref(database, `users/${member.userId}`);
+          const userSnapshot = await get(userRef);
+          
+          if (userSnapshot.exists()) {
+            const userData = userSnapshot.val();
+            members.push({
+              userId: member.userId,
+              projectId: member.projectId,
+              role: member.role,
+              name: userData.name || "Unknown User",
+              email: userData.email || "",
+              avatar: userData.avatar
+            });
           }
-          
-          const members: ProjectMember[] = [];
-          const membersData = snapshot.val();
-          
-          for (const key in membersData) {
-            const member = membersData[key];
-            
-            // Get user details
-            const userRef = ref(database, `users/${member.userId}`);
-            const userSnapshot = await get(userRef);
-            
-            if (userSnapshot.exists()) {
-              const userData = userSnapshot.val();
-              members.push({
-                userId: member.userId,
-                projectId: member.projectId,
-                role: member.role,
-                name: userData.name || "Unknown User",
-                email: userData.email || "",
-                avatar: userData.avatar
-              });
-            }
-          }
-          
-          resolve(members);
-        }, (error) => {
-          reject(error);
-        });
+        }
+        
+        setProjectMembers(prev => new Map(prev).set(projectId, members));
       });
     } catch (error) {
       console.error("Error getting project members:", error);
-      return [];
+      setProjectMembers(prev => new Map(prev).set(projectId, []));
     }
   };
 
