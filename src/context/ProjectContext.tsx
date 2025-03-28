@@ -1,7 +1,10 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useUser } from "./UserContext";
 import { toast } from "sonner";
 import { ProjectMember } from "./UserContext"; 
+import { ref, set, push, remove, update, onValue, get } from "firebase/database";
+import { database } from "@/lib/firebase";
 
 export type Project = {
   id: string;
@@ -25,31 +28,44 @@ type ProjectContextType = {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
-// Sample data
-const initialProjects: Project[] = [
-  {
-    id: "1",
-    title: "Bewerbungsgespräch - Entwickler Position",
-    description: "Interview mit Kandidat für die Frontend-Entwickler Position",
-    createdAt: new Date("2024-06-01"),
-    lastAccessed: new Date("2024-06-10"),
-    ownerId: "user-1"
-  },
-  {
-    id: "2",
-    title: "Kundenprojekt - Anforderungsanalyse",
-    description: "Erstes Gespräch mit Neukunden zur Anforderungserhebung",
-    createdAt: new Date("2024-06-05"),
-    ownerId: "user-1"
-  }
-];
-
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { user, isAuthenticated, getProjectMembers } = useUser();
-  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
-
+  
+  // Load projects from Firebase when user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      setProjects([]);
+      setCurrentProject(null);
+      return;
+    }
+    
+    const projectsRef = ref(database, 'projects');
+    const unsubscribe = onValue(projectsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const projectsData = snapshot.val();
+        const projectsList: Project[] = [];
+        
+        Object.keys(projectsData).forEach((key) => {
+          const project = projectsData[key];
+          projectsList.push({
+            ...project,
+            id: key,
+            createdAt: new Date(project.createdAt),
+            lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+          });
+        });
+        
+        setProjects(projectsList);
+      } else {
+        setProjects([]);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [isAuthenticated, user]);
+  
   // Reset current project when user logs out
   useEffect(() => {
     if (!isAuthenticated) {
@@ -63,34 +79,71 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    const newProjectRef = push(ref(database, 'projects'));
     const newProject = {
       ...project,
-      id: Date.now().toString(),
-      createdAt: new Date(),
+      id: newProjectRef.key!, // Firebase generated ID
+      createdAt: new Date().toISOString(),
       ownerId: user.id,
     };
-    setProjects((prev) => [...prev, newProject]);
-    toast.success("Projekt erstellt");
+    
+    set(newProjectRef, newProject)
+      .then(() => {
+        toast.success("Projekt erstellt");
+        
+        // Also add the creator as owner in projectMembers
+        const memberRef = push(ref(database, 'projectMembers'));
+        set(memberRef, {
+          userId: user.id,
+          projectId: newProjectRef.key,
+          role: "owner"
+        });
+      })
+      .catch((error) => {
+        console.error("Error adding project:", error);
+        toast.error("Fehler beim Erstellen des Projekts");
+      });
   };
 
   const updateProject = (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
-    setProjects((prev) =>
-      prev.map((project) =>
-        project.id === id ? { ...project, ...projectUpdate } : project
-      )
-    );
+    // Prepare data for Firebase
+    const updateData: Record<string, any> = { ...projectUpdate };
     
-    // Also update currentProject if that's the one being modified
-    if (currentProject?.id === id) {
-      setCurrentProject(prev => prev ? { ...prev, ...projectUpdate } : null);
+    // Convert Date objects to ISO strings for Firebase
+    if (updateData.createdAt instanceof Date) {
+      updateData.createdAt = updateData.createdAt.toISOString();
     }
     
-    // Only show toast notification if silent is false
-    if (!silent) {
-      toast.success("Projekt aktualisiert");
+    if (updateData.lastAccessed instanceof Date) {
+      updateData.lastAccessed = updateData.lastAccessed.toISOString();
     }
+    
+    const projectRef = ref(database, `projects/${id}`);
+    update(projectRef, updateData)
+      .then(() => {
+        // Update local state
+        setProjects((prev) =>
+          prev.map((project) =>
+            project.id === id ? { ...project, ...projectUpdate } : project
+          )
+        );
+        
+        // Also update currentProject if that's the one being modified
+        if (currentProject?.id === id) {
+          setCurrentProject(prev => prev ? { ...prev, ...projectUpdate } : null);
+        }
+        
+        // Only show toast notification if silent is false
+        if (!silent) {
+          toast.success("Projekt aktualisiert");
+        }
+      })
+      .catch((error) => {
+        console.error("Error updating project:", error);
+        toast.error("Fehler beim Aktualisieren des Projekts");
+      });
   };
-
+  
   const deleteProject = (id: string) => {
     // Check if user is the owner or has rights to delete
     const project = projects.find(p => p.id === id);
@@ -100,12 +153,66 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     
-    setProjects((prev) => prev.filter((project) => project.id !== id));
-    if (currentProject?.id === id) {
-      setCurrentProject(null);
-    }
+    const projectRef = ref(database, `projects/${id}`);
+    remove(projectRef)
+      .then(() => {
+        // Update local state
+        setProjects((prev) => prev.filter((project) => project.id !== id));
+        if (currentProject?.id === id) {
+          setCurrentProject(null);
+        }
+        
+        toast.success("Projekt gelöscht");
+        
+        // Also remove project members entries
+        cleanupProjectData(id);
+      })
+      .catch((error) => {
+        console.error("Error deleting project:", error);
+        toast.error("Fehler beim Löschen des Projekts");
+      });
+  };
+  
+  // Helper function to clean up related data when a project is deleted
+  const cleanupProjectData = (projectId: string) => {
+    // Remove project members
+    const membersRef = ref(database, 'projectMembers');
+    get(membersRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const membersData = snapshot.val();
+        Object.keys(membersData).forEach((key) => {
+          if (membersData[key].projectId === projectId) {
+            remove(ref(database, `projectMembers/${key}`));
+          }
+        });
+      }
+    });
     
-    toast.success("Projekt gelöscht");
+    // Remove notes
+    const notesRef = ref(database, 'notes');
+    get(notesRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const notesData = snapshot.val();
+        Object.keys(notesData).forEach((key) => {
+          if (notesData[key].projectId === projectId) {
+            remove(ref(database, `notes/${key}`));
+          }
+        });
+      }
+    });
+    
+    // Remove messages
+    const messagesRef = ref(database, 'messages');
+    get(messagesRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const messagesData = snapshot.val();
+        Object.keys(messagesData).forEach((key) => {
+          if (messagesData[key].projectId === projectId) {
+            remove(ref(database, `messages/${key}`));
+          }
+        });
+      }
+    });
   };
 
   // Get projects owned by the current user

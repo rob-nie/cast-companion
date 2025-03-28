@@ -20,10 +20,23 @@ const ProjectMembers = () => {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
   useEffect(() => {
-    if (currentProject) {
-      // Get initial members
-      setMembers(getProjectMembers(currentProject.id));
-    }
+    let isMounted = true;
+    
+    const loadMembers = async () => {
+      if (currentProject) {
+        // Get the members
+        const projectMembers = getProjectMembers(currentProject.id);
+        if (isMounted) {
+          setMembers(projectMembers);
+        }
+      }
+    };
+    
+    loadMembers();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [currentProject, getProjectMembers]);
   
   if (!currentProject || !user) {
@@ -37,8 +50,7 @@ const ProjectMembers = () => {
     setIsLoading(true);
     try {
       await addProjectMember(currentProject.id, email, role);
-      // Update local members list after adding
-      setMembers(getProjectMembers(currentProject.id));
+      // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to add member:", error);
       throw error;
@@ -50,8 +62,7 @@ const ProjectMembers = () => {
   const handleRemoveMember = async (userId: string) => {
     try {
       await removeProjectMember(currentProject.id, userId);
-      // Update local members list after removing
-      setMembers(getProjectMembers(currentProject.id));
+      // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to remove member:", error);
     }
@@ -60,8 +71,7 @@ const ProjectMembers = () => {
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
     try {
       await updateProjectMemberRole(currentProject.id, userId, newRole);
-      // Update local members list after updating role
-      setMembers(getProjectMembers(currentProject.id));
+      // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to update role:", error);
     }

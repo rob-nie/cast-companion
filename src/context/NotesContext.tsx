@@ -1,5 +1,8 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useProjects } from "./ProjectContext";
+import { ref, push, update, remove, onValue, query, orderByChild, equalTo } from "firebase/database";
+import { database } from "@/lib/firebase";
 
 export type Note = {
   id: string;
@@ -22,43 +25,37 @@ type NotesContextType = {
 
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
-// Sample data
-const initialNotes: Note[] = [
-  {
-    id: "note-1",
-    projectId: "1",
-    content: "<h1>Projekt: Website Redesign</h1><p>Interview mit dem Projektleiter</p><p>Der Kunde wünscht sich eine moderne Gestaltung mit Fokus auf Benutzerfreundlichkeit.</p>",
-    isLiveNote: false,
-  },
-  {
-    id: "note-2",
-    projectId: "1",
-    content: "Kunde betont Wichtigkeit der mobilen Ansicht",
-    timestamp: new Date("2024-06-10T10:05:30"),
-    stopwatchTime: 305, // 5:05
-    isLiveNote: true,
-  },
-  {
-    id: "note-3",
-    projectId: "1",
-    content: "Budget: 15.000-20.000 €",
-    timestamp: new Date("2024-06-10T10:12:45"),
-    stopwatchTime: 765, // 12:45
-    isLiveNote: true,
-  },
-  {
-    id: "note-4",
-    projectId: "2",
-    content: "<h1>Mobile App Entwicklung</h1><p>Kundengespräch zu Anforderungen</p>",
-    isLiveNote: false,
-  }
-];
-
 export const NotesProvider = ({ children }: { children: ReactNode }) => {
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
+  const [notes, setNotes] = useState<Note[]>([]);
   const { currentProject } = useProjects();
   const [interviewNotes, setInterviewNotes] = useState<Note | null>(null);
   const [liveNotes, setLiveNotes] = useState<Note[]>([]);
+
+  // Load notes from Firebase
+  useEffect(() => {
+    const notesRef = ref(database, 'notes');
+    const unsubscribe = onValue(notesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const notesData = snapshot.val();
+        const notesList: Note[] = [];
+        
+        Object.keys(notesData).forEach((key) => {
+          const note = notesData[key];
+          notesList.push({
+            ...note,
+            id: key,
+            timestamp: note.timestamp ? new Date(note.timestamp) : undefined,
+          });
+        });
+        
+        setNotes(notesList);
+      } else {
+        setNotes([]);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   // Update the current notes when the selected project changes
   useEffect(() => {
@@ -82,30 +79,52 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   }, [currentProject, notes]);
 
   const addNote = (note: Omit<Note, "id" | "timestamp">) => {
+    const newNoteRef = push(ref(database, 'notes'));
     const newNote: Note = {
       ...note,
-      id: Date.now().toString(),
+      id: newNoteRef.key!,
       timestamp: new Date(),
     };
     
-    setNotes((prev) => [...prev, newNote]);
+    // Prepare for Firebase
+    const firebaseNote = {
+      ...note,
+      timestamp: new Date().toISOString(),
+    };
+    
+    set(newNoteRef, firebaseNote)
+      .catch((error) => {
+        console.error("Error adding note:", error);
+      });
+    
     return newNote;
   };
 
   const updateNote = (id: string, updates: Partial<Omit<Note, "id">>) => {
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === id ? { ...note, ...updates } : note
-      )
-    );
+    // Prepare data for Firebase
+    const updateData: Record<string, any> = { ...updates };
+    
+    // Convert Date objects to ISO strings for Firebase
+    if (updateData.timestamp instanceof Date) {
+      updateData.timestamp = updateData.timestamp.toISOString();
+    }
+    
+    const noteRef = ref(database, `notes/${id}`);
+    update(noteRef, updateData)
+      .catch((error) => {
+        console.error("Error updating note:", error);
+      });
   };
   
   const deleteNote = (id: string) => {
-    setNotes((prev) => prev.filter((note) => note.id !== id));
+    const noteRef = ref(database, `notes/${id}`);
+    remove(noteRef)
+      .catch((error) => {
+        console.error("Error deleting note:", error);
+      });
   };
 
   const exportLiveNotesAsCSV = (projectId: string) => {
-    
     const projectNotes = notes.filter(
       (note) => note.projectId === projectId && note.isLiveNote
     );
@@ -166,3 +185,6 @@ export const useNotes = () => {
   }
   return context;
 };
+
+// Add the missing 'set' import
+import { set } from "firebase/database";
