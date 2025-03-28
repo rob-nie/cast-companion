@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { useUser } from "@/context/UserContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Pencil, Save, User } from "lucide-react";
+import { Pencil, Save } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),

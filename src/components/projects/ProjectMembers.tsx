@@ -9,7 +9,7 @@ import { useUser } from "@/context/UserContext";
 import { useProjects } from "@/context/ProjectContext";
 import AddMemberDialog from "./members/AddMemberDialog";
 import MembersList from "./members/MembersList";
-import { ProjectMember } from "@/context/UserContext";
+import { ProjectMember } from "@/types/user";
 
 const ProjectMembers = () => {
   const { currentProject } = useProjects();
