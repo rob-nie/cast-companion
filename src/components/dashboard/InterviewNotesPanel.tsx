@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNotes } from '@/context/NotesContext';
 import { useProjects } from '@/context/ProjectContext';
+import { useUser } from '@/context/UserContext';
 import RichTextEditor from './RichTextEditor';
 import LiveNotesPanel from './LiveNotesPanel';
 import { FilePenLine, MessageSquare } from 'lucide-react';
@@ -17,17 +18,21 @@ const InterviewNotesPanel = ({
   setShowLiveNotes 
 }: InterviewNotesPanelProps) => {
   const { currentProject } = useProjects();
+  const { user } = useUser();
   const { interviewNotes, addNote, updateNote } = useNotes();
   const [content, setContent] = useState('');
   const [activeTab, setActiveTab] = useState(showLiveNotes ? 'live' : 'notes');
 
+  const currentUserId = user?.id || "user-1";
+  
   // Initialize content from project notes or with a template
   useEffect(() => {
     if (interviewNotes) {
       setContent(interviewNotes.content);
     } else if (currentProject) {
-      // Create default interview notes if none exist
-      const defaultContent = `<h1>${currentProject.title}</h1><p>Interview Notes</p>`;
+      // Create default interview notes if none exist for this user
+      const userName = user?.displayName || user?.email || "User";
+      const defaultContent = `<h1>${currentProject.title}</h1><p>${userName}'s Interview Notes</p>`;
       setContent(defaultContent);
       addNote({
         projectId: currentProject.id,
@@ -35,7 +40,7 @@ const InterviewNotesPanel = ({
         isLiveNote: false,
       });
     }
-  }, [currentProject, interviewNotes, addNote]);
+  }, [currentProject, interviewNotes, addNote, user]);
 
   // Handle tab changes
   useEffect(() => {

@@ -11,6 +11,7 @@ interface QuickPhrasesProps {
   showQuickPhrases: boolean;
   setShowQuickPhrases: (show: boolean) => void;
   isImportant: boolean;
+  setIsImportant: (isImportant: boolean) => void;
 }
 
 const QuickPhrases = ({ 
@@ -18,7 +19,8 @@ const QuickPhrases = ({
   onSelectPhrase, 
   showQuickPhrases, 
   setShowQuickPhrases,
-  isImportant
+  isImportant,
+  setIsImportant
 }: QuickPhrasesProps) => {
   if (quickPhrases.length === 0) {
     return null;

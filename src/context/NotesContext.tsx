@@ -1,12 +1,15 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useProjects } from "./ProjectContext";
+import { useUser } from "./UserContext";
 import { ref, push, update, remove, onValue, query, orderByChild, equalTo } from "firebase/database";
 import { database } from "@/lib/firebase";
+import { set } from "firebase/database";
 
 export type Note = {
   id: string;
   projectId: string;
+  userId: string; // Added userId field to track which user created the note
   content: string;
   timestamp?: Date;
   stopwatchTime?: number;
@@ -17,8 +20,8 @@ type NotesContextType = {
   notes: Note[];
   interviewNotes: Note | null;
   liveNotes: Note[];
-  addNote: (note: Omit<Note, "id" | "timestamp">) => Note;
-  updateNote: (id: string, updates: Partial<Omit<Note, "id">>) => void;
+  addNote: (note: Omit<Note, "id" | "timestamp" | "userId">) => Note;
+  updateNote: (id: string, updates: Partial<Omit<Note, "id" | "userId">>) => void;
   deleteNote: (id: string) => void;
   exportLiveNotesAsCSV: (projectId: string) => string;
 };
@@ -28,8 +31,12 @@ const NotesContext = createContext<NotesContextType | undefined>(undefined);
 export const NotesProvider = ({ children }: { children: ReactNode }) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const { currentProject } = useProjects();
+  const { user } = useUser();
   const [interviewNotes, setInterviewNotes] = useState<Note | null>(null);
   const [liveNotes, setLiveNotes] = useState<Note[]>([]);
+
+  // User ID for the current user
+  const currentUserId = user?.id || "user-1";
 
   // Load notes from Firebase
   useEffect(() => {
@@ -57,17 +64,21 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  // Update the current notes when the selected project changes
+  // Update the current notes when the selected project or user changes
   useEffect(() => {
     if (currentProject) {
-      // Find the interview notes for the current project
+      // Find the interview notes for the current project and user
       const projectInterviewNotes = notes.find(
-        (note) => note.projectId === currentProject.id && !note.isLiveNote
+        (note) => note.projectId === currentProject.id && 
+                 note.userId === currentUserId && 
+                 !note.isLiveNote
       ) || null;
       
-      // Find all live notes for the current project
+      // Find all live notes for the current project and user
       const projectLiveNotes = notes.filter(
-        (note) => note.projectId === currentProject.id && note.isLiveNote
+        (note) => note.projectId === currentProject.id && 
+                 note.userId === currentUserId && 
+                 note.isLiveNote
       );
       
       setInterviewNotes(projectInterviewNotes);
@@ -76,19 +87,21 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
       setInterviewNotes(null);
       setLiveNotes([]);
     }
-  }, [currentProject, notes]);
+  }, [currentProject, notes, currentUserId]);
 
-  const addNote = (note: Omit<Note, "id" | "timestamp">) => {
+  const addNote = (note: Omit<Note, "id" | "timestamp" | "userId">) => {
     const newNoteRef = push(ref(database, 'notes'));
     const newNote: Note = {
       ...note,
       id: newNoteRef.key!,
+      userId: currentUserId, // Add the current user's ID
       timestamp: new Date(),
     };
     
     // Prepare for Firebase
     const firebaseNote = {
       ...note,
+      userId: currentUserId,
       timestamp: new Date().toISOString(),
     };
     
@@ -100,7 +113,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     return newNote;
   };
 
-  const updateNote = (id: string, updates: Partial<Omit<Note, "id">>) => {
+  const updateNote = (id: string, updates: Partial<Omit<Note, "id" | "userId">>) => {
     // Prepare data for Firebase
     const updateData: Record<string, any> = { ...updates };
     
@@ -125,8 +138,11 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const exportLiveNotesAsCSV = (projectId: string) => {
+    // Filter notes by project ID and current user ID
     const projectNotes = notes.filter(
-      (note) => note.projectId === projectId && note.isLiveNote
+      (note) => note.projectId === projectId && 
+               note.userId === currentUserId && 
+               note.isLiveNote
     );
     
     // Sort by time
@@ -185,6 +201,3 @@ export const useNotes = () => {
   }
   return context;
 };
-
-// Add the missing 'set' import
-import { set } from "firebase/database";
