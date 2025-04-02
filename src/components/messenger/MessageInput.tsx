@@ -3,30 +3,21 @@ import { useState } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
 
 interface MessageInputProps {
-  onSendMessage: (content: string, isImportant: boolean) => void;
+  onSendMessage: (content: string) => void;
+  isImportant: boolean;
+  setIsImportant: (isImportant: boolean) => void;
 }
 
-const MessageInput = ({ onSendMessage }: MessageInputProps) => {
+const MessageInput = ({ onSendMessage, isImportant, setIsImportant }: MessageInputProps) => {
   const [newMessage, setNewMessage] = useState('');
-  const [isImportant, setIsImportant] = useState(false);
-  const { toast } = useToast();
 
   const handleSendMessage = () => {
     if (!newMessage.trim()) return;
     
-    onSendMessage(newMessage, isImportant);
+    onSendMessage(newMessage);
     setNewMessage('');
-    
-    if (isImportant) {
-      toast({
-        description: "Wichtige Nachricht gesendet",
-      });
-      setIsImportant(false);
-    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -56,20 +47,6 @@ const MessageInput = ({ onSendMessage }: MessageInputProps) => {
           <Send className="h-4 w-4" />
           <span className="sr-only">Senden</span>
         </Button>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <Checkbox 
-          id="mark-important"
-          checked={isImportant}
-          onCheckedChange={(checked) => setIsImportant(checked === true)}
-        />
-        <label 
-          htmlFor="mark-important" 
-          className="text-sm cursor-pointer"
-        >
-          Als wichtig markieren
-        </label>
       </div>
     </div>
   );

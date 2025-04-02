@@ -23,6 +23,7 @@ const MessengerTile = () => {
   } = useMessages();
   const { toast } = useToast();
   const lastMessageCountRef = useRef(currentMessages.length);
+  const [isImportant, setIsImportant] = useState(false);
   const [showQuickPhrases, setShowQuickPhrases] = useState(true);
   
   const currentUserId = user?.id || "user-1"; // Use authenticated user ID if available
@@ -58,7 +59,7 @@ const MessengerTile = () => {
     toggleImportant(id);
   };
   
-  const handleSendMessage = (content: string, isImportant: boolean) => {
+  const handleSendMessage = (content: string) => {
     if (!content.trim() || !currentProject) return;
     
     addMessage({
@@ -83,23 +84,19 @@ const MessengerTile = () => {
       
       {/* Message input and quick phrases positioned at the bottom */}
       <div className="mt-auto pt-3 border-t border-border/30 flex-shrink-0">
-        <MessageInput onSendMessage={handleSendMessage} />
+        <MessageInput 
+          onSendMessage={handleSendMessage}
+          isImportant={isImportant}
+          setIsImportant={setIsImportant}
+        />
         
-        <div className="mt-2">
-          <button 
-            onClick={() => setShowQuickPhrases(!showQuickPhrases)}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
-          >
-            {showQuickPhrases ? 'Quick Phrases ausblenden ▲' : 'Quick Phrases einblenden ▼'}
-          </button>
-          
-          {showQuickPhrases && (
-            <QuickPhrases 
-              quickPhrases={userQuickPhrases}
-              onSelectPhrase={(content, isImportant) => handleSendMessage(content, isImportant)}
-            />
-          )}
-        </div>
+        <QuickPhrases 
+          quickPhrases={userQuickPhrases}
+          onSelectPhrase={handleSendMessage}
+          showQuickPhrases={showQuickPhrases}
+          setShowQuickPhrases={setShowQuickPhrases}
+          isImportant={isImportant}
+        />
       </div>
     </div>
   );

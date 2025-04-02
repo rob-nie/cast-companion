@@ -1,10 +1,14 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { ref, onValue, set, get } from "firebase/database";
+import { database } from "@/lib/firebase";
+import { useUser } from "./UserContext";
 
 type ProjectStopwatch = {
   isRunning: boolean;
   startTime: number | null;
   elapsedTime: number;
+  lastUpdatedBy: string | null;
 };
 
 type WatchContextType = {
@@ -23,18 +27,36 @@ const defaultStopwatch: ProjectStopwatch = {
   isRunning: false,
   startTime: null,
   elapsedTime: 0,
+  lastUpdatedBy: null,
 };
 
 export const WatchProvider = ({ children }: { children: ReactNode }) => {
   const [projectStopwatches, setProjectStopwatches] = useState<Record<string, ProjectStopwatch>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { user } = useUser();
+  
+  const currentUserId = user?.id || "user-1";
 
-  // Update current time every second
+  // Subscribe to Firebase stopwatch updates
+  useEffect(() => {
+    const stopwatchesRef = ref(database, 'projectStopwatches');
+    
+    const unsubscribe = onValue(stopwatchesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const stopwatchData = snapshot.val();
+        setProjectStopwatches(stopwatchData);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  // Update current time and running stopwatches every second
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
       
-      // Update all running stopwatches
+      // Update all running stopwatches locally (UI updates)
       setProjectStopwatches(prev => {
         const updated = { ...prev };
         let hasChanges = false;
@@ -60,47 +82,84 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
     return projectStopwatches[projectId] || defaultStopwatch;
   };
 
+  // Update stopwatch in Firebase
+  const updateStopwatchInFirebase = (projectId: string, stopwatch: ProjectStopwatch) => {
+    const stopwatchRef = ref(database, `projectStopwatches/${projectId}`);
+    set(stopwatchRef, stopwatch)
+      .catch(error => {
+        console.error("Error updating stopwatch in Firebase:", error);
+      });
+  };
+
   const startStopwatch = (projectId: string) => {
-    setProjectStopwatches(prev => {
-      const current = prev[projectId] || defaultStopwatch;
-      
-      if (current.isRunning) return prev;
-      
-      return {
-        ...prev,
-        [projectId]: {
-          ...current,
-          isRunning: true,
-          startTime: Date.now() - current.elapsedTime
-        }
-      };
-    });
+    // Get current stopwatch state
+    const current = getProjectStopwatch(projectId);
+    
+    if (current.isRunning) return;
+    
+    // Create updated stopwatch
+    const updatedStopwatch: ProjectStopwatch = {
+      ...current,
+      isRunning: true,
+      startTime: Date.now() - current.elapsedTime,
+      lastUpdatedBy: currentUserId
+    };
+    
+    // Update Firebase (will trigger the onValue subscription in other clients)
+    updateStopwatchInFirebase(projectId, updatedStopwatch);
+    
+    // Update local state immediately for responsive UI
+    setProjectStopwatches(prev => ({
+      ...prev,
+      [projectId]: updatedStopwatch
+    }));
   };
 
   const stopStopwatch = (projectId: string) => {
-    setProjectStopwatches(prev => {
-      const current = prev[projectId] || defaultStopwatch;
-      
-      if (!current.isRunning) return prev;
-      
-      return {
-        ...prev,
-        [projectId]: {
-          ...current,
-          isRunning: false
-        }
-      };
-    });
+    // Get current stopwatch state
+    const current = getProjectStopwatch(projectId);
+    
+    if (!current.isRunning) return;
+    
+    // Calculate current elapsed time
+    const elapsedTime = current.startTime 
+      ? Date.now() - current.startTime 
+      : current.elapsedTime;
+    
+    // Create updated stopwatch
+    const updatedStopwatch: ProjectStopwatch = {
+      ...current,
+      isRunning: false,
+      elapsedTime,
+      lastUpdatedBy: currentUserId
+    };
+    
+    // Update Firebase
+    updateStopwatchInFirebase(projectId, updatedStopwatch);
+    
+    // Update local state immediately
+    setProjectStopwatches(prev => ({
+      ...prev,
+      [projectId]: updatedStopwatch
+    }));
   };
 
   const resetStopwatch = (projectId: string) => {
+    // Create reset stopwatch
+    const resetStopwatch: ProjectStopwatch = {
+      isRunning: false,
+      startTime: null,
+      elapsedTime: 0,
+      lastUpdatedBy: currentUserId
+    };
+    
+    // Update Firebase
+    updateStopwatchInFirebase(projectId, resetStopwatch);
+    
+    // Update local state immediately
     setProjectStopwatches(prev => ({
       ...prev,
-      [projectId]: {
-        isRunning: false,
-        startTime: null,
-        elapsedTime: 0
-      }
+      [projectId]: resetStopwatch
     }));
   };
 
