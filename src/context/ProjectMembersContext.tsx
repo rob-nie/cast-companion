@@ -88,47 +88,47 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
 
   const addProjectMember = async (projectId: string, email: string, role: UserRole) => {
     try {
-      // Find user by email
+      // Anstatt nach E-Mail zu suchen, holen wir alle Benutzer und filtern lokal
       const usersRef = ref(database, 'users');
-      const emailQuery = query(usersRef, orderByChild('email'), equalTo(email));
-      const snapshot = await get(emailQuery);
+      const snapshot = await get(usersRef);
       
       if (!snapshot.exists()) {
-        toast.error("Benutzer nicht gefunden");
-        throw new Error("Benutzer nicht gefunden");
+        toast.error("Keine Benutzer gefunden");
+        throw new Error("Keine Benutzer gefunden");
       }
       
-      // Get the user ID
+      // Auf der Client-Seite nach der E-Mail suchen
       let userId = "";
       let userData = null;
+      let userFound = false;
       
       snapshot.forEach((childSnapshot) => {
-        userId = childSnapshot.key || "";
-        userData = childSnapshot.val();
+        const user = childSnapshot.val();
+        if (user.email === email) {
+          userId = childSnapshot.key || "";
+          userData = user;
+          userFound = true;
+        }
       });
       
-      if (!userId) {
+      if (!userFound || !userId) {
         toast.error("Benutzer nicht gefunden");
         throw new Error("Benutzer nicht gefunden");
       }
       
       // Check if user is already a member
       const membersRef = ref(database, 'projectMembers');
-      const memberQuery = query(
-        membersRef, 
-        orderByChild('userId'), 
-        equalTo(userId)
-      );
-      
-      const memberSnapshot = await get(memberQuery);
+      const memberSnapshot = await get(membersRef);
       let isAlreadyMember = false;
       
-      memberSnapshot.forEach((childSnapshot) => {
-        const memberData = childSnapshot.val();
-        if (memberData.projectId === projectId) {
-          isAlreadyMember = true;
-        }
-      });
+      if (memberSnapshot.exists()) {
+        memberSnapshot.forEach((childSnapshot) => {
+          const memberData = childSnapshot.val();
+          if (memberData.projectId === projectId && memberData.userId === userId) {
+            isAlreadyMember = true;
+          }
+        });
+      }
       
       if (isAlreadyMember) {
         toast.error("Benutzer ist bereits Mitglied dieses Projekts");
@@ -145,6 +145,7 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
       
       toast.success(`${userData.name} wurde zum Projekt hinzugefügt`);
     } catch (error: any) {
+      console.error("Failed to add member:", error);
       if (!error.message.includes("bereits Mitglied") && !error.message.includes("nicht gefunden")) {
         toast.error("Fehler beim Hinzufügen des Mitglieds");
       }

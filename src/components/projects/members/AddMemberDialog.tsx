@@ -15,6 +15,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { UserPlus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -58,8 +60,9 @@ const AddMemberDialog = ({ onAddMember }: AddMemberDialogProps) => {
       await onAddMember(values.email, values.role);
       form.reset();
       setIsOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add member:", error);
+      // Fehler wird bereits in ProjectMembersContext gehandelt
     } finally {
       setIsLoading(false);
     }
@@ -76,6 +79,9 @@ const AddMemberDialog = ({ onAddMember }: AddMemberDialogProps) => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Neues Mitglied einladen</DialogTitle>
+          <DialogDescription>
+            Füge eine E-Mail-Adresse eines registrierten Benutzers hinzu
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleInvite)} className="space-y-4">
