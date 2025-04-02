@@ -1,7 +1,7 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { toast } from "sonner";
-import { useProjectMembers } from "./ProjectMembersContext";
+import { useProjectMembers } from "./projectMembers";
 import { useProjectManagement } from "./ProjectManagementContext";
 
 type ProjectSharingContextType = {
