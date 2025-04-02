@@ -22,7 +22,7 @@ const Settings = () => {
 
   return (
     <PageLayout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto w-full">
         <div className="mb-6 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
@@ -54,7 +54,7 @@ const Settings = () => {
           </TabsList>
           
           {/* Profile Settings Tab */}
-          <TabsContent value="profile" className="mt-0 space-y-6">
+          <TabsContent value="profile" className="mt-0 space-y-6 w-full">
             {isAuthenticated && (
               <div>
                 <h2 className="text-2xl font-semibold mb-4">Profil</h2>
@@ -122,7 +122,7 @@ const Settings = () => {
           </TabsContent>
           
           {/* Project Settings Tab */}
-          <TabsContent value="project" className="mt-0 space-y-6">
+          <TabsContent value="project" className="mt-0 space-y-6 w-full">
             {currentProject ? (
               <>
                 <div>
