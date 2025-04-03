@@ -30,8 +30,8 @@ const Login = () => {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   
-  // Get the intended destination from state, or default to dashboard
-  const from = (location.state as any)?.from?.pathname || "/dashboard";
+  // Get the intended destination from state, or default to projects instead of dashboard
+  const from = (location.state as any)?.from?.pathname || "/projects";
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
