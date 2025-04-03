@@ -17,9 +17,7 @@ const QuickPhrases = ({
   quickPhrases, 
   onSelectPhrase, 
   showQuickPhrases, 
-  setShowQuickPhrases,
-  isImportant,
-  setIsImportant
+  setShowQuickPhrases
 }: QuickPhrasesProps) => {
   if (quickPhrases.length === 0) {
     return null;

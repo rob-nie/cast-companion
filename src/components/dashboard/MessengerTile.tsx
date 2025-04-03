@@ -7,9 +7,16 @@ import { useToast } from '@/hooks/use-toast';
 import MessageList from '../messenger/MessageList';
 import MessageInput from '../messenger/MessageInput';
 import QuickPhrases from '../messenger/QuickPhrases';
+import ImportantMessageDialog from '../messenger/ImportantMessageDialog';
 
 // Mock partner ID - would come from project data in a real app
 const OTHER_USER = "user-2";
+
+// Mock user names mapping - would come from a users service in a real app
+const USER_NAMES: Record<string, string> = {
+  "user-1": "Du",
+  "user-2": "Gesprächspartner"
+};
 
 const MessengerTile = () => {
   const { currentProject } = useProjects();
@@ -26,24 +33,46 @@ const MessengerTile = () => {
   const [isImportant, setIsImportant] = useState(false);
   const [showQuickPhrases, setShowQuickPhrases] = useState(true);
   const [inputValue, setInputValue] = useState('');
+  const [importantMessage, setImportantMessage] = useState<Message | null>(null);
   
   const currentUserId = user?.id || "user-1"; // Use authenticated user ID if available
   
-  // Track new messages for notification
+  // Track new messages for notification and important messages
   useEffect(() => {
     if (currentMessages.length > lastMessageCountRef.current) {
       // Check if the newest message is from the other user
       const newestMessage = currentMessages[currentMessages.length - 1];
       if (newestMessage && newestMessage.sender !== currentUserId) {
-        // Show notification for new message
+        // Show regular notification for new message
         toast({
           description: "Neue Nachricht erhalten",
           duration: 3000,
         });
+        
+        // If the message is important and not read, show the important message dialog
+        if (newestMessage.isImportant && !newestMessage.isRead) {
+          setImportantMessage(newestMessage);
+        }
       }
     }
     lastMessageCountRef.current = currentMessages.length;
   }, [currentMessages, toast, currentUserId]);
+  
+  // Check for any important unread messages when component mounts
+  useEffect(() => {
+    // Find the most recent important unread message from another user
+    const importantUnread = currentMessages
+      .filter(msg => 
+        msg.isImportant && 
+        !msg.isRead && 
+        msg.sender !== currentUserId
+      )
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+      
+    if (importantUnread) {
+      setImportantMessage(importantUnread);
+    }
+  }, [currentMessages, currentUserId]);
   
   if (!currentProject) return null;
   
@@ -53,6 +82,11 @@ const MessengerTile = () => {
   const handleMarkAsRead = (id: string) => {
     console.log('MessengerTile: marking message as read:', id);
     markAsRead(id);
+    
+    // Clear the important message if it was the one marked as read
+    if (importantMessage && importantMessage.id === id) {
+      setImportantMessage(null);
+    }
   };
   
   const handleToggleImportant = (id: string) => {
@@ -107,6 +141,13 @@ const MessengerTile = () => {
           setIsImportant={setIsImportant}
         />
       </div>
+      
+      {/* Important message dialog */}
+      <ImportantMessageDialog 
+        message={importantMessage}
+        onMarkAsRead={handleMarkAsRead}
+        userNames={USER_NAMES}
+      />
     </div>
   );
 };
