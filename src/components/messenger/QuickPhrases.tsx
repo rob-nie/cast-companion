@@ -9,8 +9,6 @@ interface QuickPhrasesProps {
   onSelectPhrase: (content: string) => void;
   showQuickPhrases: boolean;
   setShowQuickPhrases: (show: boolean) => void;
-  isImportant: boolean;
-  setIsImportant: (isImportant: boolean) => void;
 }
 
 const QuickPhrases = ({ 

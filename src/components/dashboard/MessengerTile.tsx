@@ -8,6 +8,7 @@ import MessageList from '../messenger/MessageList';
 import MessageInput from '../messenger/MessageInput';
 import QuickPhrases from '../messenger/QuickPhrases';
 import ImportantMessageDialog from '../messenger/ImportantMessageDialog';
+import { Message } from '@/types/messenger';
 
 // Mock partner ID - would come from project data in a real app
 const OTHER_USER = "user-2";
@@ -137,8 +138,6 @@ const MessengerTile = () => {
           onSelectPhrase={handleSelectQuickPhrase}
           showQuickPhrases={showQuickPhrases}
           setShowQuickPhrases={setShowQuickPhrases}
-          isImportant={isImportant}
-          setIsImportant={setIsImportant}
         />
       </div>
       

@@ -33,6 +33,8 @@ const MessageInput = ({
     
     onSendMessage(newMessage);
     setNewMessage('');
+    // Reset important flag after sending
+    setIsImportant(false);
     // Update parent state if provided
     if (setInputValue) {
       setInputValue('');

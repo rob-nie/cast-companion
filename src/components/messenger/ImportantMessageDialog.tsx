@@ -33,13 +33,6 @@ const ImportantMessageDialog = ({
     }
   }, [message]);
 
-  // Close the dialog when no message is provided
-  useEffect(() => {
-    if (!message) {
-      setOpen(false);
-    }
-  }, [message]);
-
   const handleMarkAsRead = () => {
     if (message) {
       onMarkAsRead(message.id);
@@ -56,7 +49,15 @@ const ImportantMessageDialog = ({
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      // Only allow closing via the mark as read button
+      // If trying to close via other means (like clicking outside),
+      // we'll call handleMarkAsRead to properly mark the message as read
+      if (!newOpen && open) {
+        handleMarkAsRead();
+      }
+      setOpen(newOpen);
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
