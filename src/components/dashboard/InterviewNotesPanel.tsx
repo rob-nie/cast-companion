@@ -31,7 +31,7 @@ const InterviewNotesPanel = ({
       setContent(interviewNotes.content);
     } else if (currentProject) {
       // Create default interview notes if none exist for this user
-      const userName = user?.displayName || user?.email || "User";
+      const userName = user?.name || user?.email || "User";
       const defaultContent = `<h1>${currentProject.title}</h1><p>${userName}'s Interview Notes</p>`;
       setContent(defaultContent);
       addNote({

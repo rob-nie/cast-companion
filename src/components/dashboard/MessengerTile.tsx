@@ -96,6 +96,7 @@ const MessengerTile = () => {
           showQuickPhrases={showQuickPhrases}
           setShowQuickPhrases={setShowQuickPhrases}
           isImportant={isImportant}
+          setIsImportant={setIsImportant}
         />
       </div>
     </div>
