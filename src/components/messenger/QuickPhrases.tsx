@@ -1,9 +1,8 @@
 
-import { AlertTriangle } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { QuickPhrase } from '@/types/messenger';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface QuickPhrasesProps {
   quickPhrases: QuickPhrase[];
@@ -54,17 +53,6 @@ const QuickPhrases = ({
           </div>
         </CollapsibleContent>
       </Collapsible>
-      
-      {/* Important message toggle button at the bottom */}
-      <Button
-        variant={isImportant ? "destructive" : "outline"}
-        size="sm"
-        onClick={() => setIsImportant(!isImportant)}
-        className={`mt-2 text-xs ${isImportant ? 'animate-pulse' : ''}`}
-      >
-        <AlertTriangle className="h-4 w-4 mr-1" />
-        {isImportant ? 'Als wichtig markiert' : 'Als wichtig markieren'}
-      </Button>
     </div>
   );
 };

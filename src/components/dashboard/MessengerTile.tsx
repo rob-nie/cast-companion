@@ -25,6 +25,7 @@ const MessengerTile = () => {
   const lastMessageCountRef = useRef(currentMessages.length);
   const [isImportant, setIsImportant] = useState(false);
   const [showQuickPhrases, setShowQuickPhrases] = useState(true);
+  const [inputValue, setInputValue] = useState('');
   
   const currentUserId = user?.id || "user-1"; // Use authenticated user ID if available
   
@@ -70,6 +71,11 @@ const MessengerTile = () => {
     });
   };
   
+  // Handler for quick phrases - copy to input instead of sending
+  const handleSelectQuickPhrase = (content: string) => {
+    setInputValue(content);
+  };
+  
   return (
     <div className="tile flex flex-col h-full">
       {/* Message list with fixed height container - taking remaining space */}
@@ -88,11 +94,13 @@ const MessengerTile = () => {
           onSendMessage={handleSendMessage}
           isImportant={isImportant}
           setIsImportant={setIsImportant}
+          inputValue={inputValue}
+          setInputValue={setInputValue}
         />
         
         <QuickPhrases 
           quickPhrases={userQuickPhrases}
-          onSelectPhrase={handleSendMessage}
+          onSelectPhrase={handleSelectQuickPhrase}
           showQuickPhrases={showQuickPhrases}
           setShowQuickPhrases={setShowQuickPhrases}
           isImportant={isImportant}
