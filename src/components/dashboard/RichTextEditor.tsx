@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useTheme } from '@/context/ThemeContext';
@@ -12,19 +12,8 @@ interface RichTextEditorProps {
 }
 
 const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichTextEditorProps) => {
-  const [content, setContent] = useState(initialContent);
   const { theme } = useTheme();
   const quillRef = useRef<ReactQuill>(null);
-
-  // Update content when initialContent changes (e.g., when switching projects)
-  useEffect(() => {
-    setContent(initialContent);
-  }, [initialContent]);
-
-  const handleChange = (value: string) => {
-    setContent(value);
-    onChange(value);
-  };
 
   // Configure clipboard handling for better formatted text support
   useEffect(() => {
@@ -140,8 +129,8 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       <ReactQuill
         ref={quillRef}
         theme="snow"
-        value={content}
-        onChange={handleChange}
+        value={initialContent}
+        onChange={onChange}
         modules={modules}
         formats={formats}
         readOnly={readOnly}
