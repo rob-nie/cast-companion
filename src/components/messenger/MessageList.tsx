@@ -15,6 +15,7 @@ interface MessageListProps {
 
 const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: MessageListProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewMessage, setHasNewMessage] = useState(false);
@@ -23,7 +24,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
   useEffect(() => {
     if (messages.length > 0 && isAtBottom) {
       setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }, 100);
     } else if (messages.length > 0 && !isAtBottom) {
       setHasNewMessage(true);
@@ -32,10 +33,10 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
   
   // Handle scroll events to track if user is at bottom
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (!scrollAreaRef.current) return;
+    if (!viewportRef.current) return;
     
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
+    const isScrolledToBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 20;
     
     setIsAtBottom(isScrolledToBottom);
     
@@ -46,7 +47,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
   
   // Scroll to the latest message
   const scrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     setHasNewMessage(false);
     setIsAtBottom(true);
   };
@@ -62,7 +63,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
   }
 
   return (
-    <div className="relative h-full">
+    <div className="relative h-full flex flex-col">
       <ScrollArea 
         className="h-full pr-4 pb-2" 
         onScroll={handleScroll}
@@ -78,7 +79,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
               toggleImportant={toggleImportant}
             />
           ))}
-          <div ref={bottomRef} />
+          <div ref={bottomRef} className="h-1" />
         </div>
       </ScrollArea>
       
