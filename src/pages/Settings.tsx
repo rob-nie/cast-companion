@@ -13,6 +13,7 @@ import { useUser } from "@/context/UserContext";
 import { useProjects } from "@/context/ProjectContext";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const Settings = () => {
   const { theme, setTheme } = useTheme();
@@ -22,139 +23,141 @@ const Settings = () => {
 
   return (
     <PageLayout>
-      <div className="max-w-4xl mx-auto w-full">
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
-            <p className="text-muted-foreground mt-1">
-              Passe deine Interview-Umgebung an
-            </p>
-          </div>
-          {isAuthenticated && (
-            <Button 
-              variant="outline" 
-              onClick={logout}
-              className="hover:bg-destructive hover:text-destructive-foreground"
-            >
-              Abmelden
-            </Button>
-          )}
-        </div>
-
-        <Tabs defaultValue={defaultTab} className="w-full">
-          <TabsList className="grid grid-cols-2 w-full max-w-md mb-6">
-            <TabsTrigger value="profile" className="flex items-center justify-center gap-1">
-              <User className="h-4 w-4" />
-              <span>Profileinstellungen</span>
-            </TabsTrigger>
-            <TabsTrigger value="project" className="flex items-center justify-center gap-1">
-              <SettingsIcon className="h-4 w-4" />
-              <span>Projekteinstellungen</span>
-            </TabsTrigger>
-          </TabsList>
-          
-          {/* Profile Settings Tab */}
-          <TabsContent value="profile" className="mt-0 space-y-6 w-full">
-            {isAuthenticated && (
-              <div>
-                <h2 className="text-2xl font-semibold mb-4">Profil</h2>
-                <ProfileSettings />
-              </div>
-            )}
-            
-            <Separator className="my-6" />
-            
+      <ScrollArea className="h-full w-full">
+        <div className="max-w-4xl mx-auto w-full pb-8">
+          <div className="mb-6 flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-semibold mb-4">Darstellung</h2>
-              <Card className="w-full">
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div className="flex flex-col">
-                      <p className="text-muted-foreground mb-4">
-                        Wähle deinen bevorzugten Darstellungsmodus
-                      </p>
-                      
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <Button 
-                          variant={theme === "light" ? "default" : "outline"}
-                          className="flex items-center justify-center gap-2 h-20 py-6"
-                          onClick={() => setTheme("light")}
-                        >
-                          <Sun className="h-6 w-6" />
-                          <div className="text-left">
-                            <span className="block font-medium">Light Mode</span>
-                            <span className="text-xs text-muted-foreground">
-                              Helles Erscheinungsbild
-                            </span>
-                          </div>
-                        </Button>
+              <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
+              <p className="text-muted-foreground mt-1">
+                Passe deine Interview-Umgebung an
+              </p>
+            </div>
+            {isAuthenticated && (
+              <Button 
+                variant="outline" 
+                onClick={logout}
+                className="hover:bg-destructive hover:text-destructive-foreground"
+              >
+                Abmelden
+              </Button>
+            )}
+          </div>
+
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList className="grid grid-cols-2 w-full max-w-md mb-6">
+              <TabsTrigger value="profile" className="flex items-center justify-center gap-1">
+                <User className="h-4 w-4" />
+                <span>Profileinstellungen</span>
+              </TabsTrigger>
+              <TabsTrigger value="project" className="flex items-center justify-center gap-1">
+                <SettingsIcon className="h-4 w-4" />
+                <span>Projekteinstellungen</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Profile Settings Tab */}
+            <TabsContent value="profile" className="mt-0 space-y-6 w-full">
+              {isAuthenticated && (
+                <div>
+                  <h2 className="text-2xl font-semibold mb-4">Profil</h2>
+                  <ProfileSettings />
+                </div>
+              )}
+              
+              <Separator className="my-6" />
+              
+              <div>
+                <h2 className="text-2xl font-semibold mb-4">Darstellung</h2>
+                <Card className="w-full">
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="flex flex-col">
+                        <p className="text-muted-foreground mb-4">
+                          Wähle deinen bevorzugten Darstellungsmodus
+                        </p>
                         
-                        <Button
-                          variant={theme === "dark" ? "default" : "outline"}
-                          className="flex items-center justify-center gap-2 h-20 py-6"
-                          onClick={() => setTheme("dark")}
-                        >
-                          <Moon className="h-6 w-6" />
-                          <div className="text-left">
-                            <span className="block font-medium">Dark Mode</span>
-                            <span className="text-xs text-muted-foreground">
-                              Reduzierte Helligkeit, schont die Augen
-                            </span>
-                          </div>
-                        </Button>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <Button 
+                            variant={theme === "light" ? "default" : "outline"}
+                            className="flex items-center justify-center gap-2 h-20 py-6"
+                            onClick={() => setTheme("light")}
+                          >
+                            <Sun className="h-6 w-6" />
+                            <div className="text-left">
+                              <span className="block font-medium">Light Mode</span>
+                              <span className="text-xs text-muted-foreground">
+                                Helles Erscheinungsbild
+                              </span>
+                            </div>
+                          </Button>
+                          
+                          <Button
+                            variant={theme === "dark" ? "default" : "outline"}
+                            className="flex items-center justify-center gap-2 h-20 py-6"
+                            onClick={() => setTheme("dark")}
+                          >
+                            <Moon className="h-6 w-6" />
+                            <div className="text-left">
+                              <span className="block font-medium">Dark Mode</span>
+                              <span className="text-xs text-muted-foreground">
+                                Reduzierte Helligkeit, schont die Augen
+                              </span>
+                            </div>
+                          </Button>
+                        </div>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <Separator className="my-6" />
+              
+              <div>
+                <h2 className="text-2xl font-semibold mb-4">Quick Phrases</h2>
+                <Card className="w-full">
+                  <CardContent className="pt-6">
+                    <QuickPhrases />
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            
+            {/* Project Settings Tab */}
+            <TabsContent value="project" className="mt-0 space-y-6 w-full">
+              {currentProject ? (
+                <>
+                  <div>
+                    <h2 className="text-2xl font-semibold mb-4">Projektdetails</h2>
+                    <ProjectSettings />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            <Separator className="my-6" />
-            
-            <div>
-              <h2 className="text-2xl font-semibold mb-4">Quick Phrases</h2>
-              <Card className="w-full">
-                <CardContent className="pt-6">
-                  <QuickPhrases />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          {/* Project Settings Tab */}
-          <TabsContent value="project" className="mt-0 space-y-6 w-full">
-            {currentProject ? (
-              <>
-                <div>
-                  <h2 className="text-2xl font-semibold mb-4">Projektdetails</h2>
-                  <ProjectSettings />
-                </div>
-                
-                <Separator className="my-6" />
-                
-                <div>
-                  <h2 className="text-2xl font-semibold mb-4">Projektmitglieder</h2>
-                  <Card className="w-full">
-                    <CardContent className="pt-6">
-                      <ProjectMembers />
-                    </CardContent>
-                  </Card>
-                </div>
-              </>
-            ) : (
-              <Card className="w-full">
-                <CardContent className="py-8 text-center">
-                  <SettingsIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Kein Projekt ausgewählt</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Wähle ein Projekt, um die Projekteinstellungen zu bearbeiten
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+                  
+                  <Separator className="my-6" />
+                  
+                  <div>
+                    <h2 className="text-2xl font-semibold mb-4">Projektmitglieder</h2>
+                    <Card className="w-full">
+                      <CardContent className="pt-6">
+                        <ProjectMembers />
+                      </CardContent>
+                    </Card>
+                  </div>
+                </>
+              ) : (
+                <Card className="w-full">
+                  <CardContent className="py-8 text-center">
+                    <SettingsIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Kein Projekt ausgewählt</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Wähle ein Projekt, um die Projekteinstellungen zu bearbeiten
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </ScrollArea>
     </PageLayout>
   );
 };
