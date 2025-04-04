@@ -1,9 +1,10 @@
 
-import { CalendarIcon, Share2, Trash2 } from "lucide-react";
+import { CalendarIcon, Share2, Trash2, FolderHeart, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useProjects } from "@/context/ProjectContext";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -18,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const ProjectCard = ({ project }) => {
+const ProjectCard = ({ project, isOwned }) => {
   const { setCurrentProject, deleteProject } = useProjects();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -51,12 +52,25 @@ const ProjectCard = ({ project }) => {
         onClick={handleOpenProject}
       >
         <CardContent className="p-6">
-          <div className="space-y-2">
+          <div className="flex justify-between items-start mb-2">
             <h3 className="font-semibold text-lg tracking-tight">{project.title}</h3>
-            <p className="text-muted-foreground text-sm line-clamp-2">
-              {project.description || "Keine Beschreibung"}
-            </p>
+            <Badge variant={isOwned ? "default" : "secondary"} className="flex items-center gap-1">
+              {isOwned ? (
+                <>
+                  <FolderHeart className="h-3 w-3" />
+                  <span>Eigenes</span>
+                </>
+              ) : (
+                <>
+                  <Users className="h-3 w-3" />
+                  <span>Geteilt</span>
+                </>
+              )}
+            </Badge>
           </div>
+          <p className="text-muted-foreground text-sm line-clamp-2">
+            {project.description || "Keine Beschreibung"}
+          </p>
         </CardContent>
         <CardFooter className="bg-muted/50 p-4 flex items-center justify-between">
           <div className="flex items-center text-xs text-muted-foreground">
@@ -79,10 +93,12 @@ const ProjectCard = ({ project }) => {
               <Share2 className="h-4 w-4" />
               <span className="sr-only">Teilen</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="h-8 w-8 text-destructive">
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">Löschen</span>
-            </Button>
+            {isOwned && (
+              <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="h-8 w-8 text-destructive">
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Löschen</span>
+              </Button>
+            )}
           </div>
         </CardFooter>
       </Card>
