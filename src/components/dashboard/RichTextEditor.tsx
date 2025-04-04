@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useTheme } from '@/context/ThemeContext';
@@ -15,45 +15,6 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   const { theme } = useTheme();
   const quillRef = useRef<ReactQuill>(null);
 
-  // Configure clipboard handling for better formatted text support
-  useEffect(() => {
-    if (quillRef.current && !readOnly) {
-      const quillEditor = quillRef.current.getEditor();
-      
-      // Handle paste events to preserve formatting from clipboard
-      const handlePaste = function(e: ClipboardEvent) {
-        if (e.clipboardData) {
-          // Try to get HTML content from clipboard first
-          const html = e.clipboardData.getData('text/html');
-          
-          if (html) {
-            // If HTML is available, prevent default paste behavior
-            e.preventDefault();
-            
-            // Get current cursor position
-            const range = quillEditor.getSelection();
-            
-            if (range) {
-              // Insert the HTML content at cursor position
-              quillEditor.clipboard.dangerouslyPasteHTML(range.index, html);
-            }
-          }
-        }
-      };
-      
-      // Get the editor element
-      const editorElement = quillEditor.root;
-      
-      // Add event listener for paste events
-      editorElement.addEventListener('paste', handlePaste);
-      
-      // Clean up event listener when component unmounts
-      return () => {
-        editorElement.removeEventListener('paste', handlePaste);
-      };
-    }
-  }, [readOnly]);
-
   // Toolbar configuration
   const modules = {
     toolbar: readOnly ? false : [
@@ -63,7 +24,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       ['clean']
     ],
     clipboard: {
-      // Use custom matcher for better clipboard handling
+      // Allow better paste handling
       matchVisual: false,
     },
   };
@@ -83,6 +44,11 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       : 'text-black quill-light',
     readOnly ? 'quill-readonly' : ''
   );
+
+  // Handle content change
+  const handleChange = (content: string) => {
+    onChange(content);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -122,6 +88,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
         .ql-editor {
           overflow-y: auto;
           min-height: 100%;
+          white-space: pre-wrap; /* Preserve whitespace */
         }
         
         .quill-readonly .ql-container {
@@ -134,11 +101,12 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
         ref={quillRef}
         theme="snow"
         value={initialContent}
-        onChange={onChange}
+        onChange={handleChange}
         modules={modules}
         formats={formats}
         readOnly={readOnly}
         className={editorClass}
+        preserveWhitespace={true}
       />
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { CalendarIcon, Share2, Trash2, FolderHeart, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
@@ -19,7 +18,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const ProjectCard = ({ project, isOwned }) => {
+// Add proper typing for the project and isOwned props
+interface ProjectCardProps {
+  project: {
+    id: string;
+    title: string;
+    description?: string;
+    lastAccessed?: string | Date;
+    createdAt: string | Date;
+  };
+  isOwned: boolean;
+}
+
+const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
   const { setCurrentProject, deleteProject } = useProjects();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
