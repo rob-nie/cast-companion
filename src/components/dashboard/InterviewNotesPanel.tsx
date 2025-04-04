@@ -58,13 +58,13 @@ const InterviewNotesPanel = ({
   if (!currentProject) return null;
 
   return (
-    <div className="tile h-[calc(100vh-13rem)]">
+    <div className="tile flex flex-col h-full overflow-hidden">
       <Tabs 
         value={activeTab} 
         onValueChange={setActiveTab}
         className="h-full flex flex-col"
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <TabsList className="grid grid-cols-2 w-64">
             <TabsTrigger value="notes" className="flex items-center gap-1">
               <FilePenLine className="h-4 w-4" />
@@ -77,14 +77,14 @@ const InterviewNotesPanel = ({
           </TabsList>
         </div>
 
-        <TabsContent value="notes" className="flex-1 mt-0 h-full">
+        <TabsContent value="notes" className="flex-1 mt-0 overflow-auto h-full">
           <RichTextEditor 
             initialContent={content} 
             onChange={handleContentChange} 
           />
         </TabsContent>
         
-        <TabsContent value="live" className="flex-1 mt-0 h-full">
+        <TabsContent value="live" className="flex-1 mt-0 overflow-auto h-full">
           <LiveNotesPanel />
         </TabsContent>
       </Tabs>

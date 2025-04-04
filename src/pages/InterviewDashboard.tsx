@@ -20,7 +20,7 @@ const InterviewDashboard = () => {
   }, [currentProject, navigate, updateProject]);
 
   return (
-    <PageLayout>
+    <PageLayout withPadding={false}>
       <Dashboard />
     </PageLayout>
   );

@@ -77,7 +77,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
 
   // Add custom theme classes
   const editorClass = cn(
-    'flex-1 overflow-auto focus:outline-none rounded-md',
+    'flex-1 h-full overflow-auto focus:outline-none rounded-md',
     theme === 'dark' 
       ? 'text-white quill-dark' 
       : 'text-black quill-light',
@@ -85,7 +85,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <style>
         {`
         /* Global styles for Quill editor based on theme */
@@ -116,8 +116,12 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
         
         /* Ensure editor takes full height */
         .ql-container {
-          min-height: 10rem;
           height: calc(100% - 42px); /* 42px is the approximate height of the toolbar */
+        }
+        
+        .ql-editor {
+          overflow-y: auto;
+          min-height: 100%;
         }
         
         .quill-readonly .ql-container {

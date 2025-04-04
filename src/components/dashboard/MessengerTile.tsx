@@ -104,6 +104,11 @@ const MessengerTile = () => {
       content,
       isImportant,
     });
+    
+    // Reset important flag after sending an important message
+    if (isImportant) {
+      setIsImportant(false);
+    }
   };
   
   // Handler for quick phrases - copy to input instead of sending
@@ -112,7 +117,7 @@ const MessengerTile = () => {
   };
   
   return (
-    <div className="tile flex flex-col h-full">
+    <div className="tile flex flex-col h-full overflow-hidden">
       {/* Message list with fixed height container - taking remaining space */}
       <div className="flex-1 overflow-hidden">
         <MessageList 

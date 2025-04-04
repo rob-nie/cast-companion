@@ -9,9 +9,9 @@ type PageLayoutProps = {
 
 const PageLayout = ({ children, withPadding = true }: PageLayoutProps) => {
   return (
-    <div className="min-h-screen flex flex-col h-screen">
+    <div className="h-screen flex flex-col overflow-hidden">
       <Navbar />
-      <main className={`flex-1 flex flex-col ${withPadding ? 'container p-4 md:p-6' : ''} overflow-hidden`}>
+      <main className={`flex-1 ${withPadding ? 'container p-4 md:p-6' : ''} overflow-hidden`}>
         {children}
       </main>
     </div>
