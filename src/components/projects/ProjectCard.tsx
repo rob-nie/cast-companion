@@ -1,3 +1,4 @@
+
 import { CalendarIcon, Share2, Trash2, FolderHeart, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
@@ -17,16 +18,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Project } from "@/context/ProjectContext"; // Import Project type from context
 
-// Add proper typing for the project and isOwned props
+// Update the interface to match the Project type from context
 interface ProjectCardProps {
-  project: {
-    id: string;
-    title: string;
-    description?: string;
-    lastAccessed?: string | Date;
-    createdAt: string | Date;
-  };
+  project: Project; // Use the imported Project type
   isOwned: boolean;
 }
 
@@ -40,13 +36,13 @@ const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
     navigate("/dashboard");
   };
 
-  const handleShareProject = (e) => {
+  const handleShareProject = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentProject(project);
     navigate("/project-sharing");
   };
 
-  const handleDeleteClick = (e) => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDeleteDialog(true);
   };
