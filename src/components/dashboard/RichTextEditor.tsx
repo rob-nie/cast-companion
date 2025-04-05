@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,12 +14,12 @@ interface RichTextEditorProps {
 const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichTextEditorProps) => {
   const { theme } = useTheme();
   const quillRef = useRef<ReactQuill>(null);
-  const contentRef = useRef<string>(initialContent);
+  const [content, setContent] = useState<string>(initialContent);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Update contentRef when initialContent changes
+  // Update local state when initialContent changes
   useEffect(() => {
-    contentRef.current = initialContent;
+    setContent(initialContent);
   }, [initialContent]);
 
   // Toolbar configuration
@@ -58,7 +58,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   );
 
   // Debounced onChange handler with cursor position preservation
-  const handleChange = useCallback((content: string) => {
+  const handleChange = useCallback((newContent: string) => {
     if (readOnly) return;
     
     const quill = quillRef.current?.getEditor();
@@ -67,26 +67,29 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     // Store current selection
     const range = quill.getSelection();
     
-    // Update the content reference
-    contentRef.current = content;
+    // Compare old and new content before updating state
+    if (content === newContent) return;
+    
+    // Update local state immediately
+    setContent(newContent);
     
     // Clear any existing debounce timer
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
     
-    // Debounce the onChange call (300ms)
+    // Debounce the parent onChange call (300ms)
     debounceTimerRef.current = setTimeout(() => {
-      onChange(content);
+      onChange(newContent);
       
-      // Restore cursor position after state update
+      // Restore cursor position after the state update
       if (range) {
         setTimeout(() => {
           quill.setSelection(range);
         }, 1);
       }
     }, 300);
-  }, [onChange, readOnly]);
+  }, [content, onChange, readOnly]);
 
   // Clean up debounce timer on unmount
   useEffect(() => {
@@ -147,7 +150,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       <ReactQuill
         ref={quillRef}
         theme="snow"
-        value={contentRef.current}
+        value={content}
         onChange={handleChange}
         modules={modules}
         formats={formats}

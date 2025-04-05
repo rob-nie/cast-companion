@@ -49,8 +49,9 @@ const InterviewNotesPanel = ({
 
   // Save notes when they're updated
   const handleContentChange = (newContent: string) => {
-    setContent(newContent);
-    if (interviewNotes) {
+    // Only update if content has actually changed
+    if (content !== newContent && interviewNotes) {
+      setContent(newContent);
       updateNote(interviewNotes.id, { content: newContent });
     }
   };
