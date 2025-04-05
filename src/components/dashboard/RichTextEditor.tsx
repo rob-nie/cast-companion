@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,6 +14,12 @@ interface RichTextEditorProps {
 const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichTextEditorProps) => {
   const { theme } = useTheme();
   const quillRef = useRef<ReactQuill>(null);
+  const contentRef = useRef<string>(initialContent);
+
+  // Update contentRef when initialContent changes
+  useEffect(() => {
+    contentRef.current = initialContent;
+  }, [initialContent]);
 
   // Toolbar configuration
   const modules = {
@@ -27,6 +33,11 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       // Allow better paste handling
       matchVisual: false,
     },
+    history: {
+      delay: 500,
+      maxStack: 100,
+      userOnly: true
+    }
   };
 
   // Format options
@@ -45,8 +56,9 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     readOnly ? 'quill-readonly' : ''
   );
 
-  // Handle content change
+  // Handle content change, but preserve cursor position
   const handleChange = (content: string) => {
+    contentRef.current = content;
     onChange(content);
   };
 
@@ -100,7 +112,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       <ReactQuill
         ref={quillRef}
         theme="snow"
-        value={initialContent}
+        value={contentRef.current}
         onChange={handleChange}
         modules={modules}
         formats={formats}
