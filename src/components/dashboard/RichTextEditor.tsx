@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { useTheme } from '@/context/ThemeContext';
@@ -15,6 +15,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   const { theme } = useTheme();
   const quillRef = useRef<ReactQuill>(null);
   const contentRef = useRef<string>(initialContent);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update contentRef when initialContent changes
   useEffect(() => {
@@ -56,11 +57,45 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     readOnly ? 'quill-readonly' : ''
   );
 
-  // Handle content change, but preserve cursor position
-  const handleChange = (content: string) => {
+  // Debounced onChange handler with cursor position preservation
+  const handleChange = useCallback((content: string) => {
+    if (readOnly) return;
+    
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+    
+    // Store current selection
+    const range = quill.getSelection();
+    
+    // Update the content reference
     contentRef.current = content;
-    onChange(content);
-  };
+    
+    // Clear any existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Debounce the onChange call (300ms)
+    debounceTimerRef.current = setTimeout(() => {
+      onChange(content);
+      
+      // Restore cursor position after state update
+      if (range) {
+        setTimeout(() => {
+          quill.setSelection(range);
+        }, 1);
+      }
+    }, 300);
+  }, [onChange, readOnly]);
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
