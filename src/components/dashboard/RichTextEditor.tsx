@@ -13,6 +13,8 @@ import {
   Underline as UnderlineIcon,
   Link as LinkIcon,
   Heading1,
+  Heading2,
+  Heading3,
   List,
   ListOrdered,
   Save
@@ -115,7 +117,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     <div className="flex flex-col h-full overflow-hidden">
       {!readOnly && (
         <div className="bg-background border-b border-input p-2 mb-3 rounded-t-md flex items-center gap-1 flex-wrap">
-          {/* Simpler formatting buttons */}
+          {/* Text formatting buttons */}
           <Button
             variant="ghost"
             size="icon"
@@ -145,6 +147,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
           
           <Separator orientation="vertical" className="mx-1 h-6" />
           
+          {/* Heading buttons */}
           <Button
             variant="ghost"
             size="icon"
@@ -154,8 +157,27 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
             <Heading1 className="h-4 w-4" />
           </Button>
           
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={editor.isActive('heading', { level: 2 }) ? 'bg-accent' : ''}
+          >
+            <Heading2 className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            className={editor.isActive('heading', { level: 3 }) ? 'bg-accent' : ''}
+          >
+            <Heading3 className="h-4 w-4" />
+          </Button>
+          
           <Separator orientation="vertical" className="mx-1 h-6" />
           
+          {/* List buttons */}
           <Button
             variant="ghost"
             size="icon"
@@ -231,6 +253,34 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
           font-size: 1.5rem;
           font-weight: 600;
           margin: 0.75rem 0 0.5rem;
+        }
+        
+        .ProseMirror h2 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin: 0.75rem 0 0.5rem;
+        }
+        
+        .ProseMirror h3 {
+          font-size: 1.125rem;
+          font-weight: 600;
+          margin: 0.75rem 0 0.5rem;
+        }
+        
+        .ProseMirror ul {
+          list-style-type: disc;
+          padding-left: 1rem;
+          margin: 0.5rem 0;
+        }
+        
+        .ProseMirror ol {
+          list-style-type: decimal;
+          padding-left: 1rem;
+          margin: 0.5rem 0;
+        }
+        
+        .ProseMirror li {
+          margin: 0.25rem 0;
         }
       `}</style>
     </div>

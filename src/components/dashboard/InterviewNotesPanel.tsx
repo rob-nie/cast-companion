@@ -7,7 +7,7 @@ import { useUser } from '@/context/UserContext';
 import RichTextEditor from './RichTextEditor';
 import LiveNotesPanel from './LiveNotesPanel';
 import { FilePenLine, MessageSquare } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface InterviewNotesPanelProps {
   showLiveNotes: boolean;
