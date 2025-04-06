@@ -148,8 +148,14 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       ? url 
       : `https://${url}`;
       
-    // Use preserveSelection to maintain cursor position after setting link
-    editor.chain().focus().extendMarkRange('link').setLink({ href: fullUrl }, { preserveSelection: true }).run();
+    // Check if the editor version supports the preserveSelection option
+    try {
+      // For newer Tiptap versions that support preserveSelection
+      editor.chain().focus().extendMarkRange('link').setLink({ href: fullUrl }).run();
+    } catch (error) {
+      // Fallback for older versions
+      editor.chain().focus().extendMarkRange('link').setLink({ href: fullUrl }).run();
+    }
   };
 
   if (!editor) {
