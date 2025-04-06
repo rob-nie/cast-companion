@@ -45,26 +45,29 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const lastJsonContentRef = useRef<any>(null);
   
+  // Define extensions outside the editor to reuse them
+  const extensions = [
+    StarterKit.configure({
+      heading: false, // We'll configure it separately below
+    }),
+    Underline,
+    TextStyle,
+    Link.configure({
+      openOnClick: true,
+      HTMLAttributes: {
+        class: 'text-primary underline cursor-pointer',
+        rel: 'noopener noreferrer',
+        target: '_blank',
+      },
+    }),
+    Heading.configure({
+      levels: [1, 2, 3],
+    }),
+  ];
+  
   // Create and configure the Tiptap editor
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: false, // We'll configure it separately below
-      }),
-      Underline,
-      TextStyle,
-      Link.configure({
-        openOnClick: true,
-        HTMLAttributes: {
-          class: 'text-primary underline cursor-pointer',
-          rel: 'noopener noreferrer',
-          target: '_blank',
-        },
-      }),
-      Heading.configure({
-        levels: [1, 2, 3],
-      }),
-    ],
+    extensions,
     content: initialContent,
     editable: !readOnly,
     onUpdate: ({ editor }) => {
@@ -111,7 +114,8 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     if (!editor) return;
 
     const currentJson = editor.getJSON();
-    const newJson = generateJSON(initialContent || '<p></p>', editor.schema);
+    // Use the same extensions to generate JSON from HTML content
+    const newJson = generateJSON(initialContent || '<p></p>', extensions);
 
     const contentChanged = JSON.stringify(currentJson) !== JSON.stringify(newJson);
 
@@ -120,7 +124,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       editor.commands.setContent(initialContent || '<p></p>');
       setCurrentContent(initialContent || '<p></p>');
     }
-  }, [editor, initialContent]);
+  }, [editor, initialContent, extensions]);
 
   const editorClass = cn(
     'w-full h-full overflow-auto focus:outline-none rounded-md border border-input p-3',
