@@ -108,13 +108,19 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   
   // Update editor content when initialContent changes
   useEffect(() => {
-    if (editor && initialContent !== currentContent) {
-      // Store the new JSON content to prevent change detection loop
-      const jsonFromHtml = editor.state.toJSON();
-      lastJsonContentRef.current = jsonFromHtml;
-      
-      editor.commands.setContent(initialContent);
-      setCurrentContent(initialContent);
+    if (editor) {
+      const currentJson = editor.getJSON();
+      const newEditor = editor.clone();
+      newEditor.commands.setContent(initialContent);
+      const newJson = newEditor.getJSON();
+
+      const contentChanged = JSON.stringify(currentJson) !== JSON.stringify(newJson);
+
+      if (contentChanged) {
+        editor.commands.setContent(initialContent);
+        lastJsonContentRef.current = newJson;
+        setCurrentContent(initialContent);
+      }
     }
   }, [editor, initialContent]);
 
