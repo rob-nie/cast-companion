@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNotes } from '@/context/NotesContext';
@@ -6,6 +7,7 @@ import { useUser } from '@/context/UserContext';
 import RichTextEditor from './RichTextEditor';
 import LiveNotesPanel from './LiveNotesPanel';
 import { FilePenLine, MessageSquare } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface InterviewNotesPanelProps {
   showLiveNotes: boolean;
@@ -21,6 +23,7 @@ const InterviewNotesPanel = ({
   const { interviewNotes, addNote, updateNote } = useNotes();
   const [content, setContent] = useState('');
   const [activeTab, setActiveTab] = useState(showLiveNotes ? 'live' : 'notes');
+  const { toast } = useToast();
 
   const currentUserId = user?.id || "user-1";
   
@@ -52,6 +55,13 @@ const InterviewNotesPanel = ({
     if (content !== newContent && interviewNotes) {
       setContent(newContent);
       updateNote(interviewNotes.id, { content: newContent });
+      
+      // Show toast notification when content is saved
+      toast({
+        title: "Notizen gespeichert",
+        description: "Ihre Notizen wurden erfolgreich gespeichert.",
+        duration: 3000,
+      });
     }
   };
 
