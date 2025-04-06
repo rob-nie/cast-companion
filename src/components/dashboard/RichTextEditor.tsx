@@ -43,6 +43,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   const [currentContent, setCurrentContent] = useState<string>(initialContent);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const lastJsonContentRef = useRef<any>(null);
   
   // Create and configure the Tiptap editor
   const editor = useEditor({
@@ -68,9 +69,18 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
     editable: !readOnly,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
+      const jsonContent = editor.getJSON();
       
-      // Skip if content hasn't changed
-      if (html === currentContent) return;
+      // Skip if content hasn't changed substantially
+      // Compare JSON structure instead of HTML for more reliable comparison
+      const prevJsonContent = lastJsonContentRef.current;
+      if (prevJsonContent && 
+          JSON.stringify(jsonContent) === JSON.stringify(prevJsonContent)) {
+        return;
+      }
+      
+      // Update reference to latest JSON content
+      lastJsonContentRef.current = jsonContent;
       
       // Update local state immediately
       setCurrentContent(html);
@@ -99,6 +109,10 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   // Update editor content when initialContent changes
   useEffect(() => {
     if (editor && initialContent !== currentContent) {
+      // Store the new JSON content to prevent change detection loop
+      const jsonFromHtml = editor.state.toJSON();
+      lastJsonContentRef.current = jsonFromHtml;
+      
       editor.commands.setContent(initialContent);
       setCurrentContent(initialContent);
     }
@@ -134,7 +148,8 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
       ? url 
       : `https://${url}`;
       
-    editor.chain().focus().extendMarkRange('link').setLink({ href: fullUrl }).run();
+    // Use preserveSelection to maintain cursor position after setting link
+    editor.chain().focus().extendMarkRange('link').setLink({ href: fullUrl }, { preserveSelection: true }).run();
   };
 
   if (!editor) {
