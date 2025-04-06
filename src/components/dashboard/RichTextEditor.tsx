@@ -1,6 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
+import { generateJSON } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
@@ -108,19 +108,17 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
   
   // Update editor content when initialContent changes
   useEffect(() => {
-    if (editor) {
-      const currentJson = editor.getJSON();
-      const newEditor = editor.clone();
-      newEditor.commands.setContent(initialContent);
-      const newJson = newEditor.getJSON();
+    if (!editor) return;
 
-      const contentChanged = JSON.stringify(currentJson) !== JSON.stringify(newJson);
+    const currentJson = editor.getJSON();
+    const newJson = generateJSON(initialContent || '<p></p>', editor.schema);
 
-      if (contentChanged) {
-        editor.commands.setContent(initialContent);
-        lastJsonContentRef.current = newJson;
-        setCurrentContent(initialContent);
-      }
+    const contentChanged = JSON.stringify(currentJson) !== JSON.stringify(newJson);
+
+    if (contentChanged) {
+      lastJsonContentRef.current = newJson;
+      editor.commands.setContent(initialContent || '<p></p>');
+      setCurrentContent(initialContent || '<p></p>');
     }
   }, [editor, initialContent]);
 
