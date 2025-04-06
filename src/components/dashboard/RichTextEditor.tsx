@@ -153,7 +153,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="bold" 
                     aria-label="Toggle bold"
-                    pressed={editor.isActive('bold')}
+                    data-state={editor.isActive('bold') ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleBold().run()}
                   >
                     <Bold className="h-4 w-4" />
@@ -167,7 +167,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="italic" 
                     aria-label="Toggle italic"
-                    pressed={editor.isActive('italic')}
+                    data-state={editor.isActive('italic') ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleItalic().run()}
                   >
                     <Italic className="h-4 w-4" />
@@ -181,7 +181,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="underline" 
                     aria-label="Toggle underline"
-                    pressed={editor.isActive('underline')}
+                    data-state={editor.isActive('underline') ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleUnderline().run()}
                   >
                     <UnderlineIcon className="h-4 w-4" />
@@ -195,7 +195,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="strike" 
                     aria-label="Toggle strikethrough"
-                    pressed={editor.isActive('strike')}
+                    data-state={editor.isActive('strike') ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleStrike().run()}
                   >
                     <Strikethrough className="h-4 w-4" />
@@ -214,7 +214,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="h1" 
                     aria-label="Heading 1"
-                    pressed={editor.isActive('heading', { level: 1 })}
+                    data-state={editor.isActive('heading', { level: 1 }) ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
                   >
                     <Heading1 className="h-4 w-4" />
@@ -228,7 +228,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="h2" 
                     aria-label="Heading 2"
-                    pressed={editor.isActive('heading', { level: 2 })}
+                    data-state={editor.isActive('heading', { level: 2 }) ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                   >
                     <Heading2 className="h-4 w-4" />
@@ -242,7 +242,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="h3" 
                     aria-label="Heading 3"
-                    pressed={editor.isActive('heading', { level: 3 })}
+                    data-state={editor.isActive('heading', { level: 3 }) ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
                   >
                     <Heading3 className="h-4 w-4" />
@@ -261,7 +261,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="bullet" 
                     aria-label="Bullet list"
-                    pressed={editor.isActive('bulletList')}
+                    data-state={editor.isActive('bulletList') ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleBulletList().run()}
                   >
                     <List className="h-4 w-4" />
@@ -275,7 +275,7 @@ const RichTextEditor = ({ initialContent, onChange, readOnly = false }: RichText
                   <ToggleGroupItem 
                     value="ordered" 
                     aria-label="Ordered list"
-                    pressed={editor.isActive('orderedList')}
+                    data-state={editor.isActive('orderedList') ? "on" : "off"}
                     onClick={() => editor.chain().focus().toggleOrderedList().run()}
                   >
                     <ListOrdered className="h-4 w-4" />
