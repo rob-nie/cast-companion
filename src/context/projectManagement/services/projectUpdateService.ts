@@ -3,7 +3,7 @@ import { ref, update } from "firebase/database";
 import { database, auth } from "@/lib/firebase";
 import { Project } from "../types";
 import { toast } from "sonner";
-import { withProjectPermission } from "./projectPermissionService";
+import { withProjectPermission } from "./permissions";
 
 /**
  * Updates an existing project in Firebase

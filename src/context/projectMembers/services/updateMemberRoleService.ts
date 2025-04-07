@@ -10,7 +10,7 @@ import {
 import { database } from "@/lib/firebase";
 import { UserRole } from "../types";
 import { toast } from "sonner";
-import { isProjectOwner } from "@/context/projectManagement/services/projectPermissionService";
+import { isProjectOwner } from "@/context/projectManagement/services/permissions";
 
 export const updateMemberRole = async (projectId: string, userId: string, role: UserRole) => {
   try {
