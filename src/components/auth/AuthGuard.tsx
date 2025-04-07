@@ -1,11 +1,19 @@
 
+import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import LoadingScreen from "./LoadingScreen";
+import { auth } from "@/lib/firebase";
 
 const AuthGuard = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
+  
+  useEffect(() => {
+    // Log Firebase auth state whenever AuthGuard component renders
+    const currentUser = auth.currentUser;
+    console.log("AuthGuard Firebase currentUser:", currentUser ? currentUser.email : "Not authenticated");
+  }, []);
   
   console.log("AuthGuard: isAuthenticated =", isAuthenticated, "isLoading =", isLoading, "user =", user?.email);
 

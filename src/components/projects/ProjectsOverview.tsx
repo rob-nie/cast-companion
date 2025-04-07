@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,12 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
 import ProjectCard from "./ProjectCard";
+import { toast } from "sonner";
+import { auth } from "@/lib/firebase";
 
 const ProjectsOverview = () => {
   const { projects, addProject, getUserProjects, getSharedProjects } = useProjects();
   const { isAuthenticated, user } = useUser();
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Get all user-specific projects
   const myProjects = getUserProjects();
@@ -22,13 +25,33 @@ const ProjectsOverview = () => {
   
   // Combine all projects for the unified view
   const allProjects = [...myProjects, ...sharedProjects];
+  
+  // Log authentication state for debugging
+  useEffect(() => {
+    console.log("ProjectsOverview: isAuthenticated =", isAuthenticated);
+    console.log("ProjectsOverview: Firebase current user =", auth.currentUser?.email);
+  }, [isAuthenticated]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!auth.currentUser) {
+      toast.error("Du musst angemeldet sein, um ein Projekt zu erstellen");
+      return;
+    }
+    
     if (newProject.title.trim()) {
-      addProject(newProject);
-      setNewProject({ title: "", description: "" });
-      setIsOpen(false);
+      try {
+        setIsSubmitting(true);
+        await addProject(newProject);
+        setNewProject({ title: "", description: "" });
+        setIsOpen(false);
+      } catch (error) {
+        console.error("Error creating project:", error);
+        toast.error("Fehler beim Erstellen des Projekts");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -78,7 +101,16 @@ const ProjectsOverview = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Projekt erstellen</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
+                      Erstelle...
+                    </>
+                  ) : (
+                    "Projekt erstellen"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -108,7 +140,7 @@ const ProjectsOverview = () => {
                 <ProjectCard 
                   key={project.id} 
                   project={project} 
-                  isOwned={user?.id === project.ownerId}
+                  isOwned={auth.currentUser?.uid === project.ownerId}
                 />
               ))}
             </div>
