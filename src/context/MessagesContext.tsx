@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Message, QuickPhrase } from "@/types/messenger";
 import { useProjects } from "./ProjectContext";
@@ -8,7 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 // Define the context types
 interface MessagesContextType {
   messages: Message[];
-  addMessage: (content: string, userId?: string) => void;
+  addMessage: (content: string, userId?: string, isImportant?: boolean) => void;
   markAsRead: (id: string) => void;
   markImportant: (id: string, important: boolean) => void;
   toggleImportant: (id: string) => void;
@@ -33,29 +32,16 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [activeTab, setActiveTab] = useState<string>("");
   const [quickPhrases, setQuickPhrases] = useState<QuickPhrase[]>([]);
 
-  // Initialize with dummy data
+  // Initialize with saved messages but no default welcome message
   useEffect(() => {
     if (currentProject) {
       const savedMessages = localStorage.getItem(`messages-${currentProject.id}`);
       if (savedMessages) {
         setMessages(JSON.parse(savedMessages));
       } else {
-        // Mock initial messages for demo
-        const initialMessages: Message[] = [
-          {
-            id: uuidv4(),
-            projectId: currentProject.id,
-            userId: "system",
-            sender: "system",
-            content: "Willkommen beim Interview-Chat!",
-            timestamp: new Date().toISOString(),
-            isImportant: false,
-            isSystem: true,
-            read: true,
-          },
-        ];
-        setMessages(initialMessages);
-        localStorage.setItem(`messages-${currentProject.id}`, JSON.stringify(initialMessages));
+        // Keine Willkommensnachricht mehr hinzufügen
+        setMessages([]);
+        localStorage.setItem(`messages-${currentProject.id}`, JSON.stringify([]));
       }
 
       // Load quick phrases
@@ -110,17 +96,17 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, []);
 
-  const addMessage = (content: string, userId?: string) => {
+  const addMessage = (content: string, userId?: string, isImportant: boolean = false) => {
     if (!currentProject) return;
 
     const newMessage: Message = {
       id: uuidv4(),
       projectId: currentProject.id,
       userId: userId || user?.id || "user-1",
-      sender: userId || user?.id || "user-1", // Add sender property
+      sender: userId || user?.id || "user-1",
       content,
       timestamp: new Date().toISOString(),
-      isImportant: false,
+      isImportant: isImportant, // Wichtig-Flag wird nun berücksichtigt
       isSystem: !userId && !user?.id,
       read: userId === user?.id, // Mark as read if sent by current user
     };
@@ -154,22 +140,9 @@ export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const clearMessages = () => {
     if (currentProject) {
-      const systemMessage: Message = {
-        id: uuidv4(),
-        projectId: currentProject.id,
-        userId: "system",
-        sender: "system",
-        content: "Alle Nachrichten wurden gelöscht.",
-        timestamp: new Date().toISOString(),
-        isImportant: false,
-        isSystem: true,
-        read: true,
-      };
-      setMessages([systemMessage]);
-      localStorage.setItem(
-        `messages-${currentProject.id}`,
-        JSON.stringify([systemMessage])
-      );
+      // Keine Systemnachricht mehr hinzufügen
+      setMessages([]);
+      localStorage.setItem(`messages-${currentProject.id}`, JSON.stringify([]));
     }
   };
 

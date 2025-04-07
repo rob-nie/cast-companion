@@ -21,7 +21,7 @@ const MessengerTile = () => {
   }, [markAllAsRead]);
 
   const handleSendMessage = (content: string) => {
-    addMessage(content);
+    addMessage(content, undefined, isImportant); // Übergeben der isImportant-Flag
   };
 
   const handleSelectQuickPhrase = (content: string) => {
