@@ -1,16 +1,16 @@
 
-export type Message = {
+export interface Message {
   id: string;
   projectId: string;
-  sender: string;
-  content: string;
-  timestamp: Date;
-  isRead: boolean;
-  isImportant: boolean;
-};
-
-export type QuickPhrase = {
-  id: string;
   userId: string;
   content: string;
-};
+  timestamp: string;
+  isImportant: boolean;
+  isSystem?: boolean;
+  read: boolean;
+}
+
+export interface QuickPhrase {
+  id: string;
+  content: string;
+}

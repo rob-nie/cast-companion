@@ -1,182 +1,150 @@
 
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { Message } from "@/types/messenger";
 import { useProjects } from "./ProjectContext";
 import { useUser } from "./UserContext";
-import { Message, QuickPhrase } from "@/types/messenger";
-import { ref, push, update, remove, onValue, query, orderByChild, equalTo } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { v4 as uuidv4 } from "uuid";
 
-type MessagesContextType = {
+// Define the context types
+interface MessagesContextType {
   messages: Message[];
-  quickPhrases: QuickPhrase[];
-  currentMessages: Message[];
-  addMessage: (message: Omit<Message, "id" | "timestamp" | "isRead">) => void;
-  markAsRead: (id: string) => void;
-  toggleImportant: (id: string) => void;
-  addQuickPhrase: (content: string, userId: string) => void;
-  updateQuickPhrase: (id: string, content: string) => void;
-  deleteQuickPhrase: (id: string) => void;
-  getQuickPhrasesForUser: (userId: string) => QuickPhrase[];
-};
+  addMessage: (content: string, userId?: string) => void;
+  markImportant: (id: string, important: boolean) => void;
+  clearMessages: () => void;
+  unreadMessages: number;
+  markAllAsRead: () => void;
+}
 
 const MessagesContext = createContext<MessagesContextType | undefined>(undefined);
 
-export const MessagesProvider = ({ children }: { children: ReactNode }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [quickPhrases, setQuickPhrases] = useState<QuickPhrase[]>([]);
-  const [currentMessages, setCurrentMessages] = useState<Message[]>([]);
+export const MessagesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentProject } = useProjects();
   const { user } = useUser();
-  
-  // Load messages from Firebase
-  useEffect(() => {
-    const messagesRef = ref(database, 'messages');
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const messagesData = snapshot.val();
-        const messagesList: Message[] = [];
-        
-        Object.keys(messagesData).forEach((key) => {
-          const message = messagesData[key];
-          messagesList.push({
-            ...message,
-            id: key,
-            timestamp: new Date(message.timestamp),
-          });
-        });
-        
-        setMessages(messagesList);
-      } else {
-        setMessages([]);
-      }
-    });
-    
-    return () => unsubscribe();
-  }, []);
-  
-  // Load quick phrases from Firebase
-  useEffect(() => {
-    const quickPhrasesRef = ref(database, 'quickPhrases');
-    const unsubscribe = onValue(quickPhrasesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const phrasesData = snapshot.val();
-        const phrasesList: QuickPhrase[] = [];
-        
-        Object.keys(phrasesData).forEach((key) => {
-          const phrase = phrasesData[key];
-          phrasesList.push({
-            ...phrase,
-            id: key,
-          });
-        });
-        
-        setQuickPhrases(phrasesList);
-      } else {
-        setQuickPhrases([]);
-      }
-    });
-    
-    return () => unsubscribe();
-  }, []);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<string>("");
 
-  // Update current messages when the project changes
+  // Initialize with dummy data
   useEffect(() => {
     if (currentProject) {
-      setCurrentMessages(
-        messages.filter(message => message.projectId === currentProject.id)
-          .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      );
+      const savedMessages = localStorage.getItem(`messages-${currentProject.id}`);
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      } else {
+        // Mock initial messages for demo
+        const initialMessages: Message[] = [
+          {
+            id: uuidv4(),
+            projectId: currentProject.id,
+            userId: "system",
+            content: "Willkommen beim Interview-Chat!",
+            timestamp: new Date().toISOString(),
+            isImportant: false,
+            isSystem: true,
+            read: true,
+          },
+        ];
+        setMessages(initialMessages);
+        localStorage.setItem(`messages-${currentProject.id}`, JSON.stringify(initialMessages));
+      }
     } else {
-      setCurrentMessages([]);
+      setMessages([]);
     }
-  }, [currentProject, messages]);
+  }, [currentProject]);
 
-  const addMessage = (message: Omit<Message, "id" | "timestamp" | "isRead">) => {
-    const newMessageRef = push(ref(database, 'messages'));
-    const currentUserId = user?.id || "user-1";
-    
-    const newMessage = {
-      ...message,
-      id: newMessageRef.key!,
-      timestamp: new Date().toISOString(),
-      isRead: message.sender === currentUserId, // Messages from current user are automatically read
+  // Save messages to localStorage when they change
+  useEffect(() => {
+    if (currentProject && messages.length > 0) {
+      localStorage.setItem(`messages-${currentProject.id}`, JSON.stringify(messages));
+    }
+  }, [messages, currentProject]);
+
+  // Count unread messages
+  useEffect(() => {
+    const count = messages.filter(msg => !msg.read && msg.userId !== user?.id).length;
+    setUnreadMessages(count);
+  }, [messages, user?.id]);
+
+  // Track active tab for marking messages as read
+  useEffect(() => {
+    const handleTabFocus = () => {
+      if (activeTab === "messages") {
+        markAllAsRead();
+      }
     };
-    
-    push(ref(database, 'messages'), newMessage)
-      .catch((error) => {
-        console.error("Error adding message:", error);
-      });
-  };
 
-  const markAsRead = (id: string) => {
-    console.log('MessagesContext: Marking message as read:', id);
-    const messageRef = ref(database, `messages/${id}`);
-    update(messageRef, { isRead: true })
-      .catch((error) => {
-        console.error("Error marking message as read:", error);
-      });
-  };
+    window.addEventListener("focus", handleTabFocus);
+    return () => window.removeEventListener("focus", handleTabFocus);
+  }, [activeTab]);
 
-  const toggleImportant = (id: string) => {
-    console.log('MessagesContext: Toggling message importance:', id);
-    
-    // First get current importance state
-    const message = messages.find(m => m.id === id);
-    if (!message) return;
-    
-    const messageRef = ref(database, `messages/${id}`);
-    update(messageRef, { isImportant: !message.isImportant })
-      .catch((error) => {
-        console.error("Error toggling message importance:", error);
-      });
-  };
+  const setActiveTabHandler = useCallback((tab: string) => {
+    setActiveTab(tab);
+    if (tab === "messages") {
+      markAllAsRead();
+    }
+  }, []);
 
-  const addQuickPhrase = (content: string, userId: string) => {
-    const newPhraseRef = push(ref(database, 'quickPhrases'));
-    const newQuickPhrase = {
-      userId,
+  const addMessage = (content: string, userId?: string) => {
+    if (!currentProject) return;
+
+    const newMessage: Message = {
+      id: uuidv4(),
+      projectId: currentProject.id,
+      userId: userId || user?.id || "user-1",
       content,
+      timestamp: new Date().toISOString(),
+      isImportant: false,
+      isSystem: !userId && !user?.id,
+      read: userId === user?.id, // Mark as read if sent by current user
     };
-    
-    push(ref(database, 'quickPhrases'), newQuickPhrase)
-      .catch((error) => {
-        console.error("Error adding quick phrase:", error);
-      });
+
+    setMessages((prev) => [...prev, newMessage]);
   };
 
-  const updateQuickPhrase = (id: string, content: string) => {
-    const phraseRef = ref(database, `quickPhrases/${id}`);
-    update(phraseRef, { content })
-      .catch((error) => {
-        console.error("Error updating quick phrase:", error);
-      });
+  const markImportant = (id: string, important: boolean) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === id ? { ...msg, isImportant: important } : msg
+      )
+    );
   };
 
-  const deleteQuickPhrase = (id: string) => {
-    const phraseRef = ref(database, `quickPhrases/${id}`);
-    remove(phraseRef)
-      .catch((error) => {
-        console.error("Error deleting quick phrase:", error);
-      });
+  const clearMessages = () => {
+    if (currentProject) {
+      const systemMessage: Message = {
+        id: uuidv4(),
+        projectId: currentProject.id,
+        userId: "system",
+        content: "Alle Nachrichten wurden gelöscht.",
+        timestamp: new Date().toISOString(),
+        isImportant: false,
+        isSystem: true,
+        read: true,
+      };
+      setMessages([systemMessage]);
+      localStorage.setItem(
+        `messages-${currentProject.id}`,
+        JSON.stringify([systemMessage])
+      );
+    }
   };
 
-  const getQuickPhrasesForUser = (userId: string) => {
-    return quickPhrases.filter(phrase => phrase.userId === userId);
+  const markAllAsRead = () => {
+    setMessages(prev => 
+      prev.map(msg => ({...msg, read: true}))
+    );
+    setUnreadMessages(0);
   };
 
   return (
     <MessagesContext.Provider
       value={{
         messages,
-        quickPhrases,
-        currentMessages,
         addMessage,
-        markAsRead,
-        toggleImportant,
-        addQuickPhrase,
-        updateQuickPhrase,
-        deleteQuickPhrase,
-        getQuickPhrasesForUser,
+        markImportant,
+        clearMessages,
+        unreadMessages,
+        markAllAsRead,
       }}
     >
       {children}
