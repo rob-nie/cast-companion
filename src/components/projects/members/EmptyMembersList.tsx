@@ -1,5 +1,5 @@
 
-import { UsersX } from "lucide-react";
+import { Users } from "lucide-react";
 
 type EmptyMembersListProps = {
   isOwner: boolean;
@@ -8,7 +8,7 @@ type EmptyMembersListProps = {
 const EmptyMembersList = ({ isOwner }: EmptyMembersListProps) => {
   return (
     <div className="text-center py-8">
-      <UsersX className="mx-auto h-12 w-12 text-muted-foreground" />
+      <Users className="mx-auto h-12 w-12 text-muted-foreground" />
       <h3 className="mt-4 text-lg font-semibold">Keine Mitglieder gefunden</h3>
       {isOwner ? (
         <p className="mt-2 text-muted-foreground max-w-xs mx-auto">
