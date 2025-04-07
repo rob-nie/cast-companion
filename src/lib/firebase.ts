@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, get, set } from "firebase/database";
+import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDTT-Z9tnu84ItZh7hoH5l9kmQJBxW5adU",
@@ -18,6 +19,8 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 // Use the correct regional URL for the database
 export const database = getDatabase(app, "https://castcompanion-d9241-default-rtdb.europe-west1.firebasedatabase.app");
+// Initialize Firebase Analytics
+const analytics = getAnalytics(app);
 
 // Helper function to check if a user is authenticated
 export const isUserAuthenticated = () => {
