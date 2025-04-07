@@ -11,7 +11,7 @@ import {
 import { database } from "@/lib/firebase";
 import { UserRole } from "../types";
 import { toast } from "sonner";
-import { isProjectOwner } from "@/context/projectManagement/services/projectPermissionService";
+import { isProjectOwner } from "@/context/projectManagement/services/permissions";
 
 export const addMemberToProject = async (projectId: string, email: string, role: UserRole) => {
   try {

@@ -9,7 +9,7 @@ import {
 } from "firebase/database";
 import { database } from "@/lib/firebase";
 import { toast } from "sonner";
-import { isProjectOwner } from "@/context/projectManagement/services/projectPermissionService";
+import { isProjectOwner } from "@/context/projectManagement/services/permissions";
 
 export const removeMemberFromProject = async (projectId: string, userId: string) => {
   try {
