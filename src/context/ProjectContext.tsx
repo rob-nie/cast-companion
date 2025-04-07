@@ -13,10 +13,12 @@ const ProjectContext = createContext<ReturnType<typeof useProjectCombined> | und
 const useProjectCombined = () => {
   const projectManagement = useProjectManagement();
   const projectSharing = useProjectSharing();
+  const { addProjectMemberById } = useContext(require('./projectMembers').ProjectMembersContext);
   
   return {
     ...projectManagement,
-    ...projectSharing
+    ...projectSharing,
+    addProjectMemberById
   };
 };
 

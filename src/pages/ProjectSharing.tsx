@@ -11,7 +11,7 @@ import AddMemberDialog from "@/components/projects/members/AddMemberDialog";
 import { auth } from "@/lib/firebase";
 
 const ProjectSharing = () => {
-  const { currentProject } = useProjects();
+  const { currentProject, shareProject } = useProjects();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,11 +39,19 @@ const ProjectSharing = () => {
               onAddMember={async (email, role) => {
                 try {
                   // Verwende die bereits vorhandene Funktion zum Hinzufügen von Benutzern
-                  await useProjects().shareProject(currentProject.id, email, role);
+                  await shareProject(currentProject.id, email, role);
                 } catch (error) {
                   console.error("Fehler beim Hinzufügen eines Mitglieds:", error);
                 }
-              }} 
+              }}
+              onAddMemberById={async (userId, role) => {
+                try {
+                  // Verwende die Funktion zum Hinzufügen von Benutzern per ID
+                  await useProjects().addProjectMemberById(currentProject.id, userId, role);
+                } catch (error) {
+                  console.error("Fehler beim Hinzufügen eines Mitglieds per ID:", error);
+                }
+              }}
             >
               <Button className="gap-2">
                 <UserPlus className="h-4 w-4" />

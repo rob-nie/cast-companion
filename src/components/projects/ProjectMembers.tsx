@@ -15,7 +15,13 @@ import EmptyMembersList from "./members/EmptyMembersList";
 
 const ProjectMembers = () => {
   const { currentProject } = useProjects();
-  const { getProjectMembers, addProjectMember, removeProjectMember, updateProjectMemberRole } = useProjectMembers();
+  const { 
+    getProjectMembers, 
+    addProjectMember, 
+    addProjectMemberById,
+    removeProjectMember, 
+    updateProjectMemberRole 
+  } = useProjectMembers();
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
@@ -55,6 +61,18 @@ const ProjectMembers = () => {
       setIsLoading(false);
     }
   };
+
+  const handleAddMemberById = async (userId: string, role: "editor" | "viewer") => {
+    setIsLoading(true);
+    try {
+      await addProjectMemberById(currentProject.id, userId, role);
+      // Members list will be updated via the effect
+    } catch (error) {
+      console.error("Failed to add member by ID:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleRemoveMember = async (userId: string) => {
     try {
@@ -84,7 +102,10 @@ const ProjectMembers = () => {
             </p>
           </div>
           {isOwner && (
-            <AddMemberDialog onAddMember={handleAddMember} />
+            <AddMemberDialog 
+              onAddMember={handleAddMember} 
+              onAddMemberById={handleAddMemberById}
+            />
           )}
         </div>
       </CardHeader>
