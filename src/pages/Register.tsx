@@ -33,6 +33,7 @@ const Register = () => {
   const { register, isLoading } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -46,11 +47,14 @@ const Register = () => {
 
   const onSubmit = async (values: FormValues) => {
     try {
+      setSubmitting(true);
       await register(values.name, values.email, values.password);
       navigate("/projects", { replace: true });
     } catch (error) {
       // Error is already handled in the AuthContext
       console.error("Registration failed:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -144,9 +148,9 @@ const Register = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={submitting}
             >
-              {isLoading ? (
+              {submitting ? (
                 <div className="flex items-center">
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                   Registrieren...

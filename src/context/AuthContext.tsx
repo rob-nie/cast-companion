@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
   updateProfile as updateFirebaseProfile,
 } from "firebase/auth";
-import { ref, set, get, update } from "firebase/database";
+import { ref, set, get } from "firebase/database";
 import { auth, database } from "@/lib/firebase";
 import { User } from "@/types/user";
 
@@ -29,66 +29,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   // Listen for auth state changes
   useEffect(() => {
+    console.log("Setting up auth state listener");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Get user data from database
-        const userRef = ref(database, `users/${firebaseUser.uid}`);
-        const snapshot = await get(userRef);
-        
-        if (snapshot.exists()) {
-          const userData = snapshot.val();
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email || "",
-            name: userData.name || firebaseUser.displayName || "",
-            avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-            createdAt: new Date(userData.createdAt)
-          });
-        } else {
-          // Create user data if it doesn't exist
-          const newUser = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || "",
-            name: firebaseUser.displayName || "",
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-            createdAt: new Date().toISOString()
-          };
+      console.log("Auth state changed:", firebaseUser ? `User ${firebaseUser.email} logged in` : "No user");
+      try {
+        if (firebaseUser) {
+          // Get user data from database
+          const userRef = ref(database, `users/${firebaseUser.uid}`);
+          const snapshot = await get(userRef);
           
-          await set(userRef, newUser);
-          setUser({
-            ...newUser,
-            createdAt: new Date(newUser.createdAt)
-          });
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: userData.name || firebaseUser.displayName || "",
+              avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
+              createdAt: new Date(userData.createdAt)
+            });
+          } else {
+            // Create user data if it doesn't exist
+            const newUser = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: firebaseUser.displayName || "",
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            await set(userRef, newUser);
+            setUser({
+              ...newUser,
+              createdAt: new Date(newUser.createdAt)
+            });
+          }
+        } else {
+          setUser(null);
         }
-      } else {
+      } catch (error) {
+        console.error("Error in auth state change handler:", error);
         setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     
     return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
     try {
+      console.log("Attempting login for:", email);
       await signInWithEmailAndPassword(auth, email, password);
       toast.success("Erfolgreich angemeldet");
     } catch (error: any) {
+      console.error("Login error:", error);
       let errorMessage = "Anmeldung fehlgeschlagen";
       if (error.code === "auth/invalid-email" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
         errorMessage = "Ungültige E-Mail oder Passwort";
       }
       toast.error(errorMessage);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    setIsLoading(true);
     try {
+      console.log("Attempting registration for:", email);
       // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
@@ -108,38 +115,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await set(ref(database, `users/${firebaseUser.uid}`), newUser);
       toast.success("Konto erfolgreich erstellt");
     } catch (error: any) {
+      console.error("Registration error:", error);
       let errorMessage = "Registrierung fehlgeschlagen";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "E-Mail wird bereits verwendet";
       }
       toast.error(errorMessage);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const logout = async () => {
     try {
+      console.log("Logging out");
       await signOut(auth);
       toast.success("Erfolgreich abgemeldet");
     } catch (error) {
-      toast.error("Abmeldung fehlgeschlagen");
       console.error("Logout error:", error);
+      toast.error("Abmeldung fehlgeschlagen");
+      throw error;
     }
   };
 
+  const contextValue: AuthContextType = {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    register,
+    logout
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        register,
-        logout
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

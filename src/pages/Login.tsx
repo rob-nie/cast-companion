@@ -29,6 +29,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // Immer zur Projekteübersicht nach der Anmeldung weiterleiten
   const from = "/projects";
@@ -43,11 +44,14 @@ const Login = () => {
 
   const onSubmit = async (values: FormValues) => {
     try {
+      setSubmitting(true);
       await login(values.email, values.password);
       navigate(from, { replace: true });
     } catch (error) {
       // Error is already handled in the AuthContext
       console.error("Login failed:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -113,9 +117,9 @@ const Login = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={submitting}
             >
-              {isLoading ? (
+              {submitting ? (
                 <div className="flex items-center">
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                   Anmelden...
