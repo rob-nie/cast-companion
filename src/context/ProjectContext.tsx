@@ -16,7 +16,9 @@ const useProjectCombined = () => {
   
   return {
     ...projectManagement,
-    ...projectSharing
+    ...projectSharing,
+    // Ensure isLoading is explicitly included in the combined context
+    isLoading: projectManagement.isLoading
   };
 };
 

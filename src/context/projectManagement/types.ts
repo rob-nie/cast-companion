@@ -1,22 +1,22 @@
+import { Timestamp } from "firebase/firestore";
 
-import { User } from "@/types/user";
-
-export type Project = {
+export interface Project {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   createdAt: Date;
   lastAccessed?: Date;
   ownerId: string;
-};
+}
 
-export type ProjectContextType = {
+export interface ProjectContextType {
   projects: Project[];
   currentProject: Project | null;
-  setCurrentProject: (project: Project) => void;
+  isLoading: boolean;
+  setCurrentProject: (project: Project | null) => void;
   addProject: (project: Omit<Project, "id" | "createdAt" | "ownerId">) => Promise<void>;
-  updateProject: (id: string, project: Partial<Project>, silent?: boolean) => Promise<void>;
+  updateProject: (id: string, projectUpdate: Partial<Project>, silent?: boolean) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   getUserProjects: () => Project[];
   getSharedProjects: () => Project[];
-};
+}
