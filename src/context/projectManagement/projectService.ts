@@ -1,4 +1,3 @@
-
 import { ref, set, push, remove, update, get, onValue, query, orderByChild, equalTo } from "firebase/database";
 import { database, auth, isUserAuthenticated } from "@/lib/firebase";
 import { Project } from "./types";
@@ -22,61 +21,82 @@ export const loadProjects = (
     
     console.log("Setting up Firebase listener for projects");
     
-    // First, set up listener for project members to know which projects the user has access to
-    const unsubscribeMembers = onValue(membersRef, async (membersSnapshot) => {
+    // Set up listener for projects
+    const unsubscribeProjects = onValue(projectsRef, (projectsSnapshot) => {
       if (!auth.currentUser) return;
       
       const userId = auth.currentUser.uid;
-      const accessibleProjectIds: string[] = [];
+      console.log("Loading projects for user:", userId);
       
-      // Get all projects this user has access to via projectMembers
-      if (membersSnapshot.exists()) {
-        const membersData = membersSnapshot.val();
-        Object.keys(membersData).forEach((key) => {
-          const member = membersData[key];
-          if (member.userId === userId) {
-            accessibleProjectIds.push(member.projectId);
-            console.log("User has access to project:", member.projectId);
+      if (projectsSnapshot.exists()) {
+        const projectsData = projectsSnapshot.val();
+        let projectsList: Project[] = [];
+        
+        // First add all projects owned by current user
+        Object.keys(projectsData).forEach((key) => {
+          const project = projectsData[key];
+          if (project.ownerId === userId) {
+            console.log("Found user-owned project:", key, project.title);
+            projectsList.push({
+              ...project,
+              id: key,
+              createdAt: new Date(project.createdAt),
+              lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+            });
           }
         });
-      }
-      
-      // Now fetch all projects
-      const unsubscribeProjects = onValue(projectsRef, (projectsSnapshot) => {
-        if (projectsSnapshot.exists()) {
-          const projectsData = projectsSnapshot.val();
-          const projectsList: Project[] = [];
-          
-          Object.keys(projectsData).forEach((key) => {
-            // Only include projects the user owns or has access to
-            if (accessibleProjectIds.includes(key)) {
-              const project = projectsData[key];
-              projectsList.push({
-                ...project,
-                id: key,
-                createdAt: new Date(project.createdAt),
-                lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-              });
-            }
-          });
-          
-          console.log("Filtered projects loaded from Firebase:", projectsList.length);
+        
+        // Now also check for shared projects through projectMembers
+        onValue(membersRef, (membersSnapshot) => {
+          if (membersSnapshot.exists()) {
+            const membersData = membersSnapshot.val();
+            const sharedProjectIds = new Set<string>();
+            
+            // Find all projects shared with this user
+            Object.keys(membersData).forEach((key) => {
+              const member = membersData[key];
+              if (member.userId === userId && member.role !== 'owner') {
+                sharedProjectIds.add(member.projectId);
+                console.log("User has shared access to project:", member.projectId);
+              }
+            });
+            
+            // Add shared projects to the list if not already included
+            Object.keys(projectsData).forEach((key) => {
+              if (sharedProjectIds.has(key) && !projectsList.some(p => p.id === key)) {
+                const project = projectsData[key];
+                console.log("Adding shared project:", key, project.title);
+                projectsList.push({
+                  ...project,
+                  id: key,
+                  createdAt: new Date(project.createdAt),
+                  lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+                });
+              }
+            });
+            
+            console.log("Total projects loaded:", projectsList.length);
+            setProjects(projectsList);
+          } else {
+            console.log("No project members found, setting only user-owned projects:", projectsList.length);
+            setProjects(projectsList);
+          }
+        }, (error) => {
+          console.error("Error loading project members:", error);
+          // If we can't load members, just use the owned projects
           setProjects(projectsList);
-        } else {
-          console.log("No projects found in Firebase");
-          setProjects([]);
-        }
-      }, (error) => {
-        console.error("Error loading projects from Firebase:", error);
-        toast.error("Fehler beim Laden der Projekte");
-      });
-      
-      return unsubscribeProjects;
+        });
+      } else {
+        console.log("No projects found in Firebase");
+        setProjects([]);
+      }
+    }, (error) => {
+      console.error("Error loading projects from Firebase:", error);
+      toast.error("Fehler beim Laden der Projekte");
+      setProjects([]);
     });
     
-    return () => {
-      unsubscribeMembers();
-    };
+    return unsubscribeProjects;
   } catch (error) {
     console.error("Failed to set up projects listener:", error);
     return () => {};

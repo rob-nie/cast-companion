@@ -15,18 +15,19 @@ const InterviewDashboard = () => {
   useEffect(() => {
     if (!currentProject) {
       navigate("/projects");
-    } else {
-      // Check if current user still has access to this project
-      const projectExists = projects.some(p => p.id === currentProject.id);
-      if (!projectExists) {
-        toast.error("Du hast keinen Zugriff mehr auf dieses Projekt.");
-        navigate("/projects");
-        return;
-      }
-      
-      // Update last accessed timestamp without triggering a toast notification
-      updateProject(currentProject.id, { lastAccessed: new Date() }, true);
+      return;
     }
+    
+    // Check if current user still has access to this project
+    const projectExists = projects.some(p => p.id === currentProject.id);
+    if (!projectExists) {
+      toast.error("Du hast keinen Zugriff mehr auf dieses Projekt.");
+      navigate("/projects");
+      return;
+    }
+    
+    // Update last accessed timestamp without triggering a toast notification
+    updateProject(currentProject.id, { lastAccessed: new Date() }, true);
   }, [currentProject, navigate, updateProject, projects]);
 
   // Only render Dashboard if we have a current project

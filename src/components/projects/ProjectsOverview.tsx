@@ -11,7 +11,7 @@ import ProjectCreateDialog from "./ProjectCreateDialog";
 import ProjectsPermissionError from "./ProjectsPermissionError";
 
 const ProjectsOverview = () => {
-  const { projects, getUserProjects, getSharedProjects } = useProjects();
+  const { projects } = useProjects();
   const { isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
@@ -39,21 +39,11 @@ const ProjectsOverview = () => {
     verifyPermissions();
   }, [isAuthenticated]);
   
-  // Get all user-specific projects
-  const myProjects = isAuthenticated ? getUserProjects() : [];
-  const sharedProjects = isAuthenticated ? getSharedProjects() : [];
-  
-  // Combine all projects for the unified view
-  const allProjects = [...myProjects, ...sharedProjects];
-  
   // Log debugging information
   useEffect(() => {
     console.log("ProjectsOverview: All projects count =", projects.length);
-    console.log("ProjectsOverview: My projects count =", myProjects.length);
-    console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
-    console.log("ProjectsOverview: Combined projects count =", allProjects.length);
     console.log("ProjectsOverview: Projects data =", projects);
-  }, [projects, myProjects, sharedProjects, allProjects]);
+  }, [projects]);
 
   // Log authentication state for debugging
   useEffect(() => {
@@ -88,15 +78,7 @@ const ProjectsOverview = () => {
 
       {permissionError && !loading && <ProjectsPermissionError />}
 
-      {isAuthenticated && !loading ? (
-        <>
-          {allProjects.length === 0 && !permissionError ? (
-            <EmptyProjectsState onCreateProject={() => setIsOpen(true)} />
-          ) : (
-            <ProjectsList projects={allProjects} />
-          )}
-        </>
-      ) : !loading ? (
+      {!loading && !permissionError && (
         <>
           {projects.length === 0 ? (
             <EmptyProjectsState onCreateProject={() => setIsOpen(true)} />
@@ -104,7 +86,7 @@ const ProjectsOverview = () => {
             <ProjectsList projects={projects} />
           )}
         </>
-      ) : null}
+      )}
     </div>
   );
 };
