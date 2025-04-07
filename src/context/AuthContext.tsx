@@ -53,7 +53,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else {
             // Create basic user profile if missing
             const newUser = {
-              id: firebaseUser.uid,
               email: firebaseUser.email || "",
               name: firebaseUser.displayName || "",
               avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
@@ -62,7 +61,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             await set(userRef, newUser);
             setUser({
-              ...newUser,
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: newUser.name,
+              avatar: newUser.avatar,
               createdAt: new Date(newUser.createdAt)
             });
           }

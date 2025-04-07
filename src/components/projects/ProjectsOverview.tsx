@@ -11,8 +11,8 @@ import ProjectCreateDialog from "./ProjectCreateDialog";
 import ProjectsPermissionError from "./ProjectsPermissionError";
 
 const ProjectsOverview = () => {
-  const { projects, getUserProjects, getSharedProjects } = useProjects();
-  const { isAuthenticated } = useAuth();
+  const { projects, getUserProjects, getSharedProjects, isLoading: projectsLoading } = useProjects();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,7 @@ const ProjectsOverview = () => {
   useEffect(() => {
     const verifyPermissions = async () => {
       setLoading(true);
+      
       if (auth.currentUser) {
         try {
           const hasPermission = await checkPermission('projects');
@@ -33,11 +34,14 @@ const ProjectsOverview = () => {
           setPermissionError(true);
         }
       }
+      
       setLoading(false);
     };
     
-    verifyPermissions();
-  }, [isAuthenticated]);
+    if (!authLoading) {
+      verifyPermissions();
+    }
+  }, [isAuthenticated, authLoading]);
   
   // Get user's own projects and shared projects
   const userProjects = getUserProjects();
@@ -46,12 +50,13 @@ const ProjectsOverview = () => {
   
   // Log debugging information
   useEffect(() => {
+    console.log("ProjectsOverview: authLoading =", authLoading);
+    console.log("ProjectsOverview: projectsLoading =", projectsLoading);
     console.log("ProjectsOverview: All projects count =", projects.length);
     console.log("ProjectsOverview: User projects count =", userProjects.length);
     console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
-    console.log("ProjectsOverview: Projects data =", JSON.stringify(projects, null, 2));
     console.log("ProjectsOverview: Combined allProjects =", allProjects.length);
-  }, [projects, userProjects, sharedProjects, allProjects]);
+  }, [projects, userProjects, sharedProjects, allProjects, authLoading, projectsLoading]);
 
   // Log authentication state for debugging
   useEffect(() => {
@@ -59,6 +64,8 @@ const ProjectsOverview = () => {
     console.log("ProjectsOverview: Firebase current user =", auth.currentUser?.email);
     console.log("ProjectsOverview: Firebase user id =", auth.currentUser?.uid);
   }, [isAuthenticated]);
+
+  const isPageLoading = loading || authLoading || projectsLoading;
 
   return (
     <div>
@@ -79,15 +86,15 @@ const ProjectsOverview = () => {
         />
       </div>
 
-      {loading && (
+      {isPageLoading && (
         <div className="flex justify-center items-center p-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
         </div>
       )}
 
-      {permissionError && !loading && <ProjectsPermissionError />}
+      {permissionError && !isPageLoading && <ProjectsPermissionError />}
 
-      {!loading && !permissionError && (
+      {!isPageLoading && !permissionError && (
         <>
           {allProjects.length === 0 ? (
             <EmptyProjectsState onCreateProject={() => setIsOpen(true)} />

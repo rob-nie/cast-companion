@@ -33,7 +33,7 @@ export const loadProjects = (
       console.log("Loading projects for user:", userId);
       
       if (projectsSnapshot.exists()) {
-        console.log("Projects snapshot exists, value:", JSON.stringify(projectsSnapshot.val()));
+        console.log("Projects snapshot exists");
         const projectsData = projectsSnapshot.val();
         let projectsList: Project[] = [];
         
@@ -57,44 +57,38 @@ export const loadProjects = (
           
           // Now check for shared projects through projectMembers
           try {
-            const membersSnapshot = await get(membersRef);
+            // Query projectMembers where userId matches the current user
+            const userMembersQuery = query(membersRef, orderByChild('userId'), equalTo(userId));
+            const membersSnapshot = await get(userMembersQuery);
             
             if (membersSnapshot.exists()) {
-              console.log("Members data exists");
-              const membersData = membersSnapshot.val();
-              const sharedProjectIds = new Set<string>();
+              console.log("User has shared projects");
               
-              // Find all projects shared with this user
-              Object.keys(membersData).forEach((key) => {
-                const member = membersData[key];
-                if (member.userId === userId && member.role !== 'owner') {
-                  sharedProjectIds.add(member.projectId);
-                  console.log("User has shared access to project:", member.projectId);
-                }
-              });
-              
-              // Add shared projects to the list if not already included
-              Object.keys(projectsData).forEach((key) => {
-                if (sharedProjectIds.has(key) && !projectsList.some(p => p.id === key)) {
-                  const project = projectsData[key];
-                  console.log("Adding shared project:", key, project.title);
+              // Process each membership entry
+              membersSnapshot.forEach((childSnapshot) => {
+                const member = childSnapshot.val();
+                const projectId = member.projectId;
+                
+                // Only add if it's not already in the list (not owned by the user)
+                if (!projectsList.some(p => p.id === projectId) && projectsData[projectId]) {
+                  console.log("Adding shared project:", projectId, projectsData[projectId].title);
+                  
                   projectsList.push({
-                    ...project,
-                    id: key,
-                    createdAt: new Date(project.createdAt),
-                    lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+                    ...projectsData[projectId],
+                    id: projectId,
+                    createdAt: new Date(projectsData[projectId].createdAt),
+                    lastAccessed: projectsData[projectId].lastAccessed 
+                      ? new Date(projectsData[projectId].lastAccessed) 
+                      : undefined,
                   });
                 }
               });
             } else {
-              console.log("No project members data found");
+              console.log("No shared projects found for user");
             }
           } catch (error) {
             console.error("Error loading project members:", error);
-            // Continue with just the owned projects
           }
-        } else {
-          console.log("Projects data is not in expected format:", projectsData);
         }
         
         console.log("Total projects loaded:", projectsList.length);

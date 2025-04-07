@@ -31,8 +31,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // Immer zur Projekteübersicht nach der Anmeldung weiterleiten
-  const from = "/projects";
+  // Redirect to projects page after login or to requested page
+  const from = location.state?.from?.pathname || "/projects";
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -47,11 +47,10 @@ const Login = () => {
       setSubmitting(true);
       await login(values.email, values.password);
       
-      // Erzwinge Navigation nach erfolgreicher Anmeldung mit einer kleinen Verzögerung
+      // Force navigation after successful login with a small delay
       setTimeout(() => {
         console.log("Redirecting to:", from);
-        // Wir verwenden einen harten Redirect für zuverlässigere Navigation
-        window.location.href = from;
+        navigate(from, { replace: true });
       }, 500);
     } catch (error) {
       // Error is already handled in the AuthContext
@@ -123,7 +122,7 @@ const Login = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting}
+              disabled={submitting || isLoading}
             >
               {submitting ? (
                 <div className="flex items-center">

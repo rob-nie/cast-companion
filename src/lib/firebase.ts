@@ -7,6 +7,7 @@ import { getAnalytics } from "firebase/analytics";
 const firebaseConfig = {
   apiKey: "AIzaSyDTT-Z9tnu84ItZh7hoH5l9kmQJBxW5adU",
   authDomain: "castcompanion-d9241.firebaseapp.com",
+  databaseURL: "https://castcompanion-d9241-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "castcompanion-d9241",
   storageBucket: "castcompanion-d9241.firebasestorage.app",
   messagingSenderId: "50980785391",
@@ -17,10 +18,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// Use the correct regional URL for the database
-export const database = getDatabase(app, "https://castcompanion-d9241-default-rtdb.europe-west1.firebasedatabase.app");
-// Initialize Firebase Analytics
-const analytics = getAnalytics(app);
+export const database = getDatabase(app);
+export const analytics = getAnalytics(app);
 
 // Helper function to check if a user is authenticated
 export const isUserAuthenticated = () => {
