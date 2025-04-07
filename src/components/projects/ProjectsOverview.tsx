@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useProjects } from "@/context/ProjectContext";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import ProjectCard from "./ProjectCard";
 import { toast } from "sonner";
 import { auth, checkPermission } from "@/lib/firebase";
@@ -15,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ProjectsOverview = () => {
   const { projects, addProject, getUserProjects, getSharedProjects } = useProjects();
-  const { isAuthenticated, user } = useUser();
+  const { isAuthenticated, user } = useAuth();
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,6 +74,7 @@ const ProjectsOverview = () => {
     }
   };
 
+  
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
