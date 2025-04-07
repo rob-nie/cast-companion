@@ -1,5 +1,5 @@
 
-import { ref, onValue, get } from "firebase/database";
+import { ref, onValue, get, query, orderByChild, equalTo } from "firebase/database";
 import { database, auth } from "@/lib/firebase";
 import { Project } from "../types";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export const loadProjects = (
       console.log("Loading projects for user:", userId);
       
       if (projectsSnapshot.exists()) {
+        console.log("Projects snapshot exists, value:", JSON.stringify(projectsSnapshot.val()));
         const projectsData = projectsSnapshot.val();
         let projectsList: Project[] = [];
         
@@ -50,11 +51,14 @@ export const loadProjects = (
           }
         });
         
+        console.log(`Found ${projectsList.length} owned projects for user ${userId}`);
+        
         // Now check for shared projects through projectMembers
         try {
           const membersSnapshot = await get(membersRef);
           
           if (membersSnapshot.exists()) {
+            console.log("Members data exists");
             const membersData = membersSnapshot.val();
             const sharedProjectIds = new Set<string>();
             
@@ -80,6 +84,8 @@ export const loadProjects = (
                 });
               }
             });
+          } else {
+            console.log("No project members data found");
           }
           
           console.log("Total projects loaded:", projectsList.length);

@@ -11,8 +11,9 @@ type ProjectsListProps = {
 const ProjectsList = ({ projects }: ProjectsListProps) => {
   useEffect(() => {
     console.log("ProjectsList mounted with", projects?.length || 0, "projects");
+    console.log("ProjectsList current user:", auth.currentUser?.uid);
     if (projects && projects.length > 0) {
-      console.log("ProjectsList first project:", projects[0]);
+      console.log("ProjectsList first project:", JSON.stringify(projects[0]));
     }
   }, []);
   
@@ -20,7 +21,7 @@ const ProjectsList = ({ projects }: ProjectsListProps) => {
     console.log("ProjectsList: Projects updated, now showing", projects?.length || 0, "projects");
     if (projects && projects.length > 0) {
       projects.forEach(project => {
-        console.log(`Project: ${project.id}, ${project.title}, owner: ${project.ownerId}`);
+        console.log(`Project: ${project.id}, ${project.title}, owner: ${project.ownerId}, isOwned: ${project.ownerId === auth.currentUser?.uid}`);
       });
     }
   }, [projects]);
