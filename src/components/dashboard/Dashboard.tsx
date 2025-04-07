@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useProjects } from "@/context/ProjectContext";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
   const { currentProject } = useProjects();
-  const { unreadMessages } = useMessages();
+  const { unreadMessages } = useMessages(); // This line is causing the error
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [showLiveNotes, setShowLiveNotes] = useState(false);

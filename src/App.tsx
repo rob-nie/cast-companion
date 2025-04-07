@@ -38,7 +38,7 @@ const App = () => (
       <UserProvider>
         <ProjectProvider>
           <NotesProvider>
-            <MessagesProvider>
+            <MessagesProvider> {/* MessagesProvider is here, which is correct */}
               <WatchProvider>
                 <TooltipProvider>
                   <Toaster />
