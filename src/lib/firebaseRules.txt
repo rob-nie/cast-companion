@@ -11,7 +11,8 @@
       ".read": "auth !== null",
       ".write": "auth !== null",
       "$projectId": {
-        ".validate": "newData.child('ownerId').exists() && (data.child('ownerId').val() === auth.uid || !data.exists())"
+        ".read": "auth !== null",
+        ".write": "auth !== null || data.child('ownerId').val() === auth.uid"
       }
     },
     "projectMembers": {
@@ -19,12 +20,16 @@
       ".write": "auth !== null"
     },
     "notes": {
-      ".read": "auth !== null",
-      ".write": "auth !== null"
+      "$noteId": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      }
     },
     "messages": {
-      ".read": "auth !== null",
-      ".write": "auth !== null"
+      "$messageId": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      }
     }
   }
 }

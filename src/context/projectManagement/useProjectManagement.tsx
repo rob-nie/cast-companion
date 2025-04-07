@@ -7,7 +7,7 @@ import {
   addProjectService, 
   updateProjectService, 
   deleteProjectService 
-} from "./services"; // Updated import path
+} from "./services";
 
 // Renamed from useProjectManagement to createProjectManagement to avoid naming collision
 export const createProjectManagement = () => {
@@ -32,7 +32,7 @@ export const createProjectManagement = () => {
       console.log("Cleaning up projects listener");
       unsubscribe();
     };
-  }, [currentProject?.id]); // Add dependency on currentProject.id to detect changes
+  }, [auth.currentUser?.uid, currentProject?.id]); // Add dependency on currentProject.id and auth.currentUser to detect changes
 
   // Reset current project when user logs out
   useEffect(() => {

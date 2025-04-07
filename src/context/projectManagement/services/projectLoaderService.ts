@@ -26,7 +26,7 @@ export const loadProjects = (
     console.log("Setting up Firebase listener for projects");
     
     // Set up listener for projects
-    const unsubscribeProjects = onValue(projectsRef, (projectsSnapshot) => {
+    const unsubscribeProjects = onValue(projectsRef, async (projectsSnapshot) => {
       if (!auth.currentUser) return;
       
       const userId = auth.currentUser.uid;
@@ -50,8 +50,10 @@ export const loadProjects = (
           }
         });
         
-        // Now also check for shared projects through projectMembers
-        onValue(membersRef, (membersSnapshot) => {
+        // Now check for shared projects through projectMembers
+        try {
+          const membersSnapshot = await get(membersRef);
+          
           if (membersSnapshot.exists()) {
             const membersData = membersSnapshot.val();
             const sharedProjectIds = new Set<string>();
@@ -78,18 +80,15 @@ export const loadProjects = (
                 });
               }
             });
-            
-            console.log("Total projects loaded:", projectsList.length);
-            setProjects(projectsList);
-          } else {
-            console.log("No project members found, setting only user-owned projects:", projectsList.length);
-            setProjects(projectsList);
           }
-        }, (error) => {
+          
+          console.log("Total projects loaded:", projectsList.length);
+          setProjects(projectsList);
+        } catch (error) {
           console.error("Error loading project members:", error);
           // If we can't load members, just use the owned projects
           setProjects(projectsList);
-        });
+        }
       } else {
         console.log("No projects found in Firebase");
         setProjects([]);

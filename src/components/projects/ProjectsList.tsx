@@ -10,11 +10,19 @@ type ProjectsListProps = {
 
 const ProjectsList = ({ projects }: ProjectsListProps) => {
   useEffect(() => {
-    console.log("ProjectsList mounted with", projects.length, "projects");
+    console.log("ProjectsList mounted with", projects?.length || 0, "projects");
+    if (projects && projects.length > 0) {
+      console.log("ProjectsList first project:", projects[0]);
+    }
   }, []);
   
   useEffect(() => {
-    console.log("ProjectsList: Projects updated, now showing", projects.length, "projects");
+    console.log("ProjectsList: Projects updated, now showing", projects?.length || 0, "projects");
+    if (projects && projects.length > 0) {
+      projects.forEach(project => {
+        console.log(`Project: ${project.id}, ${project.title}, owner: ${project.ownerId}`);
+      });
+    }
   }, [projects]);
   
   if (!projects || projects.length === 0) {

@@ -42,22 +42,23 @@ const ProjectsOverview = () => {
   // Get user's own projects and shared projects
   const userProjects = getUserProjects();
   const sharedProjects = getSharedProjects();
+  const allProjects = [...userProjects, ...sharedProjects];
   
   // Log debugging information
   useEffect(() => {
     console.log("ProjectsOverview: All projects count =", projects.length);
     console.log("ProjectsOverview: User projects count =", userProjects.length);
     console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
-    console.log("ProjectsOverview: Projects data =", projects);
-  }, [projects, userProjects, sharedProjects]);
+    console.log("ProjectsOverview: Projects data =", JSON.stringify(projects, null, 2));
+    console.log("ProjectsOverview: Combined allProjects =", allProjects.length);
+  }, [projects, userProjects, sharedProjects, allProjects]);
 
   // Log authentication state for debugging
   useEffect(() => {
     console.log("ProjectsOverview: isAuthenticated =", isAuthenticated);
     console.log("ProjectsOverview: Firebase current user =", auth.currentUser?.email);
+    console.log("ProjectsOverview: Firebase user id =", auth.currentUser?.uid);
   }, [isAuthenticated]);
-
-  const allProjects = [...userProjects, ...sharedProjects];
 
   return (
     <div>
