@@ -9,7 +9,8 @@ import {
   deleteProjectService 
 } from "./projectService";
 
-export const useProjectManagement = () => {
+// Renamed from useProjectManagement to createProjectManagement to avoid naming collision
+export const createProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   
