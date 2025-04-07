@@ -20,17 +20,6 @@ const useProjectCombined = () => {
   };
 };
 
-// Combined provider
-export const ProjectProvider = ({ children }: { children: ReactNode }) => {
-  return (
-    <ProjectManagementProvider>
-      <ProjectSharingProvider>
-        <ProjectContextProvider>{children}</ProjectContextProvider>
-      </ProjectSharingProvider>
-    </ProjectManagementProvider>
-  );
-};
-
 // Internal provider that combines the contexts
 const ProjectContextProvider = ({ children }: { children: ReactNode }) => {
   const combinedContext = useProjectCombined();
@@ -39,6 +28,17 @@ const ProjectContextProvider = ({ children }: { children: ReactNode }) => {
     <ProjectContext.Provider value={combinedContext}>
       {children}
     </ProjectContext.Provider>
+  );
+};
+
+// Combined provider - restructured to fix the context hierarchy
+export const ProjectProvider = ({ children }: { children: ReactNode }) => {
+  return (
+    <ProjectManagementProvider>
+      <ProjectSharingProvider>
+        <ProjectContextProvider>{children}</ProjectContextProvider>
+      </ProjectSharingProvider>
+    </ProjectManagementProvider>
   );
 };
 

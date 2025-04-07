@@ -9,8 +9,8 @@ import {
   deleteProjectService 
 } from "./services";
 
-// Renamed from useProjectManagement to createProjectManagement to avoid naming collision
-export const createProjectManagement = () => {
+// The hook itself (not a factory function anymore)
+export const useProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
