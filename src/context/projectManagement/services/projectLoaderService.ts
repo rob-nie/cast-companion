@@ -103,12 +103,15 @@ export const loadProjects = (
               const projectData = projectSnapshot.val();
               console.log(`Processing shared project ${projectId}: title=${projectData.title}`);
               
-              allProjects.set(projectId, {
-                ...projectData,
-                id: projectId,
-                createdAt: new Date(projectData.createdAt),
-                lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
-              });
+              // Only add if not already in the map (to avoid duplicates with own projects)
+              if (!allProjects.has(projectId)) {
+                allProjects.set(projectId, {
+                  ...projectData,
+                  id: projectId,
+                  createdAt: new Date(projectData.createdAt),
+                  lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
+                });
+              }
             }
           } catch (error) {
             console.error(`Error fetching shared project ${projectId}:`, error);
