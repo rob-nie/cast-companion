@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { auth } from "@/lib/firebase";
 import { Project } from "./types";
@@ -8,11 +7,25 @@ import {
   updateProjectService, 
   deleteProjectService 
 } from "./services";
+import { onAuthStateChanged } from "firebase/auth";
 
 export const useProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
+  
+  // First, set up a check to ensure Firebase auth state is ready
+  useEffect(() => {
+    console.log("=== Setting up auth state monitor ===");
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed in useProjectManagement:", 
+                  user ? `User: ${user.email}` : "No authenticated user");
+      setAuthReady(true);
+    });
+    
+    return () => unsubscribe();
+  }, []);
   
   const handleProjectsUpdate = useCallback((loadedProjects: Project[]) => {
     console.log("=== Projects Update Handler ===");
@@ -44,7 +57,14 @@ export const useProjectManagement = () => {
   // Load projects from Firebase when component mounts or auth changes
   useEffect(() => {
     console.log("=== Setting up projects listener ===");
+    console.log("Auth ready state:", authReady);
     console.log("Firebase auth state:", auth.currentUser?.email, auth.currentUser?.uid);
+    
+    // Wait for both auth to be ready AND for there to be a current user before loading projects
+    if (!authReady) {
+      console.log("Auth state not yet confirmed, waiting before loading projects");
+      return () => {};
+    }
     
     if (!auth.currentUser) {
       console.log("No authenticated user, resetting projects");
@@ -64,7 +84,7 @@ export const useProjectManagement = () => {
       console.log("Cleaning up projects listener");
       unsubscribe();
     };
-  }, [auth.currentUser?.uid, handleProjectsUpdate]); 
+  }, [auth.currentUser?.uid, handleProjectsUpdate, authReady]); 
 
   // Reset current project when user logs out
   useEffect(() => {
@@ -78,6 +98,7 @@ export const useProjectManagement = () => {
     }
   }, [auth.currentUser]);
 
+  // Keep the rest of the functions unchanged
   const addProject = useCallback(async (project: Omit<Project, "id" | "createdAt" | "ownerId">) => {
     console.log("Adding new project:", project.title);
     await addProjectService(project);

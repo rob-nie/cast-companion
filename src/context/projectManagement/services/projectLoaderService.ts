@@ -1,11 +1,14 @@
+
 import { ref, onValue, get, query, orderByChild, equalTo } from "firebase/database";
 import { database, auth } from "@/lib/firebase";
 import { Project } from "../types";
 import { toast } from "sonner";
+import { onAuthStateChanged } from "firebase/auth";
 
 /**
  * Sets up a Firebase listener to load projects based on the current user's access rights
  * Only loads projects owned by the current user or shared with them
+ * Enhanced with auth state synchronization
  */
 export const loadProjects = (
     setProjects: (projects: Project[]) => void
@@ -13,19 +16,54 @@ export const loadProjects = (
     console.log("===== PROJECT LOADER START =====");
     console.log("loadProjects called with auth state:",
         auth.currentUser ? `User: ${auth.currentUser.email} (${auth.currentUser.uid})` : "No authenticated user");
-
-    // Only load projects if user is authenticated
-    if (!auth.currentUser) {
-        console.log("No authenticated user, not loading projects");
+    
+    // Create a promise to track when auth state is fully initialized
+    let authStatePromise: Promise<string | null> = new Promise((resolve) => {
+        // Use onAuthStateChanged to ensure we have the final auth state
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            console.log("Auth state changed in project loader:", user ? `User: ${user.email}` : "No user");
+            unsubscribe(); // We only need this once
+            resolve(user ? user.uid : null);
+        });
+    });
+    
+    // Initially set to empty to prevent showing stale data
+    setProjects([]);
+    
+    // Setup listener only after auth state is confirmed
+    authStatePromise.then((userId) => {
+        if (!userId) {
+            console.log("No authenticated user after auth state check, not loading projects");
+            setProjects([]);
+            console.log("Projects state set to empty array due to no authentication");
+            console.log("===== PROJECT LOADER END =====");
+            return () => { };
+        }
+        
+        console.log("Auth state confirmed, user ID:", userId);
+        return setupProjectsListener(userId, setProjects);
+    }).catch(error => {
+        console.error("Error in auth state handling:", error);
         setProjects([]);
-        console.log("Projects state set to empty array due to no authentication");
-        console.log("===== PROJECT LOADER END =====");
         return () => { };
-    }
+    });
+    
+    // Return cleanup function
+    return () => {
+        console.log("Project loader cleanup called");
+        // Actual listener cleanup will be handled by the promise resolution
+    };
+};
 
+/**
+ * Sets up the actual Firebase listeners for projects after auth state is confirmed
+ */
+const setupProjectsListener = (
+    userId: string,
+    setProjects: (projects: Project[]) => void
+) => {
     try {
-        const userId = auth.currentUser.uid;
-        console.log(`Loading projects for user: ${userId}`);
+        console.log(`Setting up projects listeners for user: ${userId}`);
 
         const projectsRef = ref(database, 'projects');
         const membersRef = ref(database, 'projectMembers');
