@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 /**
  * Sets up a Firebase listener to load projects based on the current user's access rights
- * Now loads all projects for all users
+ * Only loads projects owned by the current user or shared with them
  */
 export const loadProjects = (
   setProjects: (projects: Project[]) => void
@@ -25,72 +25,132 @@ export const loadProjects = (
   }
   
   try {
-    const projectsRef = ref(database, 'projects');
+    const userId = auth.currentUser.uid;
+    console.log(`Loading projects for user: ${userId}`);
     
-    console.log("Setting up Firebase listener for projects path:", projectsRef.toString());
+    // Create a map to store all projects (both owned and shared)
+    const allProjects = new Map<string, Project>();
+    let ownProjectsLoaded = false;
+    let sharedProjectsLoaded = false;
     
-    // Set up listener for all projects
-    const unsubscribeProjects = onValue(projectsRef, async (projectsSnapshot) => {
-      if (!auth.currentUser) {
-        console.log("Auth state changed during project loading - user no longer authenticated");
-        setProjects([]);
-        return;
-      }
+    // 1. Set up listener for user's own projects
+    const ownProjectsRef = ref(database, 'projects');
+    const ownProjectsQuery = query(ownProjectsRef, orderByChild('ownerId'), equalTo(userId));
+    
+    console.log("Setting up Firebase listener for own projects");
+    
+    const unsubscribeOwnProjects = onValue(ownProjectsQuery, (ownProjectsSnapshot) => {
+      console.log("Own projects snapshot received");
       
-      console.log(`Loading all projects for all users`);
-      
-      if (projectsSnapshot.exists()) {
-        console.log("Projects snapshot exists");
-        const projectsData = projectsSnapshot.val();
-        console.log("Raw projects data:", JSON.stringify(projectsData));
+      if (ownProjectsSnapshot.exists()) {
+        console.log("Own projects snapshot exists");
+        const projectsData = ownProjectsSnapshot.val();
+        console.log(`Found ${Object.keys(projectsData).length} own projects`);
         
-        let projectsList: Project[] = [];
-        
-        // Check if projectsData is an object or array
-        if (typeof projectsData === 'object' && projectsData !== null) {
-          console.log("Projects data is valid object, processing...");
-          console.log("Total projects in database:", Object.keys(projectsData).length);
+        // Process own projects and add to the map
+        Object.keys(projectsData).forEach((key) => {
+          const project = projectsData[key];
+          console.log(`Processing own project ${key}: title=${project.title}`);
           
-          // Add all projects
-          Object.keys(projectsData).forEach((key) => {
-            const project = projectsData[key];
-            console.log(`Processing project ${key}: ownerId=${project.ownerId}, title=${project.title}`);
-            
-            projectsList.push({
-              ...project,
-              id: key,
-              createdAt: new Date(project.createdAt),
-              lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-            });
+          allProjects.set(key, {
+            ...project,
+            id: key,
+            createdAt: new Date(project.createdAt),
+            lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
           });
-          
-          console.log(`Loaded ${projectsList.length} total projects`);
-        } else {
-          console.log("Projects data is not a valid object:", projectsData);
-        }
-        
-        console.log("Final projects list:", projectsList);
-        console.log(`Setting ${projectsList.length} projects in state`);
-        setProjects(projectsList);
+        });
       } else {
-        console.log("No projects found in Firebase (snapshot doesn't exist)");
-        setProjects([]);
+        console.log("No own projects found for user");
       }
       
-      console.log("===== PROJECT LOADER END =====");
+      ownProjectsLoaded = true;
+      updateProjectsList(allProjects, ownProjectsLoaded, sharedProjectsLoaded);
     }, (error) => {
-      console.error("Error loading projects from Firebase:", error);
-      console.log("Error details:", JSON.stringify(error));
-      toast.error("Fehler beim Laden der Projekte");
-      setProjects([]);
-      console.log("===== PROJECT LOADER ERROR END =====");
+      console.error("Error loading own projects:", error);
+      ownProjectsLoaded = true;
+      updateProjectsList(allProjects, ownProjectsLoaded, sharedProjectsLoaded);
     });
     
-    console.log("Firebase projects listener successfully set up");
-    return unsubscribeProjects;
+    // 2. Set up listener for shared projects using projectMembers collection
+    const membersRef = ref(database, 'projectMembers');
+    const userMembershipsQuery = query(
+      membersRef, 
+      orderByChild('userId'), 
+      equalTo(userId)
+    );
+    
+    console.log("Setting up Firebase listener for project memberships");
+    
+    const unsubscribeSharedProjects = onValue(userMembershipsQuery, async (membershipsSnapshot) => {
+      console.log("Project memberships snapshot received");
+      
+      if (membershipsSnapshot.exists()) {
+        console.log("Membership snapshot exists");
+        const memberships = membershipsSnapshot.val();
+        const sharedProjectIds = Object.values(memberships)
+          .map((member: any) => member.projectId)
+          .filter(Boolean);
+        
+        console.log(`Found ${sharedProjectIds.length} shared project memberships`);
+        
+        // Fetch each shared project's details
+        for (const projectId of sharedProjectIds) {
+          try {
+            const projectRef = ref(database, `projects/${projectId}`);
+            const projectSnapshot = await get(projectRef);
+            
+            if (projectSnapshot.exists()) {
+              const projectData = projectSnapshot.val();
+              console.log(`Processing shared project ${projectId}: title=${projectData.title}`);
+              
+              allProjects.set(projectId, {
+                ...projectData,
+                id: projectId,
+                createdAt: new Date(projectData.createdAt),
+                lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
+              });
+            }
+          } catch (error) {
+            console.error(`Error fetching shared project ${projectId}:`, error);
+          }
+        }
+      } else {
+        console.log("No shared project memberships found for user");
+      }
+      
+      sharedProjectsLoaded = true;
+      updateProjectsList(allProjects, ownProjectsLoaded, sharedProjectsLoaded);
+    }, (error) => {
+      console.error("Error loading shared projects:", error);
+      sharedProjectsLoaded = true;
+      updateProjectsList(allProjects, ownProjectsLoaded, sharedProjectsLoaded);
+    });
+    
+    // Helper function to update projects state when both own and shared projects are loaded
+    function updateProjectsList(
+      projectsMap: Map<string, Project>, 
+      ownLoaded: boolean, 
+      sharedLoaded: boolean
+    ) {
+      if (ownLoaded && sharedLoaded) {
+        const projectsList = Array.from(projectsMap.values());
+        console.log(`Setting ${projectsList.length} total projects (own + shared) in state`);
+        setProjects(projectsList);
+        console.log("===== PROJECT LOADER END =====");
+      }
+    }
+    
+    console.log("Firebase projects listeners successfully set up");
+    
+    // Return cleanup function that unsubscribes from both listeners
+    return () => {
+      console.log("Cleaning up projects listeners");
+      unsubscribeOwnProjects();
+      unsubscribeSharedProjects();
+    };
   } catch (error) {
-    console.error("Failed to set up projects listener:", error);
-    console.log("Error details:", JSON.stringify(error));
+    console.error("Failed to set up projects listeners:", error);
+    setProjects([]);
     console.log("===== PROJECT LOADER SETUP ERROR END =====");
     return () => {};
   }
