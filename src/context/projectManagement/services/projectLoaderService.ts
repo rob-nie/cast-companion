@@ -24,20 +24,19 @@ export const loadProjects = (
     return () => {};
   }
   
+  const userId = auth.currentUser.uid;
+  console.log(`Loading projects for user: ${userId}`);
+  
+  // Create a map to store all projects (both owned and shared)
+  const allProjects = new Map<string, Project>();
+  let ownProjectsLoaded = false;
+  let sharedProjectsLoaded = false;
+  
   try {
-    const userId = auth.currentUser.uid;
-    console.log(`Loading projects for user: ${userId}`);
-    
-    // Create a map to store all projects (both owned and shared)
-    const allProjects = new Map<string, Project>();
-    let ownProjectsLoaded = false;
-    let sharedProjectsLoaded = false;
-    
     // 1. Set up listener for user's own projects
+    console.log("Setting up Firebase listener for own projects");
     const ownProjectsRef = ref(database, 'projects');
     const ownProjectsQuery = query(ownProjectsRef, orderByChild('ownerId'), equalTo(userId));
-    
-    console.log("Setting up Firebase listener for own projects");
     
     const unsubscribeOwnProjects = onValue(ownProjectsQuery, (ownProjectsSnapshot) => {
       console.log("Own projects snapshot received");
@@ -50,7 +49,7 @@ export const loadProjects = (
         // Process own projects and add to the map
         Object.keys(projectsData).forEach((key) => {
           const project = projectsData[key];
-          console.log(`Processing own project ${key}: title=${project.title}`);
+          console.log(`Processing own project ${key}: title=${project.title}, ownerId=${project.ownerId}, userId=${userId}, match=${project.ownerId === userId}`);
           
           allProjects.set(key, {
             ...project,
@@ -72,14 +71,13 @@ export const loadProjects = (
     });
     
     // 2. Set up listener for shared projects using projectMembers collection
+    console.log("Setting up Firebase listener for project memberships");
     const membersRef = ref(database, 'projectMembers');
     const userMembershipsQuery = query(
       membersRef, 
       orderByChild('userId'), 
       equalTo(userId)
     );
-    
-    console.log("Setting up Firebase listener for project memberships");
     
     const unsubscribeSharedProjects = onValue(userMembershipsQuery, async (membershipsSnapshot) => {
       console.log("Project memberships snapshot received");
@@ -112,6 +110,8 @@ export const loadProjects = (
                   lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
                 });
               }
+            } else {
+              console.log(`Shared project ${projectId} does not exist`);
             }
           } catch (error) {
             console.error(`Error fetching shared project ${projectId}:`, error);
@@ -147,7 +147,20 @@ export const loadProjects = (
             ownerId: p.ownerId,
             isOwned: p.ownerId === userId
           })));
+        } else {
+          console.log("No projects to set in state");
         }
+        
+        // Prioritize displaying projects where user is owner
+        projectsList.sort((a, b) => {
+          const aIsOwned = a.ownerId === userId;
+          const bIsOwned = b.ownerId === userId;
+          
+          if (aIsOwned && !bIsOwned) return -1;
+          if (!aIsOwned && bIsOwned) return 1;
+          
+          return 0;
+        });
         
         setProjects(projectsList);
         console.log("===== PROJECT LOADER END =====");

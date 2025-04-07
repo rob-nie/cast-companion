@@ -22,7 +22,8 @@ export const useProjectManagement = () => {
       console.log("Projects received:", loadedProjects.map(p => ({
         id: p.id,
         title: p.title,
-        ownerId: p.ownerId
+        ownerId: p.ownerId,
+        isOwned: p.ownerId === auth.currentUser?.uid
       })));
     } else {
       console.log("No projects received");
@@ -44,6 +45,14 @@ export const useProjectManagement = () => {
   useEffect(() => {
     console.log("=== Setting up projects listener ===");
     console.log("Firebase auth state:", auth.currentUser?.email, auth.currentUser?.uid);
+    
+    if (!auth.currentUser) {
+      console.log("No authenticated user, resetting projects");
+      setProjects([]);
+      setIsLoading(false);
+      return () => {};
+    }
+    
     setIsLoading(true);
     
     // Set up the projects listener
@@ -107,8 +116,9 @@ export const useProjectManagement = () => {
       return [];
     }
     
-    const userProjects = projects.filter(project => project.ownerId === auth.currentUser?.uid);
-    console.log("getUserProjects: Found", userProjects.length, "projects for user", auth.currentUser.uid);
+    const currentUserId = auth.currentUser.uid;
+    const userProjects = projects.filter(project => project.ownerId === currentUserId);
+    console.log("getUserProjects: Found", userProjects.length, "projects for user", currentUserId);
     
     if (userProjects.length > 0) {
       console.log("User projects:", userProjects.map(p => ({ id: p.id, title: p.title })));
@@ -124,11 +134,10 @@ export const useProjectManagement = () => {
       return [];
     }
     
-    const sharedProjects = projects.filter(project => 
-      project.ownerId !== auth.currentUser?.uid
-    );
+    const currentUserId = auth.currentUser.uid;
+    const sharedProjects = projects.filter(project => project.ownerId !== currentUserId);
     
-    console.log("getSharedProjects: Found", sharedProjects.length, "shared projects for user", auth.currentUser.uid);
+    console.log("getSharedProjects: Found", sharedProjects.length, "shared projects for user", currentUserId);
     
     if (sharedProjects.length > 0) {
       console.log("Shared projects:", sharedProjects.map(p => ({ id: p.id, title: p.title, ownerId: p.ownerId })));
