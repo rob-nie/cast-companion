@@ -28,8 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserPlus } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useState, ReactNode } from "react";
 
 const formSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -40,9 +39,10 @@ type FormValues = z.infer<typeof formSchema>;
 
 type AddMemberDialogProps = {
   onAddMember: (email: string, role: "editor" | "viewer") => Promise<void>;
+  children?: ReactNode;
 };
 
-const AddMemberDialog = ({ onAddMember }: AddMemberDialogProps) => {
+const AddMemberDialog = ({ onAddMember, children }: AddMemberDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -71,10 +71,12 @@ const AddMemberDialog = ({ onAddMember }: AddMemberDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1">
-          <UserPlus className="h-4 w-4" />
-          Einladen
-        </Button>
+        {children || (
+          <Button size="sm" className="gap-1">
+            <UserPlus className="h-4 w-4" />
+            Einladen
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

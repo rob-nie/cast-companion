@@ -5,7 +5,10 @@ import { useProjects } from "@/context/ProjectContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { Info, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import AddMemberDialog from "@/components/projects/members/AddMemberDialog";
+import { auth } from "@/lib/firebase";
 
 const ProjectSharing = () => {
   const { currentProject } = useProjects();
@@ -18,15 +21,36 @@ const ProjectSharing = () => {
   }, [currentProject, navigate]);
 
   if (!currentProject) return null;
+  
+  const isOwner = currentProject.ownerId === auth.currentUser?.uid;
 
   return (
     <PageLayout>
       <div className="space-y-6 max-w-4xl mx-auto">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Projekt teilen</h1>
-          <p className="text-muted-foreground mt-1">
-            Verwalten Sie den Zugriff auf "{currentProject.title}"
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Projekt teilen</h1>
+            <p className="text-muted-foreground mt-1">
+              Verwalten Sie den Zugriff auf "{currentProject.title}"
+            </p>
+          </div>
+          {isOwner && (
+            <AddMemberDialog 
+              onAddMember={async (email, role) => {
+                try {
+                  // Verwende die bereits vorhandene Funktion zum Hinzufügen von Benutzern
+                  await useProjects().shareProject(currentProject.id, email, role);
+                } catch (error) {
+                  console.error("Fehler beim Hinzufügen eines Mitglieds:", error);
+                }
+              }} 
+            >
+              <Button className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Benutzer hinzufügen
+              </Button>
+            </AddMemberDialog>
+          )}
         </div>
 
         <Alert>
