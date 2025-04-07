@@ -10,8 +10,8 @@ const firebaseConfig = {
   projectId: "castcompanion-ec3ee",
   storageBucket: "castcompanion-ec3ee.firebasestorage.app",
   messagingSenderId: "1089617600286",
-  appId: "1:1089617600286:web:19f8115eb802072902330f",
-  measurementId: "G-D9P1PVD2V9"
+  appId: "1:1089617600286:web:91392968a83cad6e02330f",
+  measurementId: "G-2CJYFF3YX5"
 };
 
 // Initialize Firebase
