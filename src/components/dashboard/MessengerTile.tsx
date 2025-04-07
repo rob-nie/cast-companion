@@ -14,7 +14,17 @@ const MessengerTile = () => {
     const [showQuickPhrases, setShowQuickPhrases] = useState(false);
     const [inputValue, setInputValue] = useState("");
     
-    const currentUserId = user?.id || "user-1";
+    if (!user) {
+      return (
+        <div className="tile flex items-center justify-center h-full">
+          <p className="text-muted-foreground">
+            Bitte melde dich an, um den Chat zu nutzen.
+          </p>
+        </div>
+      );
+    }
+    
+    const currentUserId = user.id;
     const userQuickPhrases = getQuickPhrasesForUser(currentUserId);
     
     // Mark all messages as read when the component is displayed
@@ -62,7 +72,7 @@ const MessengerTile = () => {
     return (
       <div className="tile flex items-center justify-center h-full">
         <p className="text-destructive">
-          Error loading messenger. Please refresh the page.
+          Fehler beim Laden des Chats. Bitte versuche es erneut oder prüfe deine Berechtigungen.
         </p>
       </div>
     );

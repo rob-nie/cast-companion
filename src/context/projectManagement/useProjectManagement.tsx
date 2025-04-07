@@ -20,13 +20,19 @@ export const createProjectManagement = () => {
     const unsubscribe = loadProjects((loadedProjects) => {
       console.log("Projects loaded in createProjectManagement:", loadedProjects.length);
       setProjects(loadedProjects);
+      
+      // If we have a current project that's no longer accessible, reset it
+      if (currentProject && !loadedProjects.some(p => p.id === currentProject.id)) {
+        console.log("Current project is no longer accessible, resetting");
+        setCurrentProject(null);
+      }
     });
     
     return () => {
       console.log("Cleaning up projects listener");
       unsubscribe();
     };
-  }, []);
+  }, [currentProject?.id]); // Add dependency on currentProject.id to detect changes
 
   // Reset current project when user logs out
   useEffect(() => {
@@ -78,7 +84,7 @@ export const createProjectManagement = () => {
     return userProjects;
   };
 
-  // Get projects shared with the current user
+  // Get projects shared with the current user (not owned by them)
   const getSharedProjects = () => {
     if (!auth.currentUser) {
       console.log("getSharedProjects: No authenticated user");

@@ -1,4 +1,5 @@
-import { ref, set, push, remove, update, get, onValue } from "firebase/database";
+
+import { ref, set, push, remove, update, get, onValue, query, orderByChild, equalTo } from "firebase/database";
 import { database, auth, isUserAuthenticated } from "@/lib/firebase";
 import { Project } from "./types";
 import { toast } from "sonner";
@@ -8,38 +9,74 @@ export const loadProjects = (
 ) => {
   console.log("loadProjects called, auth.currentUser:", auth.currentUser?.uid);
   
-  // Even if not authenticated, set up the listener
+  // Only load projects if user is authenticated
+  if (!auth.currentUser) {
+    console.log("No authenticated user, not loading projects");
+    setProjects([]);
+    return () => {};
+  }
+  
   try {
     const projectsRef = ref(database, 'projects');
+    const membersRef = ref(database, 'projectMembers');
+    
     console.log("Setting up Firebase listener for projects");
     
-    const unsubscribe = onValue(projectsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const projectsData = snapshot.val();
-        const projectsList: Project[] = [];
-        
-        Object.keys(projectsData).forEach((key) => {
-          const project = projectsData[key];
-          projectsList.push({
-            ...project,
-            id: key,
-            createdAt: new Date(project.createdAt),
-            lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-          });
+    // First, set up listener for project members to know which projects the user has access to
+    const unsubscribeMembers = onValue(membersRef, async (membersSnapshot) => {
+      if (!auth.currentUser) return;
+      
+      const userId = auth.currentUser.uid;
+      const accessibleProjectIds: string[] = [];
+      
+      // Get all projects this user has access to via projectMembers
+      if (membersSnapshot.exists()) {
+        const membersData = membersSnapshot.val();
+        Object.keys(membersData).forEach((key) => {
+          const member = membersData[key];
+          if (member.userId === userId) {
+            accessibleProjectIds.push(member.projectId);
+            console.log("User has access to project:", member.projectId);
+          }
         });
-        
-        console.log("Projects loaded from Firebase:", projectsList.length);
-        setProjects(projectsList);
-      } else {
-        console.log("No projects found in Firebase");
-        setProjects([]);
       }
-    }, (error) => {
-      console.error("Error loading projects from Firebase:", error);
-      toast.error("Fehler beim Laden der Projekte");
+      
+      // Now fetch all projects
+      const unsubscribeProjects = onValue(projectsRef, (projectsSnapshot) => {
+        if (projectsSnapshot.exists()) {
+          const projectsData = projectsSnapshot.val();
+          const projectsList: Project[] = [];
+          
+          Object.keys(projectsData).forEach((key) => {
+            // Only include projects the user owns or has access to
+            if (accessibleProjectIds.includes(key)) {
+              const project = projectsData[key];
+              projectsList.push({
+                ...project,
+                id: key,
+                createdAt: new Date(project.createdAt),
+                lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+              });
+            }
+          });
+          
+          console.log("Filtered projects loaded from Firebase:", projectsList.length);
+          setProjects(projectsList);
+        } else {
+          console.log("No projects found in Firebase");
+          setProjects([]);
+        }
+      }, (error) => {
+        console.error("Error loading projects from Firebase:", error);
+        toast.error("Fehler beim Laden der Projekte");
+      });
+      
+      return unsubscribeProjects;
     });
-
-    return unsubscribe;
+    
+    return () => {
+      unsubscribeMembers();
+    };
   } catch (error) {
     console.error("Failed to set up projects listener:", error);
     return () => {};
