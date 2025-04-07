@@ -9,7 +9,6 @@ import {
   deleteProjectService 
 } from "./services";
 
-// The hook itself (not a factory function anymore)
 export const useProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);

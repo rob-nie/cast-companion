@@ -15,9 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const ProjectsOverview = () => {
   const { 
     projects, 
-    isLoading: projectsLoading, 
-    sharedProjects,
-    isLoadingSharedProjects
+    isLoading: projectsLoading,
+    getUserProjects,
+    getSharedProjects
   } = useProjects();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -87,7 +87,14 @@ const ProjectsOverview = () => {
     console.log("ProjectsOverview: authLoading =", authLoading);
     console.log("ProjectsOverview: projectsLoading =", projectsLoading);
     console.log("ProjectsOverview: All projects count =", projects.length);
-    console.log("ProjectsOverview: Shared projects count =", sharedProjects?.length || 0);
+    
+    // Get user's own projects
+    const userProjects = getUserProjects ? getUserProjects() : [];
+    console.log("ProjectsOverview: Own projects count =", userProjects.length);
+    
+    // Get projects shared with the user
+    const sharedProjects = getSharedProjects ? getSharedProjects() : [];
+    console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
     
     if (projects.length > 0) {
       console.log("ProjectsOverview: Projects available in context:", 
@@ -95,14 +102,7 @@ const ProjectsOverview = () => {
     } else {
       console.log("ProjectsOverview: No projects in context");
     }
-
-    if (sharedProjects && sharedProjects.length > 0) {
-      console.log("ProjectsOverview: Shared projects available:", 
-        sharedProjects.map(p => ({ id: p.id, title: p.title, ownerId: p.ownerId })));
-    } else {
-      console.log("ProjectsOverview: No shared projects found");
-    }
-  }, [projects, sharedProjects, authLoading, projectsLoading]);
+  }, [projects, authLoading, projectsLoading, getUserProjects, getSharedProjects]);
 
   // Log authentication state for debugging
   useEffect(() => {
@@ -113,7 +113,9 @@ const ProjectsOverview = () => {
     console.log("ProjectsOverview: Auth context user =", user?.email);
   }, [isAuthenticated, user]);
 
-  const isPageLoading = loading || authLoading || projectsLoading || isLoadingSharedProjects;
+  const isPageLoading = loading || authLoading || projectsLoading;
+  const ownProjects = getUserProjects ? getUserProjects() : [];
+  const sharedProjects = getSharedProjects ? getSharedProjects() : [];
 
   return (
     <div>
@@ -144,12 +146,13 @@ const ProjectsOverview = () => {
 
       {!isPageLoading && !permissionError && (
         <>
-          {projects.length === 0 && (!sharedProjects || sharedProjects.length === 0) ? (
+          {projects.length === 0 ? (
             <EmptyProjectsState onCreateProject={() => setIsOpen(true)} />
           ) : (
             <Tabs defaultValue="all" className="w-full">
               <TabsList className="mb-4">
                 <TabsTrigger value="all">Alle Projekte</TabsTrigger>
+                <TabsTrigger value="own">Meine Projekte</TabsTrigger>
                 <TabsTrigger value="shared">Mit mir geteilt</TabsTrigger>
               </TabsList>
               
@@ -157,8 +160,18 @@ const ProjectsOverview = () => {
                 <ProjectsList projects={projects} />
               </TabsContent>
               
+              <TabsContent value="own">
+                {ownProjects.length > 0 ? (
+                  <ProjectsList projects={ownProjects} />
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    Keine eigenen Projekte gefunden.
+                  </div>
+                )}
+              </TabsContent>
+              
               <TabsContent value="shared">
-                {sharedProjects && sharedProjects.length > 0 ? (
+                {sharedProjects.length > 0 ? (
                   <ProjectsList projects={sharedProjects} />
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">

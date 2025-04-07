@@ -138,6 +138,17 @@ export const loadProjects = (
       if (ownLoaded && sharedLoaded) {
         const projectsList = Array.from(projectsMap.values());
         console.log(`Setting ${projectsList.length} total projects (own + shared) in state`);
+        
+        // Debug output to see what's being set
+        if (projectsList.length > 0) {
+          console.log("Projects being set:", projectsList.map(p => ({
+            id: p.id,
+            title: p.title,
+            ownerId: p.ownerId,
+            isOwned: p.ownerId === userId
+          })));
+        }
+        
         setProjects(projectsList);
         console.log("===== PROJECT LOADER END =====");
       }
