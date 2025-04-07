@@ -1,9 +1,8 @@
-
 import { useState } from 'react';
 import { Edit, Trash2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Note } from '@/context/NotesContext';
+import { Note } from '@/types/note';
 
 interface NoteItemProps {
   note: Note;
