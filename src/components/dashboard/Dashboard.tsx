@@ -4,21 +4,23 @@ import { useProjects } from "@/context/ProjectContext";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, FilePenLine, Bell } from "lucide-react";
+import { MessageSquare, FilePenLine } from "lucide-react";
 import { useMessages } from "@/context/MessagesContext";
 import InterviewNotesPanel from "./InterviewNotesPanel";
 import MessengerTile from "./MessengerTile";
 import WatchTile from "./WatchTile";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
   const { currentProject } = useProjects();
-  const { unreadMessages } = useMessages(); // This line is causing the error
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [showLiveNotes, setShowLiveNotes] = useState(false);
   const [activeTab, setActiveTab] = useState<"notes" | "messages">("notes");
+  
+  // Access messages context safely
+  const messagesContext = useMessages();
+  const unreadMessages = messagesContext ? messagesContext.unreadMessages : 0;
 
   // Redirect if no project is selected
   useEffect(() => {

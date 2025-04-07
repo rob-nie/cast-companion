@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -10,11 +11,25 @@ import { Project } from "@/context/projectManagement";
 const InterviewDashboard = () => {
   const { currentProject, setCurrentProject, updateProject, projects } = useProjects();
   const [isLoading, setIsLoading] = useState(true);
+  const [projectLoaded, setProjectLoaded] = useState(false);
   const navigate = useNavigate();
 
   // Load current project from context or localStorage if missing
   useEffect(() => {
     console.log("Dashboard: Initializing with currentProject:", currentProject?.id);
+    
+    // Reset loading state if project already exists in context
+    if (currentProject && !projectLoaded) {
+      console.log("Dashboard: Project already in context:", currentProject.id);
+      setIsLoading(false);
+      setProjectLoaded(true);
+      return;
+    }
+    
+    // Skip if we've already loaded a project or if we're still waiting for projects to load
+    if (projectLoaded || projects.length === 0) {
+      return;
+    }
     
     const loadProject = async () => {
       // If no current project in context, try to load from localStorage
@@ -26,23 +41,18 @@ const InterviewDashboard = () => {
             const parsedProject = JSON.parse(savedProject) as Project;
             console.log("Dashboard: Found project in localStorage:", parsedProject.id);
             
-            // Wait for projects to load before checking if project exists
-            if (projects.length > 0) {
-              // Verify the project still exists in the user's projects
-              const projectExists = projects.some(p => p.id === parsedProject.id);
-              if (projectExists) {
-                console.log("Dashboard: Project exists in user projects, setting as current");
-                setCurrentProject(parsedProject);
-              } else {
-                console.log("Dashboard: Project doesn't exist in user projects, redirecting");
-                toast.error("Dieses Projekt ist nicht mehr verfügbar.");
-                localStorage.removeItem('currentProject');
-                navigate("/projects");
-              }
+            // Verify the project exists in the user's projects
+            const projectExists = projects.some(p => p.id === parsedProject.id);
+            if (projectExists) {
+              console.log("Dashboard: Project exists in user projects, setting as current");
+              setCurrentProject(parsedProject);
+              setProjectLoaded(true);
+              setIsLoading(false);
             } else {
-              // If projects haven't loaded yet, wait a bit longer
-              console.log("Dashboard: Projects not loaded yet, waiting before validation");
-              // We'll keep isLoading true so the loading spinner continues
+              console.log("Dashboard: Project doesn't exist in user projects, redirecting");
+              toast.error("Dieses Projekt ist nicht mehr verfügbar.");
+              localStorage.removeItem('currentProject');
+              navigate("/projects");
             }
           } else {
             console.log("Dashboard: No project in localStorage, redirecting");
@@ -56,15 +66,16 @@ const InterviewDashboard = () => {
         }
       } else {
         setIsLoading(false);
+        setProjectLoaded(true);
       }
     };
     
     loadProject();
-  }, [currentProject, navigate, setCurrentProject, projects]);
+  }, [currentProject, navigate, setCurrentProject, projects, projectLoaded]);
 
   // On project change, ensure it still exists in user's projects
   useEffect(() => {
-    if (!isLoading && currentProject) {
+    if (!isLoading && currentProject && projectLoaded) {
       console.log("Dashboard: Verifying currentProject access:", currentProject.id);
       
       // Check if current user still has access to this project
@@ -83,7 +94,7 @@ const InterviewDashboard = () => {
         updateProject(currentProject.id, { lastAccessed: new Date() }, true);
       }
     }
-  }, [currentProject, navigate, updateProject, projects, isLoading]);
+  }, [currentProject, navigate, updateProject, projects, isLoading, projectLoaded]);
 
   // Only render Dashboard if we have loaded everything and have a project
   if (isLoading) {

@@ -37,14 +37,19 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
         console.log("Creating new project with title:", newProject.title);
         
         // Create the project
-        await addProject(newProject);
+        const newProjectId = await addProject(newProject);
         
-        // Find the newly created project (it should be the most recent one with the same title)
+        // Find the newly created project based on ID
+        // Wait a bit longer for the projects to update with the new project
         setTimeout(() => {
-          const createdProject = projects.find(p => 
-            p.title === newProject.title && 
-            p.ownerId === auth.currentUser?.uid
-          );
+          // Try to find the project by ID first if addProject returned an ID
+          let createdProject = newProjectId ? 
+            projects.find(p => p.id === newProjectId) : 
+            // Fallback to finding by title and owner
+            projects.find(p => 
+              p.title === newProject.title && 
+              p.ownerId === auth.currentUser?.uid
+            );
           
           if (createdProject) {
             console.log("Setting current project after creation:", createdProject.id);
@@ -64,14 +69,15 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
             // Navigate to dashboard after a short delay
             setTimeout(() => {
               navigate("/dashboard");
-            }, 100);
+            }, 300);
           } else {
             console.error("Could not find created project");
             toast.error("Projekt wurde erstellt, konnte aber nicht geöffnet werden");
             setIsOpen(false);
             setNewProject({ title: "", description: "" });
+            setIsSubmitting(false);
           }
-        }, 500); // Wait for project to be available in the projects array
+        }, 800); // Wait longer for project to be available in the projects array
       } catch (error) {
         console.error("Error creating project:", error);
         toast.error("Fehler beim Erstellen des Projekts");
