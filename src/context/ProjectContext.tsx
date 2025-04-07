@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode } from "react";
 import { ProjectManagementProvider, useProjectManagement, Project } from "./projectManagement";
 import { ProjectSharingProvider, useProjectSharing } from "./ProjectSharingContext";
-import { ProjectMembersContext } from "./projectMembers";
+import { ProjectMembersProvider, useProjectMembers } from "./projectMembers";
 
 // Re-export types
 export type { Project };
@@ -14,11 +14,7 @@ const ProjectContext = createContext<ReturnType<typeof useProjectCombined> | und
 const useProjectCombined = () => {
   const projectManagement = useProjectManagement();
   const projectSharing = useProjectSharing();
-  const projectMembers = useContext(ProjectMembersContext);
-  
-  if (!projectMembers) {
-    throw new Error("ProjectMembersContext is undefined");
-  }
+  const projectMembers = useProjectMembers();
   
   return {
     ...projectManagement,
@@ -43,7 +39,9 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   return (
     <ProjectManagementProvider>
       <ProjectSharingProvider>
-        <ProjectContextProvider>{children}</ProjectContextProvider>
+        <ProjectMembersProvider>
+          <ProjectContextProvider>{children}</ProjectContextProvider>
+        </ProjectMembersProvider>
       </ProjectSharingProvider>
     </ProjectManagementProvider>
   );
