@@ -10,7 +10,8 @@ import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
 import ProjectCard from "./ProjectCard";
 import { toast } from "sonner";
-import { auth } from "@/lib/firebase";
+import { auth, checkPermission } from "@/lib/firebase";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ProjectsOverview = () => {
   const { projects, addProject, getUserProjects, getSharedProjects } = useProjects();
@@ -18,6 +19,24 @@ const ProjectsOverview = () => {
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [permissionError, setPermissionError] = useState(false);
+  
+  // Check database permissions on component mount
+  useEffect(() => {
+    const verifyPermissions = async () => {
+      if (auth.currentUser) {
+        const hasPermission = await checkPermission('projects');
+        if (!hasPermission) {
+          setPermissionError(true);
+          console.warn("User doesn't have permission to access projects");
+        } else {
+          setPermissionError(false);
+        }
+      }
+    };
+    
+    verifyPermissions();
+  }, [isAuthenticated]);
   
   // Get all user-specific projects
   const myProjects = getUserProjects();
@@ -46,6 +65,7 @@ const ProjectsOverview = () => {
         await addProject(newProject);
         setNewProject({ title: "", description: "" });
         setIsOpen(false);
+        toast.success("Projekt erfolgreich erstellt");
       } catch (error) {
         console.error("Error creating project:", error);
         toast.error("Fehler beim Erstellen des Projekts");
@@ -117,9 +137,17 @@ const ProjectsOverview = () => {
         </Dialog>
       </div>
 
+      {permissionError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertDescription>
+            Fehler beim Laden der Projekte. Bitte stellen Sie sicher, dass Sie die erforderlichen Berechtigungen haben.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isAuthenticated ? (
         <>
-          {allProjects.length === 0 ? (
+          {allProjects.length === 0 && !permissionError ? (
             <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
               <h3 className="text-lg font-medium">Noch keine Projekte</h3>
               <p className="text-muted-foreground mt-1 mb-4">

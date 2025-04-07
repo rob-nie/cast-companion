@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getDatabase, ref, get } from "firebase/database";
+import { getDatabase, ref, get, set } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDwKTQn0lISyFuOerfOkU26PQ1ZFXIXsPA",
@@ -27,6 +27,27 @@ export const isUserAuthenticated = () => {
       resolve(!!user);
     });
   });
+};
+
+// Initialize database rules for new users
+export const initializeUserDatabaseAccess = async (userId: string) => {
+  try {
+    // Check if rules already exist for this user
+    const rulesRef = ref(database, `rules/${userId}`);
+    const rulesSnapshot = await get(rulesRef);
+    
+    if (!rulesSnapshot.exists()) {
+      // Set initial rules for the user
+      await set(rulesRef, {
+        initialized: true,
+        timestamp: new Date().toISOString()
+      });
+      console.log("Database access initialized for user:", userId);
+    }
+  } catch (error) {
+    console.error("Failed to initialize database access:", error);
+    // Continue anyway, rules might already be set at the Firebase console level
+  }
 };
 
 // Helper function to check if user has permission to access a path

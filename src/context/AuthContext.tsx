@@ -9,7 +9,7 @@ import {
   updateProfile as updateFirebaseProfile,
 } from "firebase/auth";
 import { ref, set, get } from "firebase/database";
-import { auth, database } from "@/lib/firebase";
+import { auth, database, initializeUserDatabaseAccess } from "@/lib/firebase";
 import { User } from "@/types/user";
 
 type AuthContextType = {
@@ -34,6 +34,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Auth state changed:", firebaseUser ? `User ${firebaseUser.email} logged in` : "No user");
       try {
         if (firebaseUser) {
+          // Initialize database access for the user
+          await initializeUserDatabaseAccess(firebaseUser.uid);
+          
           // Try to get user data from database
           try {
             const userRef = ref(database, `users/${firebaseUser.uid}`);

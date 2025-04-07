@@ -3,7 +3,8 @@ import { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import LoadingScreen from "./LoadingScreen";
-import { auth } from "@/lib/firebase";
+import { auth, database, initializeUserDatabaseAccess } from "@/lib/firebase";
+import { toast } from "sonner";
 
 const AuthGuard = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -13,6 +14,20 @@ const AuthGuard = () => {
     // Log Firebase auth state whenever AuthGuard component renders
     const currentUser = auth.currentUser;
     console.log("AuthGuard Firebase currentUser:", currentUser ? currentUser.email : "Not authenticated");
+    
+    // Initialize database access if user is authenticated
+    const setupDatabaseAccess = async () => {
+      if (currentUser) {
+        try {
+          await initializeUserDatabaseAccess(currentUser.uid);
+        } catch (error) {
+          console.error("Failed to initialize database access:", error);
+          toast.error("Fehler beim Zugriff auf die Datenbank");
+        }
+      }
+    };
+    
+    setupDatabaseAccess();
   }, []);
   
   console.log("AuthGuard: isAuthenticated =", isAuthenticated, "isLoading =", isLoading, "user =", user?.email);
