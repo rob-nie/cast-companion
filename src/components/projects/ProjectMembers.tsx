@@ -28,19 +28,20 @@ const ProjectMembers = () => {
     if (!currentProject) return;
     
     console.log("Loading members for project:", currentProject.id);
-    const projectMembers = getProjectMembers(currentProject.id);
-    setMembers(projectMembers);
     
-    // This is needed to re-fetch when members change
-    const intervalId = setInterval(() => {
-      const updatedMembers = getProjectMembers(currentProject.id);
-      if (JSON.stringify(updatedMembers) !== JSON.stringify(members)) {
-        setMembers(updatedMembers);
-      }
-    }, 2000);
+    // Initial load
+    const loadMembers = () => {
+      const projectMembers = getProjectMembers(currentProject.id);
+      setMembers(projectMembers);
+    };
+    
+    loadMembers();
+    
+    // Set up interval for periodic updates
+    const intervalId = setInterval(loadMembers, 3000);
     
     return () => clearInterval(intervalId);
-  }, [currentProject, getProjectMembers, members]);
+  }, [currentProject, getProjectMembers]);
   
   if (!currentProject || !auth.currentUser) {
     return null;
@@ -53,7 +54,8 @@ const ProjectMembers = () => {
     setIsLoading(true);
     try {
       await addProjectMember(currentProject.id, email, role);
-      // Members list will be updated via the effect
+      // Refresh member list immediately after adding
+      setMembers(getProjectMembers(currentProject.id));
     } catch (error) {
       console.error("Failed to add member:", error);
     } finally {
@@ -65,7 +67,8 @@ const ProjectMembers = () => {
     setIsLoading(true);
     try {
       await addProjectMemberById(currentProject.id, userId, role);
-      // Members list will be updated via the effect
+      // Refresh member list immediately after adding
+      setMembers(getProjectMembers(currentProject.id));
     } catch (error) {
       console.error("Failed to add member by ID:", error);
     } finally {
@@ -76,7 +79,8 @@ const ProjectMembers = () => {
   const handleRemoveMember = async (userId: string) => {
     try {
       await removeProjectMember(currentProject.id, userId);
-      // Members list will be updated via the effect
+      // Refresh member list immediately after removing
+      setMembers(getProjectMembers(currentProject.id));
     } catch (error) {
       console.error("Failed to remove member:", error);
     }
@@ -85,7 +89,8 @@ const ProjectMembers = () => {
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
     try {
       await updateProjectMemberRole(currentProject.id, userId, newRole);
-      // Members list will be updated via the effect
+      // Refresh member list immediately after updating role
+      setMembers(getProjectMembers(currentProject.id));
     } catch (error) {
       console.error("Failed to update role:", error);
     }

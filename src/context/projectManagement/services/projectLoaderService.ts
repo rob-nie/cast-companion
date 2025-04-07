@@ -1,4 +1,3 @@
-
 import { ref, onValue, get, query, orderByChild, equalTo } from "firebase/database";
 import { database, auth } from "@/lib/firebase";
 import { Project } from "../types";
@@ -85,14 +84,30 @@ export const loadProjects = (
       if (membershipsSnapshot.exists()) {
         console.log("Membership snapshot exists");
         const memberships = membershipsSnapshot.val();
-        const sharedProjectIds = Object.values(memberships)
-          .map((member: any) => member.projectId)
-          .filter(Boolean);
         
-        console.log(`Found ${sharedProjectIds.length} shared project memberships`);
+        // Clear existing shared projects from the map to ensure we only keep current ones
+        // Keep only projects that the user owns
+        const currentKeys = Array.from(allProjects.keys());
+        for (const key of currentKeys) {
+          const project = allProjects.get(key);
+          if (project && project.ownerId !== userId) {
+            allProjects.delete(key);
+          }
+        }
+        
+        const membershipEntries = Object.entries(memberships);
+        console.log(`Found ${membershipEntries.length} shared project memberships`);
         
         // Fetch each shared project's details
-        for (const projectId of sharedProjectIds) {
+        for (const [membershipKey, membershipData] of membershipEntries) {
+          const membership = membershipData as any;
+          const projectId = membership.projectId;
+          
+          if (!projectId) {
+            console.log(`Skipping invalid membership entry without projectId: ${membershipKey}`);
+            continue;
+          }
+          
           try {
             const projectRef = ref(database, `projects/${projectId}`);
             const projectSnapshot = await get(projectRef);
@@ -101,15 +116,12 @@ export const loadProjects = (
               const projectData = projectSnapshot.val();
               console.log(`Processing shared project ${projectId}: title=${projectData.title}`);
               
-              // Only add if not already in the map (to avoid duplicates with own projects)
-              if (!allProjects.has(projectId)) {
-                allProjects.set(projectId, {
-                  ...projectData,
-                  id: projectId,
-                  createdAt: new Date(projectData.createdAt),
-                  lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
-                });
-              }
+              allProjects.set(projectId, {
+                ...projectData,
+                id: projectId,
+                createdAt: new Date(projectData.createdAt),
+                lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
+              });
             } else {
               console.log(`Shared project ${projectId} does not exist`);
             }
@@ -119,6 +131,15 @@ export const loadProjects = (
         }
       } else {
         console.log("No shared project memberships found for user");
+        
+        // Clear all shared projects if the user has no memberships
+        const currentKeys = Array.from(allProjects.keys());
+        for (const key of currentKeys) {
+          const project = allProjects.get(key);
+          if (project && project.ownerId !== userId) {
+            allProjects.delete(key);
+          }
+        }
       }
       
       sharedProjectsLoaded = true;

@@ -16,7 +16,11 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
   const [projectMembers, setProjectMembers] = useState<Map<string, ProjectMember[]>>(new Map());
 
   const setMembersForProject = (projectId: string, members: ProjectMember[]) => {
-    setProjectMembers(prev => new Map(prev).set(projectId, members));
+    setProjectMembers(prev => {
+      const newMap = new Map(prev);
+      newMap.set(projectId, members);
+      return newMap;
+    });
   };
 
   const getProjectMembers = (projectId: string): ProjectMember[] => {
@@ -25,25 +29,33 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
       return projectMembers.get(projectId) || [];
     }
     
-    // If not cached, return empty array and start fetching
+    // If not cached, trigger a fetch and return empty array for now
     fetchProjectMembers(projectId, setMembersForProject);
     return [];
   };
 
   const addProjectMember = async (projectId: string, email: string, role: UserRole) => {
     await addMemberToProject(projectId, email, role);
+    // Refresh the members list after adding
+    fetchProjectMembers(projectId, setMembersForProject);
   };
 
   const addProjectMemberById = async (projectId: string, userId: string, role: UserRole) => {
     await addMemberToProjectById(projectId, userId, role);
+    // Refresh the members list after adding
+    fetchProjectMembers(projectId, setMembersForProject);
   };
 
   const removeProjectMember = async (projectId: string, userId: string) => {
     await removeMemberFromProject(projectId, userId);
+    // Refresh the members list after removing
+    fetchProjectMembers(projectId, setMembersForProject);
   };
 
   const updateProjectMemberRole = async (projectId: string, userId: string, role: UserRole) => {
     await updateMemberRole(projectId, userId, role);
+    // Refresh the members list after updating
+    fetchProjectMembers(projectId, setMembersForProject);
   };
 
   return (
