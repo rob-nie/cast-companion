@@ -7,7 +7,7 @@ import {
   addProjectService, 
   updateProjectService, 
   deleteProjectService 
-} from "./projectService";
+} from "./services"; // Updated import path
 
 // Renamed from useProjectManagement to createProjectManagement to avoid naming collision
 export const createProjectManagement = () => {
