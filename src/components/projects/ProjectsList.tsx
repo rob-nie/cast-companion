@@ -2,24 +2,35 @@
 import { Project } from "@/context/ProjectContext";
 import ProjectCard from "./ProjectCard";
 import { auth } from "@/lib/firebase";
+import { useEffect } from "react";
 
 type ProjectsListProps = {
   projects: Project[];
 };
 
 const ProjectsList = ({ projects }: ProjectsListProps) => {
-  console.log("ProjectsList: Rendering", projects.length, "projects");
+  useEffect(() => {
+    console.log("ProjectsList mounted with", projects.length, "projects");
+  }, []);
   
-  if (projects.length === 0) {
+  useEffect(() => {
+    console.log("ProjectsList: Projects updated, now showing", projects.length, "projects");
+  }, [projects]);
+  
+  if (!projects || projects.length === 0) {
     console.log("ProjectsList: No projects to render");
-    return null;
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        Keine Projekte gefunden.
+      </div>
+    );
   }
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {projects.map((project) => {
         const isOwned = auth.currentUser?.uid === project.ownerId;
-        console.log("ProjectsList: Project", project.id, "is owned by user:", isOwned);
+        console.log("ProjectsList: Rendering project", project.id, project.title, "isOwned:", isOwned);
         
         return (
           <ProjectCard 

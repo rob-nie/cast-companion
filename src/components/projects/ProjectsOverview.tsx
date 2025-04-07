@@ -11,7 +11,7 @@ import ProjectCreateDialog from "./ProjectCreateDialog";
 import ProjectsPermissionError from "./ProjectsPermissionError";
 
 const ProjectsOverview = () => {
-  const { projects } = useProjects();
+  const { projects, getUserProjects, getSharedProjects } = useProjects();
   const { isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
@@ -39,17 +39,25 @@ const ProjectsOverview = () => {
     verifyPermissions();
   }, [isAuthenticated]);
   
+  // Get user's own projects and shared projects
+  const userProjects = getUserProjects();
+  const sharedProjects = getSharedProjects();
+  
   // Log debugging information
   useEffect(() => {
     console.log("ProjectsOverview: All projects count =", projects.length);
+    console.log("ProjectsOverview: User projects count =", userProjects.length);
+    console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
     console.log("ProjectsOverview: Projects data =", projects);
-  }, [projects]);
+  }, [projects, userProjects, sharedProjects]);
 
   // Log authentication state for debugging
   useEffect(() => {
     console.log("ProjectsOverview: isAuthenticated =", isAuthenticated);
     console.log("ProjectsOverview: Firebase current user =", auth.currentUser?.email);
   }, [isAuthenticated]);
+
+  const allProjects = [...userProjects, ...sharedProjects];
 
   return (
     <div>
@@ -80,10 +88,10 @@ const ProjectsOverview = () => {
 
       {!loading && !permissionError && (
         <>
-          {projects.length === 0 ? (
+          {allProjects.length === 0 ? (
             <EmptyProjectsState onCreateProject={() => setIsOpen(true)} />
           ) : (
-            <ProjectsList projects={projects} />
+            <ProjectsList projects={allProjects} />
           )}
         </>
       )}
