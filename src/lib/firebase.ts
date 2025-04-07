@@ -16,7 +16,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const database = getDatabase(app);
+// Use the correct regional URL for the database
+export const database = getDatabase(app, "https://castcompanion-d9241-default-rtdb.europe-west1.firebasedatabase.app");
 
 // Helper function to check if a user is authenticated
 export const isUserAuthenticated = () => {
