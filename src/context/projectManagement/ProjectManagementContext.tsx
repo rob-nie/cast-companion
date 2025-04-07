@@ -1,6 +1,6 @@
 
 import { createContext, useContext, ReactNode } from "react";
-import { createProjectManagement } from "./useProjectManagement";
+import { useProjectManagement } from "./useProjectManagement";
 import { Project, ProjectContextType } from "./types";
 
 // Create context
@@ -11,7 +11,7 @@ export type { Project };
 
 // Provider component
 export const ProjectManagementProvider = ({ children }: { children: ReactNode }) => {
-  const projectManagement = createProjectManagement();
+  const projectManagement = useProjectManagement();
   
   return (
     <ProjectManagementContext.Provider value={projectManagement}>
