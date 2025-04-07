@@ -47,11 +47,12 @@ const Login = () => {
       setSubmitting(true);
       await login(values.email, values.password);
       
-      // Force navigation after successful login with a small delay
+      // Erzwinge Navigation nach erfolgreicher Anmeldung mit einer kleinen Verzögerung
       setTimeout(() => {
         console.log("Redirecting to:", from);
-        window.location.href = from; // Use direct location change for more reliable redirect
-      }, 1000);
+        // Wir verwenden einen harten Redirect für zuverlässigere Navigation
+        window.location.href = from;
+      }, 500);
     } catch (error) {
       // Error is already handled in the AuthContext
       console.error("Login failed:", error);

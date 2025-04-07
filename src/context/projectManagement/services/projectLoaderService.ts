@@ -37,64 +37,68 @@ export const loadProjects = (
         const projectsData = projectsSnapshot.val();
         let projectsList: Project[] = [];
         
-        // First add all projects owned by current user
-        Object.keys(projectsData).forEach((key) => {
-          const project = projectsData[key];
-          if (project.ownerId === userId) {
-            console.log("Found user-owned project:", key, project.title);
-            projectsList.push({
-              ...project,
-              id: key,
-              createdAt: new Date(project.createdAt),
-              lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-            });
-          }
-        });
-        
-        console.log(`Found ${projectsList.length} owned projects for user ${userId}`);
-        
-        // Now check for shared projects through projectMembers
-        try {
-          const membersSnapshot = await get(membersRef);
+        // Check if projectsData is an object or array
+        if (typeof projectsData === 'object' && projectsData !== null) {
+          // First add all projects owned by current user
+          Object.keys(projectsData).forEach((key) => {
+            const project = projectsData[key];
+            if (project.ownerId === userId) {
+              console.log("Found user-owned project:", key, project.title);
+              projectsList.push({
+                ...project,
+                id: key,
+                createdAt: new Date(project.createdAt),
+                lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+              });
+            }
+          });
           
-          if (membersSnapshot.exists()) {
-            console.log("Members data exists");
-            const membersData = membersSnapshot.val();
-            const sharedProjectIds = new Set<string>();
-            
-            // Find all projects shared with this user
-            Object.keys(membersData).forEach((key) => {
-              const member = membersData[key];
-              if (member.userId === userId && member.role !== 'owner') {
-                sharedProjectIds.add(member.projectId);
-                console.log("User has shared access to project:", member.projectId);
-              }
-            });
-            
-            // Add shared projects to the list if not already included
-            Object.keys(projectsData).forEach((key) => {
-              if (sharedProjectIds.has(key) && !projectsList.some(p => p.id === key)) {
-                const project = projectsData[key];
-                console.log("Adding shared project:", key, project.title);
-                projectsList.push({
-                  ...project,
-                  id: key,
-                  createdAt: new Date(project.createdAt),
-                  lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-                });
-              }
-            });
-          } else {
-            console.log("No project members data found");
-          }
+          console.log(`Found ${projectsList.length} owned projects for user ${userId}`);
           
-          console.log("Total projects loaded:", projectsList.length);
-          setProjects(projectsList);
-        } catch (error) {
-          console.error("Error loading project members:", error);
-          // If we can't load members, just use the owned projects
-          setProjects(projectsList);
+          // Now check for shared projects through projectMembers
+          try {
+            const membersSnapshot = await get(membersRef);
+            
+            if (membersSnapshot.exists()) {
+              console.log("Members data exists");
+              const membersData = membersSnapshot.val();
+              const sharedProjectIds = new Set<string>();
+              
+              // Find all projects shared with this user
+              Object.keys(membersData).forEach((key) => {
+                const member = membersData[key];
+                if (member.userId === userId && member.role !== 'owner') {
+                  sharedProjectIds.add(member.projectId);
+                  console.log("User has shared access to project:", member.projectId);
+                }
+              });
+              
+              // Add shared projects to the list if not already included
+              Object.keys(projectsData).forEach((key) => {
+                if (sharedProjectIds.has(key) && !projectsList.some(p => p.id === key)) {
+                  const project = projectsData[key];
+                  console.log("Adding shared project:", key, project.title);
+                  projectsList.push({
+                    ...project,
+                    id: key,
+                    createdAt: new Date(project.createdAt),
+                    lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+                  });
+                }
+              });
+            } else {
+              console.log("No project members data found");
+            }
+          } catch (error) {
+            console.error("Error loading project members:", error);
+            // Continue with just the owned projects
+          }
+        } else {
+          console.log("Projects data is not in expected format:", projectsData);
         }
+        
+        console.log("Total projects loaded:", projectsList.length);
+        setProjects(projectsList);
       } else {
         console.log("No projects found in Firebase");
         setProjects([]);
