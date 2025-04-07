@@ -8,9 +8,11 @@ export interface Message {
   isImportant: boolean;
   isSystem?: boolean;
   read: boolean;
+  sender?: string; // Added to fix ImportantMessageDialog and MessageList errors
 }
 
 export interface QuickPhrase {
   id: string;
   content: string;
+  userId?: string; // Adding userId to associate quick phrases with users
 }

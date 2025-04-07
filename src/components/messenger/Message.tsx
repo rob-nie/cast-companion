@@ -33,7 +33,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
           {/* Action buttons for non-sender, should appear before message for left alignment */}
           {!isOwnMessage && (
             <div className="flex flex-col justify-start gap-1 mt-1">
-              {!message.isRead && (
+              {!message.read && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -53,7 +53,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             "max-w-[80%] rounded-lg px-3 py-2 text-sm",
             isOwnMessage 
               ? "bg-secondary text-secondary-foreground"
-              : message.isRead
+              : message.read
                 ? "bg-muted/50 text-muted-foreground"
                 : "bg-muted text-secondary-foreground",
             message.isImportant && "border-2 border-important/70"
@@ -62,7 +62,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             <div className="flex items-center justify-end mt-1 gap-1 text-[0.65rem] opacity-80">
               {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               
-              {isOwnMessage && message.isRead && (
+              {isOwnMessage && message.read && (
                 <Check className="h-3 w-3 ml-0.5" />
               )}
               
@@ -111,7 +111,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             )}
           </ContextMenuItem>
         ) : (
-          !message.isRead && (
+          !message.read && (
             <ContextMenuItem onClick={handleMarkAsRead}>
               <Check className="h-4 w-4 mr-2" />
               Als gelesen markieren
