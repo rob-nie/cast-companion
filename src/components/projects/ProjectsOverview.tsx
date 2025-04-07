@@ -12,7 +12,7 @@ import ProjectsPermissionError from "./ProjectsPermissionError";
 import { ref, get } from "firebase/database";
 
 const ProjectsOverview = () => {
-  const { projects, getUserProjects, getSharedProjects, isLoading: projectsLoading } = useProjects();
+  const { projects, isLoading: projectsLoading } = useProjects();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
@@ -75,20 +75,12 @@ const ProjectsOverview = () => {
     }
   }, [isAuthenticated, authLoading, user]);
   
-  // Get user's own projects and shared projects
-  const userProjects = getUserProjects();
-  const sharedProjects = getSharedProjects();
-  const allProjects = [...userProjects, ...sharedProjects];
-  
   // Log debugging information
   useEffect(() => {
     console.log("ProjectsOverview: State update detected");
     console.log("ProjectsOverview: authLoading =", authLoading);
     console.log("ProjectsOverview: projectsLoading =", projectsLoading);
     console.log("ProjectsOverview: All projects count =", projects.length);
-    console.log("ProjectsOverview: User projects count =", userProjects.length);
-    console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
-    console.log("ProjectsOverview: Combined allProjects =", allProjects.length);
     
     if (projects.length > 0) {
       console.log("ProjectsOverview: Projects available in context:", 
@@ -96,7 +88,7 @@ const ProjectsOverview = () => {
     } else {
       console.log("ProjectsOverview: No projects in context");
     }
-  }, [projects, userProjects, sharedProjects, allProjects, authLoading, projectsLoading]);
+  }, [projects, authLoading, projectsLoading]);
 
   // Log authentication state for debugging
   useEffect(() => {
@@ -115,7 +107,7 @@ const ProjectsOverview = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Projekte</h1>
           <p className="text-muted-foreground mt-1">
-            Verwalte deine Interview-Projekte
+            Alle Projekte im System
           </p>
         </div>
         <Button className="gap-1" onClick={() => setIsOpen(true)}>
@@ -138,10 +130,10 @@ const ProjectsOverview = () => {
 
       {!isPageLoading && !permissionError && (
         <>
-          {allProjects.length === 0 ? (
+          {projects.length === 0 ? (
             <EmptyProjectsState onCreateProject={() => setIsOpen(true)} />
           ) : (
-            <ProjectsList projects={allProjects} />
+            <ProjectsList projects={projects} />
           )}
         </>
       )}

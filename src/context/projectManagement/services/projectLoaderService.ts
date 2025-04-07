@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 /**
  * Sets up a Firebase listener to load projects based on the current user's access rights
+ * Now loads all projects for all users
  */
 export const loadProjects = (
   setProjects: (projects: Project[]) => void
@@ -25,11 +26,10 @@ export const loadProjects = (
   
   try {
     const projectsRef = ref(database, 'projects');
-    const membersRef = ref(database, 'projectMembers');
     
     console.log("Setting up Firebase listener for projects path:", projectsRef.toString());
     
-    // Set up listener for projects
+    // Set up listener for all projects
     const unsubscribeProjects = onValue(projectsRef, async (projectsSnapshot) => {
       if (!auth.currentUser) {
         console.log("Auth state changed during project loading - user no longer authenticated");
@@ -37,8 +37,7 @@ export const loadProjects = (
         return;
       }
       
-      const userId = auth.currentUser.uid;
-      console.log(`Loading projects for user: ${userId} (${auth.currentUser.email})`);
+      console.log(`Loading all projects for all users`);
       
       if (projectsSnapshot.exists()) {
         console.log("Projects snapshot exists");
@@ -52,68 +51,20 @@ export const loadProjects = (
           console.log("Projects data is valid object, processing...");
           console.log("Total projects in database:", Object.keys(projectsData).length);
           
-          // First add all projects owned by current user
+          // Add all projects
           Object.keys(projectsData).forEach((key) => {
             const project = projectsData[key];
-            console.log(`Checking project ${key}: ownerId=${project.ownerId}, title=${project.title}`);
+            console.log(`Processing project ${key}: ownerId=${project.ownerId}, title=${project.title}`);
             
-            if (project.ownerId === userId) {
-              console.log(`✓ Found user-owned project: ${key} - ${project.title}`);
-              projectsList.push({
-                ...project,
-                id: key,
-                createdAt: new Date(project.createdAt),
-                lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-              });
-            } else {
-              console.log(`✗ Project ${key} not owned by current user`);
-            }
+            projectsList.push({
+              ...project,
+              id: key,
+              createdAt: new Date(project.createdAt),
+              lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+            });
           });
           
-          console.log(`Found ${projectsList.length} owned projects for user ${userId}`);
-          
-          // Now check for shared projects through projectMembers
-          try {
-            // Query projectMembers where userId matches the current user
-            console.log("Checking for shared projects in projectMembers collection...");
-            const userMembersQuery = query(membersRef, orderByChild('userId'), equalTo(userId));
-            const membersSnapshot = await get(userMembersQuery);
-            
-            if (membersSnapshot.exists()) {
-              console.log("User has shared projects, processing member entries...");
-              console.log("Raw members data:", JSON.stringify(membersSnapshot.val()));
-              
-              // Process each membership entry
-              membersSnapshot.forEach((childSnapshot) => {
-                const member = childSnapshot.val();
-                const projectId = member.projectId;
-                console.log(`Found membership for project ${projectId}, role: ${member.role}`);
-                
-                // Only add if it's not already in the list (not owned by the user)
-                if (!projectsList.some(p => p.id === projectId) && projectsData[projectId]) {
-                  console.log(`✓ Adding shared project: ${projectId} - ${projectsData[projectId].title}`);
-                  
-                  projectsList.push({
-                    ...projectsData[projectId],
-                    id: projectId,
-                    createdAt: new Date(projectsData[projectId].createdAt),
-                    lastAccessed: projectsData[projectId].lastAccessed 
-                      ? new Date(projectsData[projectId].lastAccessed) 
-                      : undefined,
-                  });
-                } else if (!projectsData[projectId]) {
-                  console.log(`✗ Shared project ${projectId} does not exist in database`);
-                } else {
-                  console.log(`✗ Shared project ${projectId} already in list (duplicate)`);
-                }
-              });
-            } else {
-              console.log("No shared projects found for user in projectMembers collection");
-            }
-          } catch (error) {
-            console.error("Error loading project members:", error);
-            console.log("Failed to load shared projects due to error");
-          }
+          console.log(`Loaded ${projectsList.length} total projects`);
         } else {
           console.log("Projects data is not a valid object:", projectsData);
         }
