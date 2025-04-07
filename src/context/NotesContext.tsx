@@ -25,9 +25,10 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   
   // Update notes when the project changes
   useEffect(() => {
-    const { updateCurrentProjectNotes } = notesState;
-    updateCurrentProjectNotes(currentProject?.id);
-  }, [currentProject, notesState]);
+    if (notesState.updateCurrentProjectNotes) {
+      notesState.updateCurrentProjectNotes(currentProject?.id);
+    }
+  }, [currentProject, notesState, notesState.updateCurrentProjectNotes]);
 
   return (
     <NotesContext.Provider value={notesState}>

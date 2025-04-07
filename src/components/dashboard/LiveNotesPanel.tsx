@@ -27,17 +27,22 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   // Get the current project's stopwatch
   const projectStopwatch = getProjectStopwatch(currentProject.id);
 
-  const handleAddEmptyNote = () => {
-    const note = addNote({
-      projectId: currentProject.id,
-      content: '',
-      stopwatchTime: projectStopwatch.elapsedTime,
-      isLiveNote: true,
-    });
-    // Auto-enter edit mode for the new note
-    if (note?.id) {
-      setEditingNoteId(note.id);
-      setEditingContent('');
+  const handleAddEmptyNote = async () => {
+    try {
+      const newNote = await addNote({
+        projectId: currentProject.id,
+        content: '',
+        stopwatchTime: projectStopwatch.elapsedTime,
+        isLiveNote: true,
+      });
+      
+      // Auto-enter edit mode for the new note
+      if (newNote && newNote.id) {
+        setEditingNoteId(newNote.id);
+        setEditingContent('');
+      }
+    } catch (error) {
+      console.error("Error adding new note:", error);
     }
   };
   
@@ -46,16 +51,16 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
     setEditingContent(content);
   };
   
-  const saveEditedNote = () => {
+  const saveEditedNote = async () => {
     if (editingNoteId) {
-      updateNote(editingNoteId, { content: editingContent });
+      await updateNote(editingNoteId, { content: editingContent });
       setEditingNoteId(null);
       setEditingContent('');
     }
   };
   
-  const saveNote = (noteId: string, content: string) => {
-    updateNote(noteId, { content });
+  const saveNote = async (noteId: string, content: string) => {
+    await updateNote(noteId, { content });
     setEditingNoteId(null);
     setEditingContent('');
   };
@@ -65,8 +70,8 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
     setEditingContent('');
   };
   
-  const handleDeleteNote = (noteId: string) => {
-    deleteNote(noteId);
+  const handleDeleteNote = async (noteId: string) => {
+    await deleteNote(noteId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

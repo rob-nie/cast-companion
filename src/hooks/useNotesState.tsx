@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Note } from "@/types/note";
 import { 
@@ -25,45 +25,46 @@ export const useNotesState = () => {
     return () => unsubscribe();
   }, []);
 
-  // Update the current notes when the selected project or user changes
-  useEffect(() => {
-    const updateCurrentProjectNotes = (currentProjectId: string | undefined) => {
-      if (currentProjectId) {
-        // Find the interview notes for the current project and user
-        const projectInterviewNotes = notes.find(
-          (note) => note.projectId === currentProjectId && 
-                   note.userId === currentUserId && 
-                   !note.isLiveNote
-        ) || null;
-        
-        // Find all live notes for the current project and user
-        const projectLiveNotes = notes.filter(
-          (note) => note.projectId === currentProjectId && 
-                   note.userId === currentUserId && 
-                   note.isLiveNote
-        );
-        
-        setInterviewNotes(projectInterviewNotes);
-        setLiveNotes(projectLiveNotes);
-      } else {
-        setInterviewNotes(null);
-        setLiveNotes([]);
-      }
-    };
-    
-    return { updateCurrentProjectNotes };
+  // Create a callback function for updating notes when the project changes
+  const updateCurrentProjectNotes = useCallback((currentProjectId: string | undefined) => {
+    if (currentProjectId) {
+      // Find the interview notes for the current project and user
+      const projectInterviewNotes = notes.find(
+        (note) => note.projectId === currentProjectId && 
+                 note.userId === currentUserId && 
+                 !note.isLiveNote
+      ) || null;
+      
+      // Find all live notes for the current project and user
+      const projectLiveNotes = notes.filter(
+        (note) => note.projectId === currentProjectId && 
+                 note.userId === currentUserId && 
+                 note.isLiveNote
+      );
+      
+      setInterviewNotes(projectInterviewNotes);
+      setLiveNotes(projectLiveNotes);
+    } else {
+      setInterviewNotes(null);
+      setLiveNotes([]);
+    }
   }, [notes, currentUserId]);
 
-  const addNote = (note: Omit<Note, "id" | "timestamp" | "userId">) => {
-    return addNoteToFirebase(note, currentUserId);
+  // Update current notes whenever the notes array changes
+  useEffect(() => {
+    // This effect doesn't need to return anything specific
+  }, [updateCurrentProjectNotes]);
+
+  const addNote = async (note: Omit<Note, "id" | "timestamp" | "userId">) => {
+    return await addNoteToFirebase(note, currentUserId);
   };
 
-  const updateNote = (id: string, updates: Partial<Omit<Note, "id" | "userId">>) => {
-    return updateNoteInFirebase(id, updates);
+  const updateNote = async (id: string, updates: Partial<Omit<Note, "id" | "userId">>) => {
+    return await updateNoteInFirebase(id, updates);
   };
   
-  const deleteNote = (id: string) => {
-    return deleteNoteFromFirebase(id);
+  const deleteNote = async (id: string) => {
+    return await deleteNoteFromFirebase(id);
   };
 
   const exportLiveNotesAsCSV = (projectId: string) => {
@@ -78,5 +79,6 @@ export const useNotesState = () => {
     updateNote,
     deleteNote,
     exportLiveNotesAsCSV,
+    updateCurrentProjectNotes
   };
 };
