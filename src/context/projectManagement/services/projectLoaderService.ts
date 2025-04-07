@@ -31,7 +31,7 @@ export const loadProjects = (
     setProjects([]);
     
     // Setup listener only after auth state is confirmed
-    authStatePromise.then((userId) => {
+    const unsubPromise = authStatePromise.then((userId) => {
         if (!userId) {
             console.log("No authenticated user after auth state check, not loading projects");
             setProjects([]);
@@ -51,7 +51,14 @@ export const loadProjects = (
     // Return cleanup function
     return () => {
         console.log("Project loader cleanup called");
-        // Actual listener cleanup will be handled by the promise resolution
+        // We need to wait for the promise to resolve to get the actual unsubscribe function
+        unsubPromise.then(unsubscribe => {
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
+        }).catch(err => {
+            console.error("Error in cleanup function:", err);
+        });
     };
 };
 
@@ -65,74 +72,26 @@ const setupProjectsListener = (
     try {
         console.log(`Setting up projects listeners for user: ${userId}`);
 
-        const projectsRef = ref(database, 'projects');
-        const membersRef = ref(database, 'projectMembers');
-
-        // Helper function to fetch project details by ID
-        const fetchProjectDetails = async (projectId: string): Promise<Project | null> => {
-            const projectRef = ref(database, `projects/${projectId}`);
-            const snapshot = await get(projectRef);
-            if (snapshot.exists()) {
-                const projectData = snapshot.val();
-                return {
-                    ...projectData,
-                    id: projectId,
-                    createdAt: new Date(projectData.createdAt),
-                    lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
-                };
-            }
-            return null;
-        };
-
-        // Set up listener for project memberships
-        const userMembershipsQuery = query(
-            membersRef,
-            orderByChild('userId'),
+        // Create direct query for own projects - this will be updated in real-time
+        const ownProjectsQuery = query(
+            ref(database, 'projects'), 
+            orderByChild('ownerId'), 
             equalTo(userId)
         );
 
-        console.log("Setting up Firebase listener for project memberships");
-
-        const unsubscribe = onValue(userMembershipsQuery, async (membershipsSnapshot) => {
-            console.log("Project memberships snapshot received");
-            const projectIds: string[] = [];
-            const sharedProjects: Project[] = [];
-
-            // 1. Collect shared project IDs from projectMembers
-            if (membershipsSnapshot.exists()) {
-                const memberships = membershipsSnapshot.val();
-                for (const key in memberships) {
-                    if (memberships.hasOwnProperty(key)) { // prevent prototype pollution
-                        const membership = memberships[key];
-                        if (membership.projectId) { // defensive check
-                            projectIds.push(membership.projectId);
-                        }
-                    }
-                }
-                console.log(`Found ${projectIds.length} shared project memberships`);
-
-                // 2. Fetch details for each shared project
-                for (const projectId of projectIds) {
-                    const project = await fetchProjectDetails(projectId);
-                    if (project) {
-                        sharedProjects.push(project);
-                    }
-                }
-                console.log(`Fetched ${sharedProjects.length} shared projects`);
-            } else {
-                console.log("No shared project memberships found for user");
-            }
-
-            // 3. Fetch own projects.
-            const ownProjectsQuery = query(projectsRef, orderByChild('ownerId'), equalTo(userId));
-            const ownProjectsSnapshot = await get(ownProjectsQuery); // Use get() to get them only once.
+        // Set up listener for own projects
+        console.log("Setting up Firebase listener for own projects");
+        const unsubscribe = onValue(ownProjectsQuery, async (ownProjectsSnapshot) => {
+            console.log("Projects snapshot received");
             const ownProjects: Project[] = [];
 
+            // Extract own projects
             if (ownProjectsSnapshot.exists()) {
-                const ownProjectsData = ownProjectsSnapshot.val();
-                for (const key in ownProjectsData) {
-                    if (ownProjectsData.hasOwnProperty(key)) { // prevent prototype pollution
-                         const projectData = ownProjectsData[key];
+                console.log("Own projects snapshot exists");
+                const projectsData = ownProjectsSnapshot.val();
+                for (const key in projectsData) {
+                    if (projectsData.hasOwnProperty(key)) {
+                        const projectData = projectsData[key];
                         ownProjects.push({
                             ...projectData,
                             id: key,
@@ -141,38 +100,85 @@ const setupProjectsListener = (
                         });
                     }
                 }
-                console.log(`Fetched ${ownProjects.length} own projects`);
+                console.log(`Found ${ownProjects.length} own projects`);
             } else {
                 console.log("No own projects found");
             }
 
-            // 4. Combine and set.  Use a map to avoid duplicates.
-            const allProjectsMap = new Map<string, Project>();
-            ownProjects.forEach(project => allProjectsMap.set(project.id, project));
-            sharedProjects.forEach(project => allProjectsMap.set(project.id, project));
-            const combinedProjects = Array.from(allProjectsMap.values());
+            // Also get projects shared with this user
+            const sharedProjects = await fetchSharedProjects(userId);
+            console.log(`Found ${sharedProjects.length} shared projects`);
 
-            console.log(`Setting ${combinedProjects.length} total projects (own + shared)`);
-            setProjects(combinedProjects);
-            console.log("===== PROJECT LOADER END =====");
-
+            // Combine own and shared projects
+            const allProjects = [...ownProjects, ...sharedProjects];
+            console.log(`Setting total of ${allProjects.length} projects (${ownProjects.length} own + ${sharedProjects.length} shared)`);
+            
+            setProjects(allProjects);
         }, (error) => {
             console.error("Error loading projects:", error);
             toast.error("Fehler beim Laden der Projekte");
             setProjects([]); // Clear projects on error to prevent stale data
-            console.log("===== PROJECT LOADER ERROR END =====");
         });
 
-        return () => {
-          console.log("Cleaning up projects listener");
-          unsubscribe();
-        };
+        return unsubscribe;
 
     } catch (error) {
         console.error("Failed to set up projects listener:", error);
         toast.error("Fehler beim Einrichten des Projekt-Listeners");
         setProjects([]);
-        console.log("===== PROJECT LOADER SETUP ERROR END =====");
         return () => { };
+    }
+};
+
+/**
+ * Fetches projects shared with the user
+ */
+const fetchSharedProjects = async (userId: string): Promise<Project[]> => {
+    try {
+        const membersRef = ref(database, 'projectMembers');
+        const userMembershipsQuery = query(
+            membersRef,
+            orderByChild('userId'),
+            equalTo(userId)
+        );
+        
+        const membershipsSnapshot = await get(userMembershipsQuery);
+        const sharedProjects: Project[] = [];
+        
+        if (membershipsSnapshot.exists()) {
+            const memberships = membershipsSnapshot.val();
+            const projectIds = new Set<string>();
+            
+            // Extract unique project IDs
+            for (const key in memberships) {
+                if (memberships.hasOwnProperty(key)) {
+                    const membership = memberships[key];
+                    if (membership.projectId) {
+                        projectIds.add(membership.projectId);
+                    }
+                }
+            }
+            
+            // Fetch each project
+            for (const projectId of projectIds) {
+                const projectRef = ref(database, `projects/${projectId}`);
+                const projectSnapshot = await get(projectRef);
+                
+                if (projectSnapshot.exists()) {
+                    const projectData = projectSnapshot.val();
+                    sharedProjects.push({
+                        ...projectData,
+                        id: projectId,
+                        createdAt: new Date(projectData.createdAt),
+                        lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
+                    });
+                }
+            }
+        }
+        
+        return sharedProjects;
+    } catch (error) {
+        console.error("Error fetching shared projects:", error);
+        return [];
     }
 };

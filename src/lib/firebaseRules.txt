@@ -10,6 +10,7 @@
     "projects": {
       ".read": "auth !== null",
       ".write": "auth !== null",
+      ".indexOn": ["ownerId"],
       "$projectId": {
         ".read": "auth !== null",
         ".write": "auth !== null && (data.child('ownerId').val() === auth.uid || !data.exists())"
@@ -18,6 +19,7 @@
     "projectMembers": {
       ".read": "auth !== null",
       ".write": "auth !== null",
+      ".indexOn": ["userId", "projectId"],
       "$memberId": {
         ".read": "auth !== null",
         ".write": "auth !== null"
