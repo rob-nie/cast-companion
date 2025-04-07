@@ -46,6 +46,15 @@ const ProjectsOverview = () => {
   // Combine all projects for the unified view
   const allProjects = [...myProjects, ...sharedProjects];
   
+  // Log debugging information
+  useEffect(() => {
+    console.log("ProjectsOverview: All projects count =", projects.length);
+    console.log("ProjectsOverview: My projects count =", myProjects.length);
+    console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
+    console.log("ProjectsOverview: Combined projects count =", allProjects.length);
+    console.log("ProjectsOverview: Projects data =", projects);
+  }, [projects, myProjects, sharedProjects, allProjects]);
+
   // Log authentication state for debugging
   useEffect(() => {
     console.log("ProjectsOverview: isAuthenticated =", isAuthenticated);

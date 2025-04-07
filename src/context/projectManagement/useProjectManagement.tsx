@@ -14,30 +14,52 @@ export const createProjectManagement = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   
-  // Load projects from Firebase when user is authenticated
+  // Load projects from Firebase when component mounts
   useEffect(() => {
-    const unsubscribe = loadProjects(setProjects);
-    return () => unsubscribe();
+    console.log("Setting up projects listener in createProjectManagement");
+    const unsubscribe = loadProjects((loadedProjects) => {
+      console.log("Projects loaded in createProjectManagement:", loadedProjects.length);
+      setProjects(loadedProjects);
+    });
+    
+    return () => {
+      console.log("Cleaning up projects listener");
+      unsubscribe();
+    };
   }, []);
 
   // Reset current project when user logs out
   useEffect(() => {
-    if (!auth.currentUser) {
-      setCurrentProject(null);
-    }
-  }, [auth.currentUser]);
+    const authStateChange = () => {
+      if (!auth.currentUser) {
+        console.log("User logged out, resetting current project");
+        setCurrentProject(null);
+      }
+    };
+    
+    // Call once immediately
+    authStateChange();
+    
+    // Set up listener for auth state changes
+    const unsubscribe = auth.onAuthStateChanged(authStateChange);
+    return () => unsubscribe();
+  }, []);
 
   const addProject = async (project: Omit<Project, "id" | "createdAt" | "ownerId">) => {
+    console.log("Adding new project:", project.title);
     await addProjectService(project);
   };
 
   const updateProject = async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
+    console.log("Updating project:", id);
     await updateProjectService(id, projectUpdate, silent);
   };
   
   const deleteProject = async (id: string) => {
+    console.log("Deleting project:", id);
     const project = projects.find(p => p.id === id);
     if (!project) {
+      console.error("Project not found for deletion:", id);
       throw new Error("Project not found");
     }
     
@@ -46,16 +68,29 @@ export const createProjectManagement = () => {
 
   // Get projects owned by the current user
   const getUserProjects = () => {
-    if (!auth.currentUser) return [];
-    return projects.filter(project => project.ownerId === auth.currentUser?.uid);
+    if (!auth.currentUser) {
+      console.log("getUserProjects: No authenticated user");
+      return [];
+    }
+    
+    const userProjects = projects.filter(project => project.ownerId === auth.currentUser?.uid);
+    console.log("getUserProjects: Found", userProjects.length, "projects for user", auth.currentUser.uid);
+    return userProjects;
   };
 
   // Get projects shared with the current user
   const getSharedProjects = () => {
-    if (!auth.currentUser) return [];
-    return projects.filter(project => 
+    if (!auth.currentUser) {
+      console.log("getSharedProjects: No authenticated user");
+      return [];
+    }
+    
+    const sharedProjects = projects.filter(project => 
       project.ownerId !== auth.currentUser?.uid
     );
+    
+    console.log("getSharedProjects: Found", sharedProjects.length, "shared projects for user", auth.currentUser.uid);
+    return sharedProjects;
   };
 
   return {

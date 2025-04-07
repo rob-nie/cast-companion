@@ -1,4 +1,3 @@
-
 import { ref, set, push, remove, update, get, onValue } from "firebase/database";
 import { database, auth, isUserAuthenticated } from "@/lib/firebase";
 import { Project } from "./types";
@@ -7,15 +6,13 @@ import { toast } from "sonner";
 export const loadProjects = (
   setProjects: (projects: Project[]) => void
 ) => {
-  if (!auth.currentUser) {
-    setProjects([]);
-    return () => {};
-  }
-
-  console.log("Loading projects for user:", auth.currentUser.uid);
+  console.log("loadProjects called, auth.currentUser:", auth.currentUser?.uid);
   
+  // Even if not authenticated, set up the listener
   try {
     const projectsRef = ref(database, 'projects');
+    console.log("Setting up Firebase listener for projects");
+    
     const unsubscribe = onValue(projectsRef, (snapshot) => {
       if (snapshot.exists()) {
         const projectsData = snapshot.val();
@@ -31,14 +28,14 @@ export const loadProjects = (
           });
         });
         
+        console.log("Projects loaded from Firebase:", projectsList.length);
         setProjects(projectsList);
-        console.log("Projects loaded:", projectsList.length);
       } else {
-        console.log("No projects found");
+        console.log("No projects found in Firebase");
         setProjects([]);
       }
     }, (error) => {
-      console.error("Error loading projects:", error);
+      console.error("Error loading projects from Firebase:", error);
       toast.error("Fehler beim Laden der Projekte");
     });
 

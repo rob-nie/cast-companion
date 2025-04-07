@@ -19,7 +19,11 @@ const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+  // Log project data for debugging
+  console.log("ProjectCard: Rendering project with ID:", project.id, "and title:", project.title);
+
   const handleOpenProject = () => {
+    console.log("Opening project:", project.id);
     setCurrentProject(project);
     navigate("/dashboard");
   };
@@ -35,9 +39,13 @@ const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
     setShowDeleteDialog(true);
   };
 
-  const handleDelete = () => {
-    deleteProject(project.id);
-    setShowDeleteDialog(false);
+  const handleDelete = async () => {
+    try {
+      await deleteProject(project.id);
+      setShowDeleteDialog(false);
+    } catch (error) {
+      console.error("Error deleting project:", error);
+    }
   };
 
   return (
