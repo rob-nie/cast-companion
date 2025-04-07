@@ -33,7 +33,7 @@ export const loadProjects = (
       console.log("Loading projects for user:", userId);
       
       if (projectsSnapshot.exists()) {
-        console.log("Projects snapshot exists");
+        console.log("Projects snapshot exists, data:", projectsSnapshot.val());
         const projectsData = projectsSnapshot.val();
         let projectsList: Project[] = [];
         
@@ -91,7 +91,7 @@ export const loadProjects = (
           }
         }
         
-        console.log("Total projects loaded:", projectsList.length);
+        console.log("Total projects loaded:", projectsList.length, projectsList);
         setProjects(projectsList);
       } else {
         console.log("No projects found in Firebase");

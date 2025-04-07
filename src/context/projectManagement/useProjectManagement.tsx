@@ -22,6 +22,14 @@ export const createProjectManagement = () => {
     
     // Wait a brief moment to ensure auth is initialized
     const timeoutId = setTimeout(() => {
+      // Only proceed if user is authenticated
+      if (!auth.currentUser) {
+        console.log("User not authenticated, not loading projects");
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log("About to load projects for user:", auth.currentUser.uid);
       const unsubscribe = loadProjects((loadedProjects) => {
         console.log("Projects loaded in createProjectManagement:", loadedProjects.length);
         setProjects(loadedProjects);
@@ -41,7 +49,7 @@ export const createProjectManagement = () => {
     }, 100);
     
     return () => clearTimeout(timeoutId);
-  }, [auth.currentUser?.uid]); 
+  }, [auth.currentUser?.uid, currentProject]); 
 
   // Reset current project when user logs out
   useEffect(() => {
