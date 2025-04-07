@@ -23,14 +23,28 @@ const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
   console.log("ProjectCard: Rendering project with ID:", project.id, "and title:", project.title);
 
   const handleOpenProject = () => {
-    console.log("Opening project:", project.id);
-    setCurrentProject(project);
-    navigate("/dashboard");
+    console.log("Opening project:", project.id, project.title);
+    try {
+      // Store current project in localStorage as backup
+      localStorage.setItem('currentProject', JSON.stringify(project));
+      
+      // Set current project in context
+      setCurrentProject(project);
+      
+      // Navigate to dashboard - add short timeout to ensure context update completes
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 50);
+    } catch (error) {
+      console.error("Error opening project:", error);
+    }
   };
 
   const handleShareProject = (e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log("Sharing project:", project.id);
     setCurrentProject(project);
+    localStorage.setItem('currentProject', JSON.stringify(project));
     navigate("/project-sharing");
   };
 
