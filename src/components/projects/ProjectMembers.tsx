@@ -8,20 +8,19 @@ import {
 import { useProjects } from "@/context/ProjectContext";
 import AddMemberDialog from "./members/AddMemberDialog";
 import MembersList from "./members/MembersList";
-import { useProjectMembers } from "@/context/projectMembers";
 import { ProjectMember } from "@/types/user";
 import { auth } from "@/lib/firebase";
 import EmptyMembersList from "./members/EmptyMembersList";
 
 const ProjectMembers = () => {
-  const { currentProject } = useProjects();
   const { 
-    getProjectMembers, 
-    addProjectMember, 
+    currentProject,
+    getProjectMembers,
+    addProjectMember,
     addProjectMemberById,
-    removeProjectMember, 
-    updateProjectMemberRole 
-  } = useProjectMembers();
+    removeProjectMember,
+    updateProjectMemberRole
+  } = useProjects();
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
@@ -41,7 +40,7 @@ const ProjectMembers = () => {
     }, 2000);
     
     return () => clearInterval(intervalId);
-  }, [currentProject, getProjectMembers]);
+  }, [currentProject, getProjectMembers, members]);
   
   if (!currentProject || !auth.currentUser) {
     return null;

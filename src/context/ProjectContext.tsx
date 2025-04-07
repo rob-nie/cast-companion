@@ -19,7 +19,7 @@ const useProjectCombined = () => {
   return {
     ...projectManagement,
     ...projectSharing,
-    addProjectMemberById: projectMembers.addProjectMemberById
+    ...projectMembers // Add all project members functions for full access
   };
 };
 
@@ -38,11 +38,11 @@ const ProjectContextProvider = ({ children }: { children: ReactNode }) => {
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   return (
     <ProjectManagementProvider>
-      <ProjectSharingProvider>
-        <ProjectMembersProvider>
+      <ProjectMembersProvider>
+        <ProjectSharingProvider>
           <ProjectContextProvider>{children}</ProjectContextProvider>
-        </ProjectMembersProvider>
-      </ProjectSharingProvider>
+        </ProjectSharingProvider>
+      </ProjectMembersProvider>
     </ProjectManagementProvider>
   );
 };
