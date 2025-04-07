@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, LogIn } from "lucide-react";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 
 const formSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -25,7 +25,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
-  const { login, isLoading } = useUser();
+  const { login, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +46,7 @@ const Login = () => {
       await login(values.email, values.password);
       navigate(from, { replace: true });
     } catch (error) {
-      // Error is already handled in the UserContext
+      // Error is already handled in the AuthContext
       console.error("Login failed:", error);
     }
   };

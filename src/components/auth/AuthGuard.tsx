@@ -1,10 +1,10 @@
 
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import LoadingScreen from "./LoadingScreen";
 
 const AuthGuard = () => {
-  const { isAuthenticated, isLoading } = useUser();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {

@@ -21,7 +21,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Combined hook
+// Combined hook that uses all three contexts
 export const useUser = () => {
   const auth = useAuth();
   const profile = useProfile();

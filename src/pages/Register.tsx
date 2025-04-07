@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
@@ -30,7 +30,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
-  const { register, isLoading } = useUser();
+  const { register, isLoading } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   
@@ -47,9 +47,9 @@ const Register = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       await register(values.name, values.email, values.password);
-      navigate("/dashboard", { replace: true });
+      navigate("/projects", { replace: true });
     } catch (error) {
-      // Error is already handled in the UserContext
+      // Error is already handled in the AuthContext
       console.error("Registration failed:", error);
     }
   };

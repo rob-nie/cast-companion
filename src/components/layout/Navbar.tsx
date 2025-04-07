@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Moon, Sun, LogOut, Settings, Bell } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useProjects } from "@/context/ProjectContext";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -19,7 +19,7 @@ import {
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const { currentProject } = useProjects();
-  const { user, logout, isAuthenticated } = useUser();
+  const { user, logout, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
