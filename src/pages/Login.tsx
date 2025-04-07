@@ -46,7 +46,11 @@ const Login = () => {
     try {
       setSubmitting(true);
       await login(values.email, values.password);
-      navigate(from, { replace: true });
+      
+      // Force navigation after successful login
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 500);
     } catch (error) {
       // Error is already handled in the AuthContext
       console.error("Login failed:", error);

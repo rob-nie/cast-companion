@@ -34,33 +34,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Auth state changed:", firebaseUser ? `User ${firebaseUser.email} logged in` : "No user");
       try {
         if (firebaseUser) {
-          // Get user data from database
-          const userRef = ref(database, `users/${firebaseUser.uid}`);
-          const snapshot = await get(userRef);
-          
-          if (snapshot.exists()) {
-            const userData = snapshot.val();
+          // Try to get user data from database
+          try {
+            const userRef = ref(database, `users/${firebaseUser.uid}`);
+            const snapshot = await get(userRef);
+            
+            if (snapshot.exists()) {
+              const userData = snapshot.val();
+              setUser({
+                id: firebaseUser.uid,
+                email: firebaseUser.email || "",
+                name: userData.name || firebaseUser.displayName || "",
+                avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
+                createdAt: new Date(userData.createdAt)
+              });
+            } else {
+              // Create user data if it doesn't exist
+              const newUser = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email || "",
+                name: firebaseUser.displayName || "",
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
+                createdAt: new Date().toISOString()
+              };
+              
+              await set(userRef, newUser);
+              setUser({
+                ...newUser,
+                createdAt: new Date(newUser.createdAt)
+              });
+            }
+          } catch (dbError) {
+            console.error("Database error in auth state change handler:", dbError);
+            // Even if database access fails, set basic user info from Firebase Auth
             setUser({
-              id: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              name: userData.name || firebaseUser.displayName || "",
-              avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-              createdAt: new Date(userData.createdAt)
-            });
-          } else {
-            // Create user data if it doesn't exist
-            const newUser = {
               id: firebaseUser.uid,
               email: firebaseUser.email || "",
               name: firebaseUser.displayName || "",
               avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-              createdAt: new Date().toISOString()
-            };
-            
-            await set(userRef, newUser);
-            setUser({
-              ...newUser,
-              createdAt: new Date(newUser.createdAt)
+              createdAt: new Date()
             });
           }
         } else {
@@ -80,7 +92,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       console.log("Attempting login for:", email);
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login successful for:", email);
+      
+      // Wait a moment for the auth state to update
+      setTimeout(() => {
+        // If for some reason the auth state listener didn't catch this, set user manually
+        if (!user && userCredential.user) {
+          const firebaseUser = userCredential.user;
+          setUser({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name: firebaseUser.displayName || "",
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
+            createdAt: new Date()
+          });
+        }
+      }, 500);
+      
       toast.success("Erfolgreich angemeldet");
     } catch (error: any) {
       console.error("Login error:", error);
@@ -104,15 +133,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await updateFirebaseProfile(firebaseUser, { displayName: name });
       
       // Create user entry in database
-      const newUser = {
-        id: firebaseUser.uid,
-        email: email,
-        name: name,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-        createdAt: new Date().toISOString()
-      };
+      try {
+        const newUser = {
+          id: firebaseUser.uid,
+          email: email,
+          name: name,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+          createdAt: new Date().toISOString()
+        };
+        
+        await set(ref(database, `users/${firebaseUser.uid}`), newUser);
+      } catch (dbError) {
+        console.error("Failed to write user data to database:", dbError);
+        // Continue anyway, as auth was successful
+      }
       
-      await set(ref(database, `users/${firebaseUser.uid}`), newUser);
       toast.success("Konto erfolgreich erstellt");
     } catch (error: any) {
       console.error("Registration error:", error);
