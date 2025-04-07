@@ -15,34 +15,56 @@ export const createProjectManagement = () => {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
+  const handleProjectsUpdate = useCallback((loadedProjects: Project[]) => {
+    console.log("=== Projects Update Handler ===");
+    console.log("Received", loadedProjects.length, "projects from loader");
+    
+    if (loadedProjects.length > 0) {
+      console.log("Projects received:", loadedProjects.map(p => ({
+        id: p.id,
+        title: p.title,
+        ownerId: p.ownerId
+      })));
+    } else {
+      console.log("No projects received");
+    }
+    
+    setProjects(loadedProjects);
+    setIsLoading(false);
+    
+    // If we have a current project that's no longer accessible, reset it
+    if (currentProject && !loadedProjects.some(p => p.id === currentProject.id)) {
+      console.log("Current project is no longer accessible, resetting");
+      setCurrentProject(null);
+    }
+    
+    console.log("Projects state updated");
+  }, [currentProject]);
+  
   // Load projects from Firebase when component mounts or auth changes
   useEffect(() => {
-    console.log("Setting up projects listener in createProjectManagement");
+    console.log("=== Setting up projects listener ===");
+    console.log("Firebase auth state:", auth.currentUser?.email, auth.currentUser?.uid);
     setIsLoading(true);
     
     // Set up the projects listener
-    const unsubscribe = loadProjects((loadedProjects) => {
-      console.log("Projects loaded in createProjectManagement:", loadedProjects.length);
-      setProjects(loadedProjects);
-      setIsLoading(false);
-      
-      // If we have a current project that's no longer accessible, reset it
-      if (currentProject && !loadedProjects.some(p => p.id === currentProject.id)) {
-        console.log("Current project is no longer accessible, resetting");
-        setCurrentProject(null);
-      }
-    });
+    const unsubscribe = loadProjects(handleProjectsUpdate);
+    
+    console.log("Projects listener setup completed");
     
     return () => {
       console.log("Cleaning up projects listener");
       unsubscribe();
     };
-  }, [auth.currentUser?.uid]); 
+  }, [auth.currentUser?.uid, handleProjectsUpdate]); 
 
   // Reset current project when user logs out
   useEffect(() => {
+    console.log("=== Auth state check for project reset ===");
+    console.log("Firebase auth state:", !!auth.currentUser);
+    
     if (!auth.currentUser) {
-      console.log("User logged out, resetting current project");
+      console.log("User logged out, resetting current project and projects list");
       setCurrentProject(null);
       setProjects([]);
     }
@@ -88,6 +110,11 @@ export const createProjectManagement = () => {
     
     const userProjects = projects.filter(project => project.ownerId === auth.currentUser?.uid);
     console.log("getUserProjects: Found", userProjects.length, "projects for user", auth.currentUser.uid);
+    
+    if (userProjects.length > 0) {
+      console.log("User projects:", userProjects.map(p => ({ id: p.id, title: p.title })));
+    }
+    
     return userProjects;
   }, [projects]);
 
@@ -103,6 +130,11 @@ export const createProjectManagement = () => {
     );
     
     console.log("getSharedProjects: Found", sharedProjects.length, "shared projects for user", auth.currentUser.uid);
+    
+    if (sharedProjects.length > 0) {
+      console.log("Shared projects:", sharedProjects.map(p => ({ id: p.id, title: p.title, ownerId: p.ownerId })));
+    }
+    
     return sharedProjects;
   }, [projects]);
 

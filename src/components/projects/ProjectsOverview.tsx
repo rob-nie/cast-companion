@@ -4,35 +4,65 @@ import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProjects } from "@/context/ProjectContext";
 import { useAuth } from "@/context/AuthContext";
-import { auth, checkPermission } from "@/lib/firebase";
+import { auth, checkPermission, database } from "@/lib/firebase";
 import ProjectsList from "./ProjectsList";
 import EmptyProjectsState from "./EmptyProjectsState";
 import ProjectCreateDialog from "./ProjectCreateDialog";
 import ProjectsPermissionError from "./ProjectsPermissionError";
+import { ref, get } from "firebase/database";
 
 const ProjectsOverview = () => {
   const { projects, getUserProjects, getSharedProjects, isLoading: projectsLoading } = useProjects();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
   const [loading, setLoading] = useState(true);
   
   // Check database permissions on component mount
   useEffect(() => {
+    console.log("==== ProjectsOverview Component Mounted ====");
+    console.log("ProjectsOverview: Auth context state:", {
+      isAuthenticated,
+      authLoading,
+      userId: user?.id,
+      userEmail: user?.email
+    });
+    console.log("ProjectsOverview: Firebase auth state:", {
+      isAuthenticated: !!auth.currentUser,
+      userEmail: auth.currentUser?.email,
+      userId: auth.currentUser?.uid
+    });
+
     const verifyPermissions = async () => {
       setLoading(true);
       
       if (auth.currentUser) {
         try {
+          console.log("ProjectsOverview: Checking database permissions for 'projects' path");
           const hasPermission = await checkPermission('projects');
+          console.log("ProjectsOverview: Permission check result:", hasPermission);
+          
+          // Additional check - try to get projects directly
+          try {
+            const projectsRef = ref(database, 'projects');
+            console.log("ProjectsOverview: Attempting direct projects read");
+            const snapshot = await get(projectsRef);
+            console.log("ProjectsOverview: Direct projects read result:", 
+              snapshot.exists() ? `Success - found ${Object.keys(snapshot.val()).length} projects` : "No projects found");
+          } catch (directError) {
+            console.error("ProjectsOverview: Direct projects read error:", directError);
+          }
+          
           setPermissionError(!hasPermission);
           if (!hasPermission) {
-            console.warn("User doesn't have permission to access projects");
+            console.warn("ProjectsOverview: User doesn't have permission to access projects");
           }
         } catch (error) {
-          console.error("Error checking permissions:", error);
+          console.error("ProjectsOverview: Error checking permissions:", error);
           setPermissionError(true);
         }
+      } else {
+        console.log("ProjectsOverview: No authenticated user for permission check");
       }
       
       setLoading(false);
@@ -40,8 +70,10 @@ const ProjectsOverview = () => {
     
     if (!authLoading) {
       verifyPermissions();
+    } else {
+      console.log("ProjectsOverview: Auth still loading, waiting to verify permissions");
     }
-  }, [isAuthenticated, authLoading]);
+  }, [isAuthenticated, authLoading, user]);
   
   // Get user's own projects and shared projects
   const userProjects = getUserProjects();
@@ -50,20 +82,30 @@ const ProjectsOverview = () => {
   
   // Log debugging information
   useEffect(() => {
+    console.log("ProjectsOverview: State update detected");
     console.log("ProjectsOverview: authLoading =", authLoading);
     console.log("ProjectsOverview: projectsLoading =", projectsLoading);
     console.log("ProjectsOverview: All projects count =", projects.length);
     console.log("ProjectsOverview: User projects count =", userProjects.length);
     console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
     console.log("ProjectsOverview: Combined allProjects =", allProjects.length);
+    
+    if (projects.length > 0) {
+      console.log("ProjectsOverview: Projects available in context:", 
+        projects.map(p => ({ id: p.id, title: p.title, ownerId: p.ownerId })));
+    } else {
+      console.log("ProjectsOverview: No projects in context");
+    }
   }, [projects, userProjects, sharedProjects, allProjects, authLoading, projectsLoading]);
 
   // Log authentication state for debugging
   useEffect(() => {
+    console.log("ProjectsOverview: Authentication state update detected");
     console.log("ProjectsOverview: isAuthenticated =", isAuthenticated);
     console.log("ProjectsOverview: Firebase current user =", auth.currentUser?.email);
     console.log("ProjectsOverview: Firebase user id =", auth.currentUser?.uid);
-  }, [isAuthenticated]);
+    console.log("ProjectsOverview: Auth context user =", user?.email);
+  }, [isAuthenticated, user]);
 
   const isPageLoading = loading || authLoading || projectsLoading;
 
