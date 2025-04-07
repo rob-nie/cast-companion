@@ -7,7 +7,7 @@ import {
   addMemberToProject, 
   removeMemberFromProject, 
   updateMemberRole 
-} from "./projectMembersService";
+} from "./services";
 
 const ProjectMembersContext = createContext<ProjectMembersContextType | undefined>(undefined);
 
