@@ -1,6 +1,6 @@
 
 import { createContext, useContext, ReactNode } from "react";
-import { ProjectManagementProvider, useProjectManagement, Project } from "./ProjectManagementContext";
+import { ProjectManagementProvider, useProjectManagement, Project } from "./projectManagement";
 import { ProjectSharingProvider, useProjectSharing } from "./ProjectSharingContext";
 
 // Re-export types

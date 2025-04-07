@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode } from "react";
 import { toast } from "sonner";
 import { useProjectMembers } from "./projectMembers";
-import { useProjectManagement } from "./ProjectManagementContext";
+import { useProjectManagement } from "./projectManagement";
 
 type ProjectSharingContextType = {
   shareProject: (projectId: string, email: string, role: "editor" | "viewer") => Promise<void>;
