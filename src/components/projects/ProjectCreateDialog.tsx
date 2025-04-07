@@ -35,15 +35,15 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
         setIsSubmitting(true);
         console.log("Creating new project with title:", newProject.title);
         
-        // Create the project
-        const newProjectId = await addProject(newProject);
+        // Create the project without relying on its return value
+        await addProject(newProject);
         
         // Wait a bit longer for the projects to update with the new project
         setTimeout(() => {
-          // Find the newly created project
+          // Find the newly created project by title and owner
           const createdProject = projects.find(p => 
-            (newProjectId && p.id === newProjectId) || 
-            (p.title === newProject.title && p.ownerId === auth.currentUser?.uid)
+            p.title === newProject.title && 
+            p.ownerId === auth.currentUser?.uid
           );
           
           if (createdProject) {
