@@ -52,8 +52,8 @@ export const useNotesState = () => {
 
   // Update current notes whenever the notes array changes
   useEffect(() => {
-    // This effect doesn't need to return anything specific
-  }, [updateCurrentProjectNotes]);
+    // This effect is intentionally empty as the updateCurrentProjectNotes will be called from the NotesProvider
+  }, [notes, updateCurrentProjectNotes]);
 
   const addNote = async (note: Omit<Note, "id" | "timestamp" | "userId">) => {
     return await addNoteToFirebase(note, currentUserId);

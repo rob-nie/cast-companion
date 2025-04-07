@@ -25,13 +25,24 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   
   // Update notes when the project changes
   useEffect(() => {
-    if (notesState.updateCurrentProjectNotes) {
-      notesState.updateCurrentProjectNotes(currentProject?.id);
+    if (currentProject && notesState.updateCurrentProjectNotes) {
+      notesState.updateCurrentProjectNotes(currentProject.id);
     }
-  }, [currentProject, notesState, notesState.updateCurrentProjectNotes]);
+  }, [currentProject, notesState]);
+
+  // Create a stable context value object
+  const contextValue: NotesContextType = {
+    notes: notesState.notes,
+    interviewNotes: notesState.interviewNotes,
+    liveNotes: notesState.liveNotes,
+    addNote: notesState.addNote,
+    updateNote: notesState.updateNote,
+    deleteNote: notesState.deleteNote,
+    exportLiveNotesAsCSV: notesState.exportLiveNotesAsCSV
+  };
 
   return (
-    <NotesContext.Provider value={notesState}>
+    <NotesContext.Provider value={contextValue}>
       {children}
     </NotesContext.Provider>
   );

@@ -53,16 +53,24 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   
   const saveEditedNote = async () => {
     if (editingNoteId) {
-      await updateNote(editingNoteId, { content: editingContent });
-      setEditingNoteId(null);
-      setEditingContent('');
+      try {
+        await updateNote(editingNoteId, { content: editingContent });
+        setEditingNoteId(null);
+        setEditingContent('');
+      } catch (error) {
+        console.error("Error updating note:", error);
+      }
     }
   };
   
   const saveNote = async (noteId: string, content: string) => {
-    await updateNote(noteId, { content });
-    setEditingNoteId(null);
-    setEditingContent('');
+    try {
+      await updateNote(noteId, { content });
+      setEditingNoteId(null);
+      setEditingContent('');
+    } catch (error) {
+      console.error("Error saving note:", error);
+    }
   };
   
   const cancelEditing = () => {
@@ -71,7 +79,11 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   };
   
   const handleDeleteNote = async (noteId: string) => {
-    await deleteNote(noteId);
+    try {
+      await deleteNote(noteId);
+    } catch (error) {
+      console.error("Error deleting note:", error);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
