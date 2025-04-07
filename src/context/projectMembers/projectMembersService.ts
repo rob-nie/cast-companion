@@ -35,19 +35,23 @@ export const fetchProjectMembers = async (projectId: string,
         const member = membersData[key];
         
         // Get user details
-        const userRef = ref(database, `users/${member.userId}`);
-        const userSnapshot = await get(userRef);
-        
-        if (userSnapshot.exists()) {
-          const userData = userSnapshot.val();
-          members.push({
-            userId: member.userId,
-            projectId: member.projectId,
-            role: member.role,
-            name: userData.name || "Unknown User",
-            email: userData.email || "",
-            avatar: userData.avatar
-          });
+        try {
+          const userRef = ref(database, `users/${member.userId}`);
+          const userSnapshot = await get(userRef);
+          
+          if (userSnapshot.exists()) {
+            const userData = userSnapshot.val();
+            members.push({
+              userId: member.userId,
+              projectId: member.projectId,
+              role: member.role,
+              name: userData.name || "Unknown User",
+              email: userData.email || "",
+              avatar: userData.avatar
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
         }
       }
       
@@ -91,13 +95,19 @@ export const addMemberToProject = async (projectId: string, email: string, role:
     
     // Check if user is already a member
     const membersRef = ref(database, 'projectMembers');
-    const memberSnapshot = await get(membersRef);
+    const memberQuery = query(
+      membersRef,
+      orderByChild('userId'),
+      equalTo(userId)
+    );
+    
+    const memberSnapshot = await get(memberQuery);
     let isAlreadyMember = false;
     
     if (memberSnapshot.exists()) {
       memberSnapshot.forEach((childSnapshot) => {
         const memberData = childSnapshot.val();
-        if (memberData.projectId === projectId && memberData.userId === userId) {
+        if (memberData.projectId === projectId) {
           isAlreadyMember = true;
         }
       });

@@ -1,8 +1,8 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { ref, onValue, set, get } from "firebase/database";
+import { ref, onValue, set } from "firebase/database";
 import { database } from "@/lib/firebase";
-import { useUser } from "./UserContext";
+import { useAuth } from "./AuthContext";
 
 type ProjectStopwatch = {
   isRunning: boolean;
@@ -33,20 +33,29 @@ const defaultStopwatch: ProjectStopwatch = {
 export const WatchProvider = ({ children }: { children: ReactNode }) => {
   const [projectStopwatches, setProjectStopwatches] = useState<Record<string, ProjectStopwatch>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
-  const { user } = useUser();
+  const { user } = useAuth();
   
   const currentUserId = user?.id || "user-1";
 
   // Subscribe to Firebase stopwatch updates
   useEffect(() => {
-    const stopwatchesRef = ref(database, 'projectStopwatches');
+    let unsubscribe = () => {};
     
-    const unsubscribe = onValue(stopwatchesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const stopwatchData = snapshot.val();
-        setProjectStopwatches(stopwatchData);
+    const setupStopwatchListener = async () => {
+      try {
+        const stopwatchesRef = ref(database, 'projectStopwatches');
+        unsubscribe = onValue(stopwatchesRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const stopwatchData = snapshot.val();
+            setProjectStopwatches(stopwatchData);
+          }
+        });
+      } catch (error) {
+        console.error("Error setting up stopwatch listener:", error);
       }
-    });
+    };
+    
+    setupStopwatchListener();
     
     return () => unsubscribe();
   }, []);

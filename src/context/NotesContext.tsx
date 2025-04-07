@@ -1,15 +1,14 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useProjects } from "./ProjectContext";
-import { useUser } from "./UserContext";
-import { ref, push, update, remove, onValue, query, orderByChild, equalTo } from "firebase/database";
+import { useAuth } from "./AuthContext";
+import { ref, push, update, remove, onValue, set } from "firebase/database";
 import { database } from "@/lib/firebase";
-import { set } from "firebase/database";
 
 export type Note = {
   id: string;
   projectId: string;
-  userId: string; // Added userId field to track which user created the note
+  userId: string;
   content: string;
   timestamp?: Date;
   stopwatchTime?: number;
@@ -31,7 +30,7 @@ const NotesContext = createContext<NotesContextType | undefined>(undefined);
 export const NotesProvider = ({ children }: { children: ReactNode }) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const { currentProject } = useProjects();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [interviewNotes, setInterviewNotes] = useState<Note | null>(null);
   const [liveNotes, setLiveNotes] = useState<Note[]>([]);
 
@@ -40,26 +39,37 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
 
   // Load notes from Firebase
   useEffect(() => {
-    const notesRef = ref(database, 'notes');
-    const unsubscribe = onValue(notesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const notesData = snapshot.val();
-        const notesList: Note[] = [];
-        
-        Object.keys(notesData).forEach((key) => {
-          const note = notesData[key];
-          notesList.push({
-            ...note,
-            id: key,
-            timestamp: note.timestamp ? new Date(note.timestamp) : undefined,
-          });
+    let unsubscribe = () => {};
+    
+    const loadNotes = async () => {
+      try {
+        const notesRef = ref(database, 'notes');
+        unsubscribe = onValue(notesRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const notesData = snapshot.val();
+            const notesList: Note[] = [];
+            
+            Object.keys(notesData).forEach((key) => {
+              const note = notesData[key];
+              notesList.push({
+                ...note,
+                id: key,
+                timestamp: note.timestamp ? new Date(note.timestamp) : undefined,
+              });
+            });
+            
+            setNotes(notesList);
+          } else {
+            setNotes([]);
+          }
         });
-        
-        setNotes(notesList);
-      } else {
+      } catch (error) {
+        console.error("Failed to load notes:", error);
         setNotes([]);
       }
-    });
+    };
+    
+    loadNotes();
     
     return () => unsubscribe();
   }, []);
@@ -94,7 +104,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     const newNote: Note = {
       ...note,
       id: newNoteRef.key!,
-      userId: currentUserId, // Add the current user's ID
+      userId: currentUserId,
       timestamp: new Date(),
     };
     

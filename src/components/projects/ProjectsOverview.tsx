@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,27 +20,33 @@ const ProjectsOverview = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // Check database permissions on component mount
   useEffect(() => {
     const verifyPermissions = async () => {
+      setLoading(true);
       if (auth.currentUser) {
-        const hasPermission = await checkPermission('projects');
-        if (!hasPermission) {
+        try {
+          const hasPermission = await checkPermission('projects');
+          setPermissionError(!hasPermission);
+          if (!hasPermission) {
+            console.warn("User doesn't have permission to access projects");
+          }
+        } catch (error) {
+          console.error("Error checking permissions:", error);
           setPermissionError(true);
-          console.warn("User doesn't have permission to access projects");
-        } else {
-          setPermissionError(false);
         }
       }
+      setLoading(false);
     };
     
     verifyPermissions();
   }, [isAuthenticated]);
   
   // Get all user-specific projects
-  const myProjects = getUserProjects();
-  const sharedProjects = getSharedProjects();
+  const myProjects = isAuthenticated ? getUserProjects() : [];
+  const sharedProjects = isAuthenticated ? getSharedProjects() : [];
   
   // Combine all projects for the unified view
   const allProjects = [...myProjects, ...sharedProjects];
@@ -137,7 +144,13 @@ const ProjectsOverview = () => {
         </Dialog>
       </div>
 
-      {permissionError && (
+      {loading && (
+        <div className="flex justify-center items-center p-12">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        </div>
+      )}
+
+      {permissionError && !loading && (
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>
             Fehler beim Laden der Projekte. Bitte stellen Sie sicher, dass Sie die erforderlichen Berechtigungen haben.
@@ -145,7 +158,7 @@ const ProjectsOverview = () => {
         </Alert>
       )}
 
-      {isAuthenticated ? (
+      {isAuthenticated && !loading ? (
         <>
           {allProjects.length === 0 && !permissionError ? (
             <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
@@ -174,8 +187,7 @@ const ProjectsOverview = () => {
             </div>
           )}
         </>
-      ) : (
-        // Show all projects if not authenticated
+      ) : !loading ? (
         <>
           {projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
@@ -198,13 +210,13 @@ const ProjectsOverview = () => {
                 <ProjectCard 
                   key={project.id} 
                   project={project} 
-                  isOwned={false} // Non-authenticated users don't own any projects
+                  isOwned={false}
                 />
               ))}
             </div>
           )}
         </>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -4,14 +4,13 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, get, set } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDwKTQn0lISyFuOerfOkU26PQ1ZFXIXsPA",
-  authDomain: "castcompanion-ec3ee.firebaseapp.com",
-  databaseURL: "https://castcompanion-ec3ee-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "castcompanion-ec3ee",
-  storageBucket: "castcompanion-ec3ee.firebasestorage.app",
-  messagingSenderId: "1089617600286",
-  appId: "1:1089617600286:web:91392968a83cad6e02330f",
-  measurementId: "G-2CJYFF3YX5"
+  apiKey: "AIzaSyDTT-Z9tnu84ItZh7hoH5l9kmQJBxW5adU",
+  authDomain: "castcompanion-d9241.firebaseapp.com",
+  projectId: "castcompanion-d9241",
+  storageBucket: "castcompanion-d9241.firebasestorage.app",
+  messagingSenderId: "50980785391",
+  appId: "1:50980785391:web:4ead0dca8e8ab31e239f1a",
+  measurementId: "G-865XN716C7"
 };
 
 // Initialize Firebase
@@ -33,11 +32,11 @@ export const isUserAuthenticated = () => {
 export const initializeUserDatabaseAccess = async (userId: string) => {
   try {
     // Check if rules already exist for this user
-    const rulesRef = ref(database, `rules/${userId}`);
+    const rulesRef = ref(database, `users/${userId}`);
     const rulesSnapshot = await get(rulesRef);
     
     if (!rulesSnapshot.exists()) {
-      // Set initial rules for the user
+      // Set initial data for the user
       await set(rulesRef, {
         initialized: true,
         timestamp: new Date().toISOString()
@@ -46,7 +45,6 @@ export const initializeUserDatabaseAccess = async (userId: string) => {
     }
   } catch (error) {
     console.error("Failed to initialize database access:", error);
-    // Continue anyway, rules might already be set at the Firebase console level
   }
 };
 

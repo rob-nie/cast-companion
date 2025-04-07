@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
@@ -17,9 +18,9 @@ type ProjectManagementContextType = {
   projects: Project[];
   currentProject: Project | null;
   setCurrentProject: (project: Project) => void;
-  addProject: (project: Omit<Project, "id" | "createdAt" | "ownerId">) => void;
-  updateProject: (id: string, project: Partial<Project>, silent?: boolean) => void;
-  deleteProject: (id: string) => void;
+  addProject: (project: Omit<Project, "id" | "createdAt" | "ownerId">) => Promise<void>;
+  updateProject: (id: string, project: Partial<Project>, silent?: boolean) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   getUserProjects: () => Project[];
   getSharedProjects: () => Project[];
 };
@@ -33,40 +34,50 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
   
   // Load projects from Firebase when user is authenticated
   useEffect(() => {
-    if (!isAuthenticated || !user) {
-      setProjects([]);
-      setCurrentProject(null);
-      return;
-    }
+    let unsubscribe = () => {};
     
-    console.log("Loading projects for user:", user.id);
-    
-    const projectsRef = ref(database, 'projects');
-    const unsubscribe = onValue(projectsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const projectsData = snapshot.val();
-        const projectsList: Project[] = [];
-        
-        Object.keys(projectsData).forEach((key) => {
-          const project = projectsData[key];
-          projectsList.push({
-            ...project,
-            id: key,
-            createdAt: new Date(project.createdAt),
-            lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-          });
-        });
-        
-        setProjects(projectsList);
-        console.log("Projects loaded:", projectsList.length);
-      } else {
-        console.log("No projects found");
+    const loadProjects = async () => {
+      if (!isAuthenticated || !user) {
         setProjects([]);
+        setCurrentProject(null);
+        return;
       }
-    }, (error) => {
-      console.error("Error loading projects:", error);
-      toast.error("Fehler beim Laden der Projekte");
-    });
+      
+      console.log("Loading projects for user:", user.id);
+      
+      try {
+        const projectsRef = ref(database, 'projects');
+        unsubscribe = onValue(projectsRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const projectsData = snapshot.val();
+            const projectsList: Project[] = [];
+            
+            Object.keys(projectsData).forEach((key) => {
+              const project = projectsData[key];
+              projectsList.push({
+                ...project,
+                id: key,
+                createdAt: new Date(project.createdAt),
+                lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+              });
+            });
+            
+            setProjects(projectsList);
+            console.log("Projects loaded:", projectsList.length);
+          } else {
+            console.log("No projects found");
+            setProjects([]);
+          }
+        }, (error) => {
+          console.error("Error loading projects:", error);
+          toast.error("Fehler beim Laden der Projekte");
+        });
+      } catch (error) {
+        console.error("Failed to set up projects listener:", error);
+      }
+    };
+    
+    loadProjects();
     
     return () => unsubscribe();
   }, [isAuthenticated, user]);
@@ -81,7 +92,7 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
   const addProject = async (project: Omit<Project, "id" | "createdAt" | "ownerId">) => {
     if (!auth.currentUser) {
       toast.error("Du musst angemeldet sein, um ein Projekt zu erstellen");
-      return;
+      throw new Error("Not authenticated");
     }
     
     try {
@@ -89,7 +100,7 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
       const authenticated = await isUserAuthenticated();
       if (!authenticated) {
         toast.error("Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.");
-        return;
+        throw new Error("Authentication expired");
       }
 
       const userId = auth.currentUser.uid;
@@ -97,7 +108,6 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
       const newProjectRef = push(ref(database, 'projects'));
       const newProject = {
         ...project,
-        id: newProjectRef.key!, // Firebase generated ID
         createdAt: new Date().toISOString(),
         ownerId: userId,
       };
@@ -115,18 +125,20 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
         });
       } catch (memberError) {
         console.error("Error adding project member:", memberError);
-        // Continue even if member creation fails
       }
+      
+      return;
     } catch (error) {
       console.error("Error adding project:", error);
       toast.error("Fehler beim Erstellen des Projekts");
+      throw error;
     }
   };
 
   const updateProject = async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
     if (!auth.currentUser) {
       toast.error("Du musst angemeldet sein, um ein Projekt zu aktualisieren");
-      return;
+      throw new Error("Not authenticated");
     }
     
     // Prepare data for Firebase
@@ -145,32 +157,23 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
       const projectRef = ref(database, `projects/${id}`);
       await update(projectRef, updateData);
       
-      // Update local state
-      setProjects((prev) =>
-        prev.map((project) =>
-          project.id === id ? { ...project, ...projectUpdate } : project
-        )
-      );
-      
-      // Also update currentProject if that's the one being modified
-      if (currentProject?.id === id) {
-        setCurrentProject(prev => prev ? { ...prev, ...projectUpdate } : null);
-      }
-      
       // Only show toast notification if silent is false
       if (!silent) {
         toast.success("Projekt aktualisiert");
       }
+      
+      return;
     } catch (error) {
       console.error("Error updating project:", error);
       toast.error("Fehler beim Aktualisieren des Projekts");
+      throw error;
     }
   };
   
   const deleteProject = async (id: string) => {
     if (!auth.currentUser) {
       toast.error("Du musst angemeldet sein, um ein Projekt zu löschen");
-      return;
+      throw new Error("Not authenticated");
     }
     
     // Check if user is the owner or has rights to delete
@@ -178,26 +181,23 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
     
     if (project && project.ownerId !== auth.currentUser.uid) {
       toast.error("Du hast keine Berechtigung, dieses Projekt zu löschen");
-      return;
+      throw new Error("Permission denied");
     }
     
     try {
       const projectRef = ref(database, `projects/${id}`);
       await remove(projectRef);
       
-      // Update local state
-      setProjects((prev) => prev.filter((project) => project.id !== id));
-      if (currentProject?.id === id) {
-        setCurrentProject(null);
-      }
-      
       toast.success("Projekt gelöscht");
       
       // Also remove project members entries
       await cleanupProjectData(id);
+      
+      return;
     } catch (error) {
       console.error("Error deleting project:", error);
       toast.error("Fehler beim Löschen des Projekts");
+      throw error;
     }
   };
   
@@ -227,18 +227,6 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
           }
         });
       }
-      
-      // Remove messages
-      const messagesRef = ref(database, 'messages');
-      const messagesSnapshot = await get(messagesRef);
-      if (messagesSnapshot.exists()) {
-        const messagesData = messagesSnapshot.val();
-        Object.keys(messagesData).forEach(async (key) => {
-          if (messagesData[key].projectId === projectId) {
-            await remove(ref(database, `messages/${key}`));
-          }
-        });
-      }
     } catch (error) {
       console.error("Error cleaning up project data:", error);
     }
@@ -253,17 +241,9 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
   // Get projects shared with the current user
   const getSharedProjects = () => {
     if (!auth.currentUser) return [];
-    
-    // Get projects not owned by the user
-    const notOwnedProjects = projects.filter(project => project.ownerId !== auth.currentUser?.uid);
-    
-    // Since we can't safely access getProjectMembers here without creating a circular dependency,
-    // we'll need to handle this differently
-    return notOwnedProjects.filter(project => {
-      // We can check if the user has access to this project
-      // This is a simplified approach - we'll return all projects for now
-      return true;
-    });
+    return projects.filter(project => 
+      project.ownerId !== auth.currentUser?.uid
+    );
   };
 
   return (
