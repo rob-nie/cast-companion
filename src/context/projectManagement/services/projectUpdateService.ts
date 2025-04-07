@@ -3,6 +3,7 @@ import { ref, update } from "firebase/database";
 import { database, auth } from "@/lib/firebase";
 import { Project } from "../types";
 import { toast } from "sonner";
+import { withProjectPermission } from "./projectPermissionService";
 
 /**
  * Updates an existing project in Firebase
@@ -29,17 +30,25 @@ export const updateProjectService = async (
     updateData.lastAccessed = updateData.lastAccessed.toISOString();
   }
   
-  try {
-    const projectRef = ref(database, `projects/${id}`);
-    await update(projectRef, updateData);
-    
-    // Only show toast notification if silent is false
-    if (!silent) {
-      toast.success("Projekt aktualisiert");
-    }
-  } catch (error) {
-    console.error("Error updating project:", error);
-    toast.error("Fehler beim Aktualisieren des Projekts");
-    throw error;
-  }
+  // Mit Berechtigungsprüfung ausführen
+  return withProjectPermission(
+    id,
+    true, // Erfordert Bearbeitungsrechte
+    async () => {
+      try {
+        const projectRef = ref(database, `projects/${id}`);
+        await update(projectRef, updateData);
+        
+        // Only show toast notification if silent is false
+        if (!silent) {
+          toast.success("Projekt aktualisiert");
+        }
+      } catch (error) {
+        console.error("Error updating project:", error);
+        toast.error("Fehler beim Aktualisieren des Projekts");
+        throw error;
+      }
+    },
+    "Du hast keine Berechtigung, dieses Projekt zu bearbeiten"
+  );
 };

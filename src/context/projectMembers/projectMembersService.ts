@@ -1,4 +1,3 @@
-
 import { 
   ref, 
   push,
@@ -15,6 +14,7 @@ import { database } from "@/lib/firebase";
 import { ProjectMember } from "@/types/user";
 import { UserRole } from "./types";
 import { toast } from "sonner";
+import { isProjectOwner } from "../projectManagement/services/projectPermissionService";
 
 export const fetchProjectMembers = async (projectId: string, 
   setMembers: (projectId: string, members: ProjectMember[]) => void) => {
@@ -65,6 +65,13 @@ export const fetchProjectMembers = async (projectId: string,
 
 export const addMemberToProject = async (projectId: string, email: string, role: UserRole) => {
   try {
+    // Überprüfen, ob der aktuelle Benutzer der Eigentümer des Projekts ist
+    const isOwner = await isProjectOwner(projectId);
+    if (!isOwner) {
+      toast.error("Nur der Projektinhaber kann Mitglieder hinzufügen");
+      throw new Error("Insufficient permissions");
+    }
+
     // Get all users and filter locally
     const usersRef = ref(database, 'users');
     const snapshot = await get(usersRef);
@@ -127,9 +134,10 @@ export const addMemberToProject = async (projectId: string, email: string, role:
     });
     
     toast.success(`${userData.name} wurde zum Projekt hinzugefügt`);
+    
   } catch (error: any) {
     console.error("Failed to add member:", error);
-    if (!error.message.includes("bereits Mitglied") && !error.message.includes("nicht gefunden")) {
+    if (!error.message.includes("bereits Mitglied") && !error.message.includes("nicht gefunden") && !error.message.includes("Insufficient permissions")) {
       toast.error("Fehler beim Hinzufügen des Mitglieds");
     }
     throw error;
@@ -138,6 +146,13 @@ export const addMemberToProject = async (projectId: string, email: string, role:
 
 export const removeMemberFromProject = async (projectId: string, userId: string) => {
   try {
+    // Überprüfen, ob der aktuelle Benutzer der Eigentümer des Projekts ist
+    const isOwner = await isProjectOwner(projectId);
+    if (!isOwner) {
+      toast.error("Nur der Projektinhaber kann Mitglieder entfernen");
+      throw new Error("Insufficient permissions");
+    }
+
     // Find the member entry
     const membersRef = ref(database, 'projectMembers');
     const memberQuery = query(
@@ -172,8 +187,9 @@ export const removeMemberFromProject = async (projectId: string, userId: string)
     // Remove member
     await remove(ref(database, `projectMembers/${memberKey}`));
     toast.success("Mitglied entfernt");
+    
   } catch (error: any) {
-    if (!error.message.includes("nicht gefunden") && !error.message.includes("Projektinhaber")) {
+    if (!error.message.includes("nicht gefunden") && !error.message.includes("Projektinhaber") && !error.message.includes("Insufficient permissions")) {
       toast.error("Fehler beim Entfernen des Mitglieds");
     }
     throw error;
@@ -182,6 +198,13 @@ export const removeMemberFromProject = async (projectId: string, userId: string)
 
 export const updateMemberRole = async (projectId: string, userId: string, role: UserRole) => {
   try {
+    // Überprüfen, ob der aktuelle Benutzer der Eigentümer des Projekts ist
+    const isOwner = await isProjectOwner(projectId);
+    if (!isOwner) {
+      toast.error("Nur der Projektinhaber kann Rollen ändern");
+      throw new Error("Insufficient permissions");
+    }
+
     // Find the member entry
     const membersRef = ref(database, 'projectMembers');
     const memberQuery = query(
@@ -208,8 +231,11 @@ export const updateMemberRole = async (projectId: string, userId: string, role: 
     // Update role
     await update(ref(database, `projectMembers/${memberKey}`), { role });
     toast.success("Rolle aktualisiert");
-  } catch (error) {
-    toast.error("Fehler beim Aktualisieren der Rolle");
+    
+  } catch (error: any) {
+    if (!error.message.includes("Insufficient permissions")) {
+      toast.error("Fehler beim Aktualisieren der Rolle");
+    }
     throw error;
   }
 };
