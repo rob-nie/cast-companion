@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -39,17 +38,13 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
         // Create the project
         const newProjectId = await addProject(newProject);
         
-        // Find the newly created project based on ID
         // Wait a bit longer for the projects to update with the new project
         setTimeout(() => {
-          // Try to find the project by ID first if addProject returned an ID
-          let createdProject = newProjectId ? 
-            projects.find(p => p.id === newProjectId) : 
-            // Fallback to finding by title and owner
-            projects.find(p => 
-              p.title === newProject.title && 
-              p.ownerId === auth.currentUser?.uid
-            );
+          // Find the newly created project
+          const createdProject = projects.find(p => 
+            (newProjectId && p.id === newProjectId) || 
+            (p.title === newProject.title && p.ownerId === auth.currentUser?.uid)
+          );
           
           if (createdProject) {
             console.log("Setting current project after creation:", createdProject.id);
