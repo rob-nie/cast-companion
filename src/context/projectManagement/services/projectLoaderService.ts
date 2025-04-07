@@ -16,12 +16,12 @@ export const loadProjects = (
     auth.currentUser ? `User: ${auth.currentUser.email} (${auth.currentUser.uid})` : "No authenticated user");
   
   // Only load projects if user is authenticated
-  //if (!auth.currentUser) {
-  //  console.log("No authenticated user, not loading projects");
-  //  setProjects([]);
-  //  console.log("Projects state set to empty array due to no authentication");
-  //  console.log("===== PROJECT LOADER END =====");
-  //  return () => {};
+  if (!auth.currentUser) {
+    console.log("No authenticated user, not loading projects");
+    setProjects([]);
+    console.log("Projects state set to empty array due to no authentication");
+    console.log("===== PROJECT LOADER END =====");
+    return () => {};
   }
   
   try {
