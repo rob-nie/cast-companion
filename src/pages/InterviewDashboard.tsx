@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -17,37 +16,50 @@ const InterviewDashboard = () => {
   useEffect(() => {
     console.log("Dashboard: Initializing with currentProject:", currentProject?.id);
     
-    // If no current project in context, try to load from localStorage
-    if (!currentProject) {
-      console.log("Dashboard: No current project in context, checking localStorage");
-      try {
-        const savedProject = localStorage.getItem('currentProject');
-        if (savedProject) {
-          const parsedProject = JSON.parse(savedProject) as Project;
-          console.log("Dashboard: Found project in localStorage:", parsedProject.id);
-          
-          // Verify the project still exists in the user's projects
-          const projectExists = projects.some(p => p.id === parsedProject.id);
-          if (projectExists) {
-            console.log("Dashboard: Project exists in user projects, setting as current");
-            setCurrentProject(parsedProject);
+    const loadProject = async () => {
+      // If no current project in context, try to load from localStorage
+      if (!currentProject) {
+        console.log("Dashboard: No current project in context, checking localStorage");
+        try {
+          const savedProject = localStorage.getItem('currentProject');
+          if (savedProject) {
+            const parsedProject = JSON.parse(savedProject) as Project;
+            console.log("Dashboard: Found project in localStorage:", parsedProject.id);
+            
+            // Wait for projects to load before checking if project exists
+            if (projects.length > 0) {
+              // Verify the project still exists in the user's projects
+              const projectExists = projects.some(p => p.id === parsedProject.id);
+              if (projectExists) {
+                console.log("Dashboard: Project exists in user projects, setting as current");
+                setCurrentProject(parsedProject);
+              } else {
+                console.log("Dashboard: Project doesn't exist in user projects, redirecting");
+                toast.error("Dieses Projekt ist nicht mehr verfügbar.");
+                localStorage.removeItem('currentProject');
+                navigate("/projects");
+              }
+            } else {
+              // If projects haven't loaded yet, wait a bit longer
+              console.log("Dashboard: Projects not loaded yet, waiting before validation");
+              // We'll keep isLoading true so the loading spinner continues
+            }
           } else {
-            console.log("Dashboard: Project doesn't exist in user projects, redirecting");
-            toast.error("Dieses Projekt ist nicht mehr verfügbar.");
-            localStorage.removeItem('currentProject');
+            console.log("Dashboard: No project in localStorage, redirecting");
             navigate("/projects");
+            setIsLoading(false);
           }
-        } else {
-          console.log("Dashboard: No project in localStorage, redirecting");
+        } catch (error) {
+          console.error("Error loading project from localStorage:", error);
           navigate("/projects");
+          setIsLoading(false);
         }
-      } catch (error) {
-        console.error("Error loading project from localStorage:", error);
-        navigate("/projects");
+      } else {
+        setIsLoading(false);
       }
-    }
+    };
     
-    setIsLoading(false);
+    loadProject();
   }, [currentProject, navigate, setCurrentProject, projects]);
 
   // On project change, ensure it still exists in user's projects
@@ -57,7 +69,7 @@ const InterviewDashboard = () => {
       
       // Check if current user still has access to this project
       const projectExists = projects.some(p => p.id === currentProject.id);
-      if (!projectExists) {
+      if (!projectExists && projects.length > 0) {
         console.log("Dashboard: User lost access to project:", currentProject.id);
         toast.error("Du hast keinen Zugriff mehr auf dieses Projekt.");
         localStorage.removeItem('currentProject');
@@ -65,9 +77,11 @@ const InterviewDashboard = () => {
         return;
       }
       
-      // Update last accessed timestamp without triggering a toast notification
-      console.log("Dashboard: Updating last accessed timestamp");
-      updateProject(currentProject.id, { lastAccessed: new Date() }, true);
+      if (projectExists) {
+        // Update last accessed timestamp without triggering a toast notification
+        console.log("Dashboard: Updating last accessed timestamp");
+        updateProject(currentProject.id, { lastAccessed: new Date() }, true);
+      }
     }
   }, [currentProject, navigate, updateProject, projects, isLoading]);
 

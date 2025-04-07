@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useProjects } from "@/context/ProjectContext";
 import { auth } from "@/lib/firebase";
+import { useNavigate } from "react-router-dom";
 
 type ProjectCreateDialogProps = {
   isOpen: boolean;
@@ -17,9 +18,10 @@ type ProjectCreateDialogProps = {
 };
 
 const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreateDialogProps) => {
-  const { addProject } = useProjects();
+  const { addProject, projects, setCurrentProject } = useProjects();
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,14 +35,46 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
       try {
         setIsSubmitting(true);
         console.log("Creating new project with title:", newProject.title);
+        
+        // Create the project
         await addProject(newProject);
-        setNewProject({ title: "", description: "" });
-        setIsOpen(false);
-        toast.success("Projekt erfolgreich erstellt");
+        
+        // Find the newly created project (it should be the most recent one with the same title)
+        setTimeout(() => {
+          const createdProject = projects.find(p => 
+            p.title === newProject.title && 
+            p.ownerId === auth.currentUser?.uid
+          );
+          
+          if (createdProject) {
+            console.log("Setting current project after creation:", createdProject.id);
+            // Set current project in context
+            setCurrentProject(createdProject);
+            
+            // Also store in localStorage
+            localStorage.setItem('currentProject', JSON.stringify(createdProject));
+            
+            // Reset form and close dialog
+            setNewProject({ title: "", description: "" });
+            setIsOpen(false);
+            
+            // Show success message
+            toast.success("Projekt erfolgreich erstellt");
+            
+            // Navigate to dashboard after a short delay
+            setTimeout(() => {
+              navigate("/dashboard");
+            }, 100);
+          } else {
+            console.error("Could not find created project");
+            toast.error("Projekt wurde erstellt, konnte aber nicht geöffnet werden");
+            setIsOpen(false);
+            setNewProject({ title: "", description: "" });
+          }
+        }, 500); // Wait for project to be available in the projects array
       } catch (error) {
         console.error("Error creating project:", error);
         toast.error("Fehler beim Erstellen des Projekts");
-      } finally {
         setIsSubmitting(false);
       }
     }
