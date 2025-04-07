@@ -16,7 +16,7 @@ const Projects = () => {
     
     if (projects.length > 0) {
       console.log("Projects page: First project:", projects[0].title);
-    } else {
+    } else if (!isLoading) {
       console.log("Projects page: No projects available");
     }
   }, [projects, isLoading]);

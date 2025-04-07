@@ -15,15 +15,6 @@ const ProjectsList = ({ projects }: ProjectsListProps) => {
     if (projects && projects.length > 0) {
       console.log("ProjectsList first project:", JSON.stringify(projects[0]));
     }
-  }, []);
-  
-  useEffect(() => {
-    console.log("ProjectsList: Projects updated, now showing", projects?.length || 0, "projects");
-    if (projects && projects.length > 0) {
-      projects.forEach(project => {
-        console.log(`Project: ${project.id}, ${project.title}, owner: ${project.ownerId}, isOwned: ${project.ownerId === auth.currentUser?.uid}`);
-      });
-    }
   }, [projects]);
   
   if (!projects || projects.length === 0) {

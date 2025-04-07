@@ -32,6 +32,7 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
     if (newProject.title.trim()) {
       try {
         setIsSubmitting(true);
+        console.log("Creating new project with title:", newProject.title);
         await addProject(newProject);
         setNewProject({ title: "", description: "" });
         setIsOpen(false);
@@ -81,7 +82,7 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
-                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-4 border-t-transparent" />
                   Erstelle...
                 </>
               ) : (

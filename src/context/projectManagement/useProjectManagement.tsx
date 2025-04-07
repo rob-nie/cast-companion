@@ -20,36 +20,24 @@ export const createProjectManagement = () => {
     console.log("Setting up projects listener in createProjectManagement");
     setIsLoading(true);
     
-    // Wait a brief moment to ensure auth is initialized
-    const timeoutId = setTimeout(() => {
-      // Only proceed if user is authenticated
-      if (!auth.currentUser) {
-        console.log("User not authenticated, not loading projects");
-        setIsLoading(false);
-        return;
+    // Set up the projects listener
+    const unsubscribe = loadProjects((loadedProjects) => {
+      console.log("Projects loaded in createProjectManagement:", loadedProjects.length);
+      setProjects(loadedProjects);
+      setIsLoading(false);
+      
+      // If we have a current project that's no longer accessible, reset it
+      if (currentProject && !loadedProjects.some(p => p.id === currentProject.id)) {
+        console.log("Current project is no longer accessible, resetting");
+        setCurrentProject(null);
       }
-      
-      console.log("About to load projects for user:", auth.currentUser.uid);
-      const unsubscribe = loadProjects((loadedProjects) => {
-        console.log("Projects loaded in createProjectManagement:", loadedProjects.length);
-        setProjects(loadedProjects);
-        setIsLoading(false);
-        
-        // If we have a current project that's no longer accessible, reset it
-        if (currentProject && !loadedProjects.some(p => p.id === currentProject.id)) {
-          console.log("Current project is no longer accessible, resetting");
-          setCurrentProject(null);
-        }
-      });
-      
-      return () => {
-        console.log("Cleaning up projects listener");
-        unsubscribe();
-      };
-    }, 100);
+    });
     
-    return () => clearTimeout(timeoutId);
-  }, [auth.currentUser?.uid, currentProject]); 
+    return () => {
+      console.log("Cleaning up projects listener");
+      unsubscribe();
+    };
+  }, [auth.currentUser?.uid]); 
 
   // Reset current project when user logs out
   useEffect(() => {

@@ -92,7 +92,7 @@ const ProjectsOverview = () => {
         </div>
       )}
 
-      {permissionError && !isPageLoading && <ProjectsPermissionError />}
+      {!isPageLoading && permissionError && <ProjectsPermissionError />}
 
       {!isPageLoading && !permissionError && (
         <>
