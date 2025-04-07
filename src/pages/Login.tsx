@@ -50,8 +50,8 @@ const Login = () => {
       // Force navigation after successful login with a small delay
       setTimeout(() => {
         console.log("Redirecting to:", from);
-        navigate(from, { replace: true });
-      }, 800);
+        window.location.href = from; // Use direct location change for more reliable redirect
+      }, 1000);
     } catch (error) {
       // Error is already handled in the AuthContext
       console.error("Login failed:", error);
