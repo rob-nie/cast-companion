@@ -5,53 +5,52 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
-import { useUser } from "@/context/UserContext";
 import { useProjects } from "@/context/ProjectContext";
 import AddMemberDialog from "./members/AddMemberDialog";
 import MembersList from "./members/MembersList";
+import { useProjectMembers } from "@/context/projectMembers";
 import { ProjectMember } from "@/types/user";
+import { auth } from "@/lib/firebase";
+import EmptyMembersList from "./members/EmptyMembersList";
 
 const ProjectMembers = () => {
-  const { currentProject, shareProject, revokeAccess, changeRole } = useProjects();
-  const { user, getProjectMembers } = useUser();
+  const { currentProject } = useProjects();
+  const { getProjectMembers, addProjectMember, removeProjectMember, updateProjectMemberRole } = useProjectMembers();
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
   useEffect(() => {
-    let isMounted = true;
+    if (!currentProject) return;
     
-    const loadMembers = async () => {
-      if (currentProject) {
-        // Get the members
-        const projectMembers = getProjectMembers(currentProject.id);
-        if (isMounted) {
-          setMembers(projectMembers);
-        }
+    console.log("Loading members for project:", currentProject.id);
+    const projectMembers = getProjectMembers(currentProject.id);
+    setMembers(projectMembers);
+    
+    // This is needed to re-fetch when members change
+    const intervalId = setInterval(() => {
+      const updatedMembers = getProjectMembers(currentProject.id);
+      if (JSON.stringify(updatedMembers) !== JSON.stringify(members)) {
+        setMembers(updatedMembers);
       }
-    };
+    }, 2000);
     
-    loadMembers();
-    
-    return () => {
-      isMounted = false;
-    };
+    return () => clearInterval(intervalId);
   }, [currentProject, getProjectMembers]);
   
-  if (!currentProject || !user) {
+  if (!currentProject || !auth.currentUser) {
     return null;
   }
   
-  const currentUserMember = members.find(m => m.userId === user.id);
-  const isOwner = currentUserMember?.role === "owner";
+  const currentUserId = auth.currentUser.uid;
+  const isOwner = currentProject.ownerId === currentUserId;
   
   const handleAddMember = async (email: string, role: "editor" | "viewer") => {
     setIsLoading(true);
     try {
-      await shareProject(currentProject.id, email, role);
-      // Members list will be updated via Firebase realtime updates
+      await addProjectMember(currentProject.id, email, role);
+      // Members list will be updated via the effect
     } catch (error) {
       console.error("Failed to add member:", error);
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -59,8 +58,8 @@ const ProjectMembers = () => {
   
   const handleRemoveMember = async (userId: string) => {
     try {
-      await revokeAccess(currentProject.id, userId);
-      // Members list will be updated via Firebase realtime updates
+      await removeProjectMember(currentProject.id, userId);
+      // Members list will be updated via the effect
     } catch (error) {
       console.error("Failed to remove member:", error);
     }
@@ -68,8 +67,8 @@ const ProjectMembers = () => {
   
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
     try {
-      await changeRole(currentProject.id, userId, newRole);
-      // Members list will be updated via Firebase realtime updates
+      await updateProjectMemberRole(currentProject.id, userId, newRole);
+      // Members list will be updated via the effect
     } catch (error) {
       console.error("Failed to update role:", error);
     }
@@ -90,13 +89,17 @@ const ProjectMembers = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <MembersList
-          members={members}
-          currentUserId={user.id}
-          isOwner={isOwner}
-          onUpdateRole={handleUpdateRole}
-          onRemoveMember={handleRemoveMember}
-        />
+        {members.length === 0 ? (
+          <EmptyMembersList isOwner={isOwner} />
+        ) : (
+          <MembersList
+            members={members}
+            currentUserId={currentUserId}
+            isOwner={isOwner}
+            onUpdateRole={handleUpdateRole}
+            onRemoveMember={handleRemoveMember}
+          />
+        )}
       </CardContent>
     </Card>
   );

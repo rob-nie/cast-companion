@@ -1,7 +1,6 @@
 
-import { ProjectMember } from "@/context/UserContext";
+import { ProjectMember } from "@/types/user";
 import MemberItem from "./MemberItem";
-import EmptyMembersList from "./EmptyMembersList";
 
 type MembersListProps = {
   members: ProjectMember[];
@@ -18,13 +17,16 @@ const MembersList = ({
   onUpdateRole, 
   onRemoveMember 
 }: MembersListProps) => {
-  if (members.length === 0) {
-    return <EmptyMembersList />;
-  }
+  // Sort members by role priority (owner first, then alphabetically by name)
+  const sortedMembers = [...members].sort((a, b) => {
+    if (a.role === "owner" && b.role !== "owner") return -1;
+    if (a.role !== "owner" && b.role === "owner") return 1;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
-    <div className="space-y-3">
-      {members.map((member) => (
+    <div className="space-y-2">
+      {sortedMembers.map((member) => (
         <MemberItem
           key={member.userId}
           member={member}
