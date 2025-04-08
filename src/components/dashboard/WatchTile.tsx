@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useWatch } from '@/context/WatchContext';
+import { useWatch } from '@/context/watch';
 import { useProjects } from '@/context/ProjectContext';
 
 interface WatchTileProps {
