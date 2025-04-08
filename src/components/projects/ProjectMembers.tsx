@@ -51,13 +51,13 @@ const ProjectMembers = () => {
   }
   
   const currentUserMember = members.find(m => m.userId === user.id);
-  const isOwner = currentUserMember?.role === "owner";
+  const isOwner = currentProject.ownerId === user.id;
   
   const handleAddMember = async (email: string, role: "editor" | "viewer") => {
     setIsLoading(true);
     try {
       await shareProject(currentProject.id, email, role);
-      // Members list will be updated via Firebase realtime updates
+      // Members list will be updated via the next loadMembers call
     } catch (error) {
       console.error("Failed to add member:", error);
       throw error;
@@ -70,7 +70,7 @@ const ProjectMembers = () => {
     setIsLoading(true);
     try {
       await shareProjectByUserId(currentProject.id, userId, role);
-      // Members list will be updated via Firebase realtime updates
+      // Members list will be updated via the next loadMembers call
     } catch (error) {
       console.error("Failed to add member by ID:", error);
       throw error;
@@ -82,7 +82,7 @@ const ProjectMembers = () => {
   const handleRemoveMember = async (userId: string) => {
     try {
       await revokeAccess(currentProject.id, userId);
-      // Members list will be updated via Firebase realtime updates
+      // Members list will be updated via the next loadMembers call
     } catch (error) {
       console.error("Failed to remove member:", error);
     }
@@ -91,7 +91,7 @@ const ProjectMembers = () => {
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
     try {
       await changeRole(currentProject.id, userId, newRole);
-      // Members list will be updated via Firebase realtime updates
+      // Members list will be updated via the next loadMembers call
     } catch (error) {
       console.error("Failed to update role:", error);
     }

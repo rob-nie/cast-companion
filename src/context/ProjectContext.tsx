@@ -1,23 +1,29 @@
 
 import { createContext, useContext, ReactNode } from "react";
-import { ProjectManagementProvider, useProjectManagement } from "./projectManagement";
+import { ProjectManagementProvider, useProjectManagement, Project } from "./projectManagement";
 
-// Re-export types
-export type { Project } from "./projectManagement";
-
-// Project context
+// Create the context with undefined as initial value
 const ProjectContext = createContext<ReturnType<typeof useProjectManagement> | undefined>(undefined);
 
 // Provider
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
+  return (
+    <ProjectManagementProvider>
+      <InnerProjectProvider>
+        {children}
+      </InnerProjectProvider>
+    </ProjectManagementProvider>
+  );
+};
+
+// Inner provider that uses the projectManagement hooks
+const InnerProjectProvider = ({ children }: { children: ReactNode }) => {
   const projectState = useProjectManagement();
   
   return (
-    <ProjectManagementProvider>
-      <ProjectContext.Provider value={projectState}>
-        {children}
-      </ProjectContext.Provider>
-    </ProjectManagementProvider>
+    <ProjectContext.Provider value={projectState}>
+      {children}
+    </ProjectContext.Provider>
   );
 };
 
@@ -29,3 +35,6 @@ export const useProjects = () => {
   }
   return context;
 };
+
+// Re-export types
+export type { Project };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { onValue, query, orderByChild, equalTo, limitToLast, get, ref, startAt } from "firebase/database";
 import { useUser } from "../UserContext";
@@ -201,8 +200,8 @@ export const useProjectManagementProvider = () => {
     return sharedProjects;
   };
   
-  // Get project members
-  const getProjectMembers = (projectId: string): ProjectMember[] => {
+  // Get project members - Fixed the TypeScript error by using Promise.all to resolve all promises
+  const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
     // Find the project
     const project = [...projects, ...sharedProjects].find(p => p.id === projectId);
     
@@ -210,8 +209,8 @@ export const useProjectManagementProvider = () => {
       return [];
     }
     
-    // Convert members object to array
-    return Object.entries(project.members).map(async ([userId, memberData]) => {
+    // Convert members object to array of promises and resolve them
+    const memberPromises = Object.entries(project.members).map(async ([userId, memberData]) => {
       // Try to get user details from the users collection
       let name = "Unknown User";
       let email = "";
@@ -240,6 +239,9 @@ export const useProjectManagementProvider = () => {
         avatar
       };
     });
+    
+    // Resolve all promises to get the actual members array
+    return Promise.all(memberPromises);
   };
   
   // Project sharing functions
