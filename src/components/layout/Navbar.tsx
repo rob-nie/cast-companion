@@ -26,7 +26,7 @@ import {
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const { user, isAuthenticated, logout } = useUser();
-  const { selectedProject } = useProjects();
+  const { currentProject } = useProjects();
   const location = useLocation();
   const isProjectsPage = location.pathname === "/projects";
 
@@ -58,9 +58,9 @@ const Navbar = () => {
           </NavLink>
 
           {/* Current Project Title */}
-          {selectedProject && (
+          {currentProject && (
             <div className="ml-4 text-sm font-medium text-foreground/80">
-              {selectedProject.title}
+              {currentProject.title}
             </div>
           )}
         </div>
