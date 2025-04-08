@@ -28,4 +28,5 @@ export type ProjectManagementContextType = {
   revokeAccess: (projectId: string, userId: string) => Promise<void>;
   changeRole: (projectId: string, userId: string, newRole: UserRole) => Promise<void>;
   isLoading: boolean;
+  loadError: string | null;
 };

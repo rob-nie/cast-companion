@@ -1,5 +1,5 @@
 
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useState } from "react";
 import { ProjectManagementProvider, useProjectManagement, Project } from "./projectManagement";
 
 // Create the context with undefined as initial value
@@ -7,17 +7,18 @@ const ProjectContext = createContext<ReturnType<typeof useProjectManagement> | u
 
 // Provider
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
+  // Only wrap everything in ProjectManagementProvider, then access the context
   return (
     <ProjectManagementProvider>
-      <InnerProjectProvider>
+      <ProjectContextConsumer>
         {children}
-      </InnerProjectProvider>
+      </ProjectContextConsumer>
     </ProjectManagementProvider>
   );
 };
 
-// Inner provider that uses the projectManagement hooks
-const InnerProjectProvider = ({ children }: { children: ReactNode }) => {
+// Consumer component that uses the projectManagement hooks
+const ProjectContextConsumer = ({ children }: { children: ReactNode }) => {
   const projectState = useProjectManagement();
   
   return (
