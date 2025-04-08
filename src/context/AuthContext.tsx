@@ -16,6 +16,13 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to validate emails
+const isValidEmail = (email: string): boolean => {
+  // Basic regex for email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -119,7 +126,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (name: string, email: string, password: string): Promise<void> => {
     setIsLoading(true);
+    
     try {
+      // Pre-validate the email before sending to Supabase
+      if (!isValidEmail(email)) {
+        throw new Error("Please enter a valid email address");
+      }
+      
+      // Check for test/example domains that Supabase might reject
+      if (email.endsWith('@example.com')) {
+        throw new Error("Please use a real email address instead of example.com");
+      }
+      
       // Create user in Supabase Auth
       const { data: { user }, error } = await supabase.auth.signUp({
         email,
@@ -141,12 +159,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast.success("Account created successfully");
       // The trigger function will create the profile and the auth state listener will handle the rest
     } catch (error: any) {
+      console.error("Registration failed:", error);
       let errorMessage = "Registration failed";
       
       if (error instanceof AuthError) {
         if (error.message.includes("already registered")) {
           errorMessage = "Email already registered";
+        } else if (error.message.includes("invalid")) {
+          errorMessage = "Invalid email format";
+        } else if (error.message.includes("email address")) {
+          errorMessage = "Email address is not accepted. Please use a different email.";
         }
+      } else if (error instanceof Error) {
+        // Handle our custom errors
+        errorMessage = error.message;
       }
       
       toast.error(errorMessage);

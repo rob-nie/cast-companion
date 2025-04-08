@@ -13,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -121,12 +122,15 @@ const Register = () => {
                   <FormLabel>E-Mail</FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="email@example.com" 
+                      placeholder="max.mustermann@domain.de" 
                       autoComplete="email"
                       {...field} 
                       disabled={isProcessing} 
                     />
                   </FormControl>
+                  <FormDescription className="text-xs">
+                    Bitte verwende eine gültige E-Mail-Adresse (nicht example.com)
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
