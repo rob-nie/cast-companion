@@ -12,7 +12,7 @@ import MembersList from "./members/MembersList";
 import { ProjectMember } from "@/types/user";
 
 const ProjectMembers = () => {
-  const { currentProject, shareProject, revokeAccess, changeRole } = useProjects();
+  const { currentProject, shareProject, shareProjectByUserId, revokeAccess, changeRole } = useProjects();
   const { user, getProjectMembers } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
@@ -57,6 +57,19 @@ const ProjectMembers = () => {
     }
   };
   
+  const handleAddMemberById = async (userId: string, role: "editor" | "viewer") => {
+    setIsLoading(true);
+    try {
+      await shareProjectByUserId(currentProject.id, userId, role);
+      // Members list will be updated via Firebase realtime updates
+    } catch (error) {
+      console.error("Failed to add member by ID:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   const handleRemoveMember = async (userId: string) => {
     try {
       await revokeAccess(currentProject.id, userId);
@@ -85,7 +98,10 @@ const ProjectMembers = () => {
             </p>
           </div>
           {isOwner && (
-            <AddMemberDialog onAddMember={handleAddMember} />
+            <AddMemberDialog 
+              onAddMember={handleAddMember} 
+              onAddMemberById={handleAddMemberById}
+            />
           )}
         </div>
       </CardHeader>

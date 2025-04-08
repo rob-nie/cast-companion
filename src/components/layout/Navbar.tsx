@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ModeToggle } from "@/components/ModeToggle";
+import { ModeToggle } from "@/components/ui/ModeToggle";
 import { navigation } from "@/data/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 
@@ -60,7 +60,7 @@ const Navbar = () => {
             <>
               <Link to="/settings">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.photoUrl || ""} alt={user?.name || "Profile"} />
+                  <AvatarImage src={user?.avatar || ""} alt={user?.name || "Profile"} />
                   <AvatarFallback>{user?.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
                 </Avatar>
               </Link>

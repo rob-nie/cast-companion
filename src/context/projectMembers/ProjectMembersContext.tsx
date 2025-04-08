@@ -5,6 +5,7 @@ import { ProjectMembersContextType, UserRole } from "./types";
 import { 
   fetchProjectMembers, 
   addMemberToProject, 
+  addMemberToProjectByUserId,
   removeMemberFromProject, 
   updateMemberRole 
 } from "./projectMembersService";
@@ -33,6 +34,10 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
     await addMemberToProject(projectId, email, role);
   };
 
+  const addProjectMemberByUserId = async (projectId: string, userId: string, role: UserRole) => {
+    await addMemberToProjectByUserId(projectId, userId, role);
+  };
+
   const removeProjectMember = async (projectId: string, userId: string) => {
     await removeMemberFromProject(projectId, userId);
   };
@@ -46,6 +51,7 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
       value={{
         getProjectMembers,
         addProjectMember,
+        addProjectMemberByUserId,
         removeProjectMember,
         updateProjectMemberRole
       }}

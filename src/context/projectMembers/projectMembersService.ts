@@ -59,6 +59,62 @@ export const fetchProjectMembers = async (projectId: string,
   }
 };
 
+export const addMemberToProjectByUserId = async (projectId: string, userId: string, role: UserRole) => {
+  try {
+    // Check if user exists
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (!userSnapshot.exists()) {
+      toast.error("Benutzer nicht gefunden");
+      throw new Error("Benutzer nicht gefunden");
+    }
+    
+    const userData = userSnapshot.val();
+    
+    // Check if user is already a member
+    const membersRef = ref(database, 'projectMembers');
+    const memberQuery = query(
+      membersRef,
+      orderByChild('userId'),
+      equalTo(userId)
+    );
+    
+    const memberSnapshot = await get(memberQuery);
+    let isAlreadyMember = false;
+    
+    if (memberSnapshot.exists()) {
+      memberSnapshot.forEach((childSnapshot) => {
+        const memberData = childSnapshot.val();
+        if (memberData.projectId === projectId) {
+          isAlreadyMember = true;
+        }
+      });
+    }
+    
+    if (isAlreadyMember) {
+      toast.error("Benutzer ist bereits Mitglied dieses Projekts");
+      throw new Error("Benutzer ist bereits Mitglied dieses Projekts");
+    }
+    
+    // Add member to project
+    const newMemberRef = push(ref(database, 'projectMembers'));
+    await set(newMemberRef, {
+      userId,
+      projectId,
+      role
+    });
+    
+    toast.success(`${userData.name || "Benutzer"} wurde zum Projekt hinzugefügt`);
+  } catch (error: any) {
+    console.error("Failed to add member by ID:", error);
+    if (!error.message.includes("bereits Mitglied") && !error.message.includes("nicht gefunden")) {
+      toast.error("Fehler beim Hinzufügen des Mitglieds");
+    }
+    throw error;
+  }
+};
+
 export const addMemberToProject = async (projectId: string, email: string, role: UserRole) => {
   try {
     // Get all users and filter locally
