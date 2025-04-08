@@ -227,7 +227,7 @@ export const fetchProjectMembers = async (projectId: string): Promise<ProjectMem
         user_id,
         role,
         project_id,
-        profiles:user_id(
+        profiles!user_id(
           name,
           email,
           avatar
