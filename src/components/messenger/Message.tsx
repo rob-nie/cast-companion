@@ -1,10 +1,9 @@
 
-import { Check, Flag, FlagOff, User } from 'lucide-react';
+import { Check, Flag, FlagOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Message } from '@/types/messenger';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface MessageProps {
   message: Message;
@@ -24,13 +23,6 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
     toggleImportant(message.id);
   };
   
-  // Erstellen des Namens-Initialien für den Avatar Fallback
-  const getInitials = (name: string = "User") => {
-    return name.charAt(0).toUpperCase();
-  };
-
-  const senderName = message.sender || "Unbekannt";
-  
   return (
     <ContextMenu>
       <ContextMenuTrigger>
@@ -38,18 +30,10 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
           "flex gap-2 mb-3",
           isOwnMessage ? "justify-end" : "justify-start"
         )}>
-          {/* Show avatar for others' messages before the message */}
-          {!isOwnMessage && (
-            <Avatar className="h-8 w-8 mt-1">
-              <AvatarImage src={`https://avatar.vercel.sh/${message.userId}.png`} />
-              <AvatarFallback>{getInitials(senderName)}</AvatarFallback>
-            </Avatar>
-          )}
-          
-          {/* Action buttons for non-sender */}
+          {/* Action buttons for non-sender, should appear before message for left alignment */}
           {!isOwnMessage && (
             <div className="flex flex-col justify-start gap-1 mt-1">
-              {!message.read && (
+              {!message.isRead && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -64,39 +48,31 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             </div>
           )}
           
-          {/* Message bubble with sender name */}
-          <div className="flex flex-col max-w-[80%]">
-            {/* Sender name */}
-            {!isOwnMessage && (
-              <span className="text-xs text-muted-foreground mb-1 ml-1">{senderName}</span>
-            )}
-            
-            {/* Message content */}
-            <div className={cn(
-              "rounded-lg px-3 py-2 text-sm",
-              isOwnMessage 
-                ? "bg-secondary text-secondary-foreground"
-                : message.read
-                  ? "bg-muted/50 text-muted-foreground"
-                  : "bg-muted text-secondary-foreground",
-              message.isImportant && "border-2 border-important/70"
-            )}>
-              <p className="break-words">{message.content}</p>
-              <div className="flex items-center justify-end mt-1 gap-1 text-[0.65rem] opacity-80">
-                {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                
-                {isOwnMessage && message.read && (
-                  <Check className="h-3 w-3 ml-0.5" />
-                )}
-                
-                {message.isImportant && (
-                  <Flag className="h-3 w-3 text-important/80" />
-                )}
-              </div>
+          {/* Message bubble */}
+          <div className={cn(
+            "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+            isOwnMessage 
+              ? "bg-secondary text-secondary-foreground"
+              : message.isRead
+                ? "bg-muted/50 text-muted-foreground"
+                : "bg-muted text-secondary-foreground",
+            message.isImportant && "border-2 border-important/70"
+          )}>
+            <p className="break-words">{message.content}</p>
+            <div className="flex items-center justify-end mt-1 gap-1 text-[0.65rem] opacity-80">
+              {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              
+              {isOwnMessage && message.isRead && (
+                <Check className="h-3 w-3 ml-0.5" />
+              )}
+              
+              {message.isImportant && (
+                <Flag className="h-3 w-3 text-important/80" />
+              )}
             </div>
           </div>
           
-          {/* Action buttons for sender */}
+          {/* Action buttons for sender, should appear after message for right alignment */}
           {isOwnMessage && (
             <div className="flex flex-col justify-start gap-1 mt-1">
               <Button
@@ -135,7 +111,7 @@ const MessageComponent = ({ message, isOwnMessage, markAsRead, toggleImportant }
             )}
           </ContextMenuItem>
         ) : (
-          !message.read && (
+          !message.isRead && (
             <ContextMenuItem onClick={handleMarkAsRead}>
               <Check className="h-4 w-4 mr-2" />
               Als gelesen markieren

@@ -1,9 +1,8 @@
 
-import { createContext, useContext, ReactNode, useState, useCallback } from "react";
+import { createContext, useContext, ReactNode } from "react";
 import { toast } from "sonner";
 import { useProjectMembers } from "./projectMembers";
-import { auth } from "@/lib/firebase";
-import { Project } from "./projectManagement";
+import { useProjectManagement } from "./ProjectManagementContext";
 
 type ProjectSharingContextType = {
   shareProject: (projectId: string, email: string, role: "editor" | "viewer") => Promise<void>;
@@ -15,8 +14,9 @@ const ProjectSharingContext = createContext<ProjectSharingContextType | undefine
 
 export const ProjectSharingProvider = ({ children }: { children: ReactNode }) => {
   const { addProjectMember, removeProjectMember, updateProjectMemberRole } = useProjectMembers();
+  const { projects, currentProject } = useProjectManagement();
 
-  // Share a project with another user via email
+  // Share a project with another user
   const shareProject = async (projectId: string, email: string, role: "editor" | "viewer") => {
     try {
       await addProjectMember(projectId, email, role);
@@ -51,7 +51,7 @@ export const ProjectSharingProvider = ({ children }: { children: ReactNode }) =>
       value={{
         shareProject,
         revokeAccess,
-        changeRole,
+        changeRole
       }}
     >
       {children}

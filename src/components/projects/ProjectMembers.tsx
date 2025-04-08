@@ -5,72 +5,53 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { useUser } from "@/context/UserContext";
 import { useProjects } from "@/context/ProjectContext";
 import AddMemberDialog from "./members/AddMemberDialog";
 import MembersList from "./members/MembersList";
 import { ProjectMember } from "@/types/user";
-import { auth } from "@/lib/firebase";
-import EmptyMembersList from "./members/EmptyMembersList";
 
 const ProjectMembers = () => {
-  const { 
-    currentProject,
-    getProjectMembers,
-    addProjectMember,
-    addProjectMemberById,
-    removeProjectMember,
-    updateProjectMemberRole
-  } = useProjects();
+  const { currentProject, shareProject, revokeAccess, changeRole } = useProjects();
+  const { user, getProjectMembers } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
   useEffect(() => {
-    if (!currentProject) return;
+    let isMounted = true;
     
-    console.log("Loading members for project:", currentProject.id);
-    
-    // Initial load
-    const loadMembers = () => {
-      const projectMembers = getProjectMembers(currentProject.id);
-      setMembers(projectMembers);
+    const loadMembers = async () => {
+      if (currentProject) {
+        // Get the members
+        const projectMembers = getProjectMembers(currentProject.id);
+        if (isMounted) {
+          setMembers(projectMembers);
+        }
+      }
     };
     
     loadMembers();
     
-    // Set up interval for periodic updates
-    const intervalId = setInterval(loadMembers, 3000);
-    
-    return () => clearInterval(intervalId);
+    return () => {
+      isMounted = false;
+    };
   }, [currentProject, getProjectMembers]);
   
-  if (!currentProject || !auth.currentUser) {
+  if (!currentProject || !user) {
     return null;
   }
   
-  const currentUserId = auth.currentUser.uid;
-  const isOwner = currentProject.ownerId === currentUserId;
+  const currentUserMember = members.find(m => m.userId === user.id);
+  const isOwner = currentUserMember?.role === "owner";
   
   const handleAddMember = async (email: string, role: "editor" | "viewer") => {
     setIsLoading(true);
     try {
-      await addProjectMember(currentProject.id, email, role);
-      // Refresh member list immediately after adding
-      setMembers(getProjectMembers(currentProject.id));
+      await shareProject(currentProject.id, email, role);
+      // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to add member:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAddMemberById = async (userId: string, role: "editor" | "viewer") => {
-    setIsLoading(true);
-    try {
-      await addProjectMemberById(currentProject.id, userId, role);
-      // Refresh member list immediately after adding
-      setMembers(getProjectMembers(currentProject.id));
-    } catch (error) {
-      console.error("Failed to add member by ID:", error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -78,9 +59,8 @@ const ProjectMembers = () => {
   
   const handleRemoveMember = async (userId: string) => {
     try {
-      await removeProjectMember(currentProject.id, userId);
-      // Refresh member list immediately after removing
-      setMembers(getProjectMembers(currentProject.id));
+      await revokeAccess(currentProject.id, userId);
+      // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to remove member:", error);
     }
@@ -88,9 +68,8 @@ const ProjectMembers = () => {
   
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
     try {
-      await updateProjectMemberRole(currentProject.id, userId, newRole);
-      // Refresh member list immediately after updating role
-      setMembers(getProjectMembers(currentProject.id));
+      await changeRole(currentProject.id, userId, newRole);
+      // Members list will be updated via Firebase realtime updates
     } catch (error) {
       console.error("Failed to update role:", error);
     }
@@ -106,25 +85,18 @@ const ProjectMembers = () => {
             </p>
           </div>
           {isOwner && (
-            <AddMemberDialog 
-              onAddMember={handleAddMember} 
-              onAddMemberById={handleAddMemberById}
-            />
+            <AddMemberDialog onAddMember={handleAddMember} />
           )}
         </div>
       </CardHeader>
       <CardContent>
-        {members.length === 0 ? (
-          <EmptyMembersList isOwner={isOwner} />
-        ) : (
-          <MembersList
-            members={members}
-            currentUserId={currentUserId}
-            isOwner={isOwner}
-            onUpdateRole={handleUpdateRole}
-            onRemoveMember={handleRemoveMember}
-          />
-        )}
+        <MembersList
+          members={members}
+          currentUserId={user.id}
+          isOwner={isOwner}
+          onUpdateRole={handleUpdateRole}
+          onRemoveMember={handleRemoveMember}
+        />
       </CardContent>
     </Card>
   );

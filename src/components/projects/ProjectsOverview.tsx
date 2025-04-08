@@ -1,121 +1,36 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useProjects } from "@/context/ProjectContext";
-import { useAuth } from "@/context/AuthContext";
-import { auth, checkPermission, database } from "@/lib/firebase";
-import ProjectsList from "./ProjectsList";
-import EmptyProjectsState from "./EmptyProjectsState";
-import ProjectCreateDialog from "./ProjectCreateDialog";
-import ProjectsPermissionError from "./ProjectsPermissionError";
-import { ref, get } from "firebase/database";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUser } from "@/context/UserContext";
+import ProjectCard from "./ProjectCard";
 
 const ProjectsOverview = () => {
-  const { 
-    projects, 
-    isLoading: projectsLoading,
-    getUserProjects,
-    getSharedProjects
-  } = useProjects();
-  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { projects, addProject, getUserProjects, getSharedProjects } = useProjects();
+  const { isAuthenticated, user } = useUser();
+  const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
-  const [permissionError, setPermissionError] = useState(false);
-  const [loading, setLoading] = useState(true);
   
-  // Check database permissions on component mount
-  useEffect(() => {
-    console.log("==== ProjectsOverview Component Mounted ====");
-    console.log("ProjectsOverview: Auth context state:", {
-      isAuthenticated,
-      authLoading,
-      userId: user?.id,
-      userEmail: user?.email
-    });
-    console.log("ProjectsOverview: Firebase auth state:", {
-      isAuthenticated: !!auth.currentUser,
-      userEmail: auth.currentUser?.email,
-      userId: auth.currentUser?.uid
-    });
-
-    const verifyPermissions = async () => {
-      setLoading(true);
-      
-      if (auth.currentUser) {
-        try {
-          console.log("ProjectsOverview: Checking database permissions for 'projects' path");
-          const hasPermission = await checkPermission('projects');
-          console.log("ProjectsOverview: Permission check result:", hasPermission);
-          
-          // Additional check - try to get projects directly
-          try {
-            const projectsRef = ref(database, 'projects');
-            console.log("ProjectsOverview: Attempting direct projects read");
-            const snapshot = await get(projectsRef);
-            console.log("ProjectsOverview: Direct projects read result:", 
-              snapshot.exists() ? `Success - found ${Object.keys(snapshot.val()).length} projects` : "No projects found");
-          } catch (directError) {
-            console.error("ProjectsOverview: Direct projects read error:", directError);
-          }
-          
-          setPermissionError(!hasPermission);
-          if (!hasPermission) {
-            console.warn("ProjectsOverview: User doesn't have permission to access projects");
-          }
-        } catch (error) {
-          console.error("ProjectsOverview: Error checking permissions:", error);
-          setPermissionError(true);
-        }
-      } else {
-        console.log("ProjectsOverview: No authenticated user for permission check");
-      }
-      
-      setLoading(false);
-    };
-    
-    if (!authLoading) {
-      verifyPermissions();
-    } else {
-      console.log("ProjectsOverview: Auth still loading, waiting to verify permissions");
-    }
-  }, [isAuthenticated, authLoading, user]);
+  // Get all user-specific projects
+  const myProjects = getUserProjects();
+  const sharedProjects = getSharedProjects();
   
-  // Log debugging information
-  useEffect(() => {
-    console.log("ProjectsOverview: State update detected");
-    console.log("ProjectsOverview: authLoading =", authLoading);
-    console.log("ProjectsOverview: projectsLoading =", projectsLoading);
-    console.log("ProjectsOverview: All projects count =", projects.length);
-    
-    // Get user's own projects
-    const userProjects = getUserProjects ? getUserProjects() : [];
-    console.log("ProjectsOverview: Own projects count =", userProjects.length);
-    
-    // Get projects shared with the user
-    const sharedProjects = getSharedProjects ? getSharedProjects() : [];
-    console.log("ProjectsOverview: Shared projects count =", sharedProjects.length);
-    
-    if (projects.length > 0) {
-      console.log("ProjectsOverview: Projects available in context:", 
-        projects.map(p => ({ id: p.id, title: p.title, ownerId: p.ownerId })));
-    } else {
-      console.log("ProjectsOverview: No projects in context");
+  // Combine all projects for the unified view
+  const allProjects = [...myProjects, ...sharedProjects];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newProject.title.trim()) {
+      addProject(newProject);
+      setNewProject({ title: "", description: "" });
+      setIsOpen(false);
     }
-  }, [projects, authLoading, projectsLoading, getUserProjects, getSharedProjects]);
-
-  // Log authentication state for debugging
-  useEffect(() => {
-    console.log("ProjectsOverview: Authentication state update detected");
-    console.log("ProjectsOverview: isAuthenticated =", isAuthenticated);
-    console.log("ProjectsOverview: Firebase current user =", auth.currentUser?.email);
-    console.log("ProjectsOverview: Firebase user id =", auth.currentUser?.uid);
-    console.log("ProjectsOverview: Auth context user =", user?.email);
-  }, [isAuthenticated, user]);
-
-  const isPageLoading = loading || authLoading || projectsLoading;
-  const ownProjects = getUserProjects ? getUserProjects() : [];
-  const sharedProjects = getSharedProjects ? getSharedProjects() : [];
+  };
 
   return (
     <div>
@@ -123,63 +38,110 @@ const ProjectsOverview = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Projekte</h1>
           <p className="text-muted-foreground mt-1">
-            Alle Projekte im System
+            Verwalte deine Interview-Projekte
           </p>
         </div>
-        <Button className="gap-1" onClick={() => setIsOpen(true)}>
-          <PlusCircle className="h-4 w-4" />
-          Neues Projekt
-        </Button>
-        <ProjectCreateDialog 
-          isOpen={isOpen}
-          setIsOpen={setIsOpen}
-        />
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-1">
+              <PlusCircle className="h-4 w-4" />
+              Neues Projekt
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <form onSubmit={handleSubmit}>
+              <DialogHeader>
+                <DialogTitle>Neues Projekt erstellen</DialogTitle>
+                <DialogDescription>
+                  Füge ein neues Interview-Projekt zu deiner Sammlung hinzu
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="title">Projekttitel</Label>
+                  <Input
+                    id="title"
+                    placeholder="Projekttitel eingeben"
+                    value={newProject.title}
+                    onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="description">Beschreibung</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Beschreibe den Zweck dieses Interview-Projekts"
+                    value={newProject.description}
+                    onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Projekt erstellen</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {isPageLoading && (
-        <div className="flex justify-center items-center p-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        </div>
-      )}
-
-      {!isPageLoading && permissionError && <ProjectsPermissionError />}
-
-      {!isPageLoading && !permissionError && (
+      {isAuthenticated ? (
+        <>
+          {allProjects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
+              <h3 className="text-lg font-medium">Noch keine Projekte</h3>
+              <p className="text-muted-foreground mt-1 mb-4">
+                Erstelle dein erstes Projekt, um loszulegen
+              </p>
+              <Button
+                onClick={() => setIsOpen(true)}
+                variant="outline"
+                className="gap-1"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Projekt erstellen
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allProjects.map((project) => (
+                <ProjectCard 
+                  key={project.id} 
+                  project={project} 
+                  isOwned={user?.id === project.ownerId}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        // Show all projects if not authenticated
         <>
           {projects.length === 0 ? (
-            <EmptyProjectsState onCreateProject={() => setIsOpen(true)} />
+            <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
+              <h3 className="text-lg font-medium">Noch keine Projekte</h3>
+              <p className="text-muted-foreground mt-1 mb-4">
+                Erstelle dein erstes Projekt, um loszulegen
+              </p>
+              <Button
+                onClick={() => setIsOpen(true)}
+                variant="outline"
+                className="gap-1"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Projekt erstellen
+              </Button>
+            </div>
           ) : (
-            <Tabs defaultValue="all" className="w-full">
-              <TabsList className="mb-4">
-                <TabsTrigger value="all">Alle Projekte</TabsTrigger>
-                <TabsTrigger value="own">Meine Projekte</TabsTrigger>
-                <TabsTrigger value="shared">Mit mir geteilt</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="all">
-                <ProjectsList projects={projects} />
-              </TabsContent>
-              
-              <TabsContent value="own">
-                {ownProjects.length > 0 ? (
-                  <ProjectsList projects={ownProjects} />
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    Keine eigenen Projekte gefunden.
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="shared">
-                {sharedProjects.length > 0 ? (
-                  <ProjectsList projects={sharedProjects} />
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    Keine mit Ihnen geteilten Projekte gefunden.
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project) => (
+                <ProjectCard 
+                  key={project.id} 
+                  project={project} 
+                  isOwned={false} // Non-authenticated users don't own any projects
+                />
+              ))}
+            </div>
           )}
         </>
       )}

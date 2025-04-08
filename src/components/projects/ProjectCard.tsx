@@ -1,16 +1,28 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { CalendarIcon, Share2, Trash2, FolderHeart, Users } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { de } from "date-fns/locale";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useProjects } from "@/context/ProjectContext";
-import { Project } from "@/context/ProjectContext";
-import CardBadge from "./card/CardBadge";
-import CardActions from "./card/CardActions";
-import DeleteConfirmationDialog from "./card/DeleteConfirmationDialog";
-import ProjectLastAccessed from "./card/ProjectLastAccessed";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Project } from "@/context/ProjectContext"; // Import Project type from context
 
+// Update the interface to match the Project type from context
 interface ProjectCardProps {
-  project: Project;
+  project: Project; // Use the imported Project type
   isOwned: boolean;
 }
 
@@ -19,32 +31,14 @@ const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Log project data for debugging
-  console.log("ProjectCard: Rendering project with ID:", project.id, "and title:", project.title);
-
   const handleOpenProject = () => {
-    console.log("Opening project:", project.id, project.title);
-    try {
-      // Store current project in localStorage as backup
-      localStorage.setItem('currentProject', JSON.stringify(project));
-      
-      // Set current project in context
-      setCurrentProject(project);
-      
-      // Navigate to dashboard - add short timeout to ensure context update completes
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 50);
-    } catch (error) {
-      console.error("Error opening project:", error);
-    }
+    setCurrentProject(project);
+    navigate("/dashboard");
   };
 
   const handleShareProject = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log("Sharing project:", project.id);
     setCurrentProject(project);
-    localStorage.setItem('currentProject', JSON.stringify(project));
     navigate("/project-sharing");
   };
 
@@ -53,13 +47,9 @@ const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
     setShowDeleteDialog(true);
   };
 
-  const handleDelete = async () => {
-    try {
-      await deleteProject(project.id);
-      setShowDeleteDialog(false);
-    } catch (error) {
-      console.error("Error deleting project:", error);
-    }
+  const handleDelete = () => {
+    deleteProject(project.id);
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -71,31 +61,71 @@ const ProjectCard = ({ project, isOwned }: ProjectCardProps) => {
         <CardContent className="p-6">
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-semibold text-lg tracking-tight">{project.title}</h3>
-            <CardBadge isOwned={isOwned} />
+            <Badge variant={isOwned ? "default" : "secondary"} className="flex items-center gap-1">
+              {isOwned ? (
+                <>
+                  <FolderHeart className="h-3 w-3" />
+                  <span>Eigenes</span>
+                </>
+              ) : (
+                <>
+                  <Users className="h-3 w-3" />
+                  <span>Geteilt</span>
+                </>
+              )}
+            </Badge>
           </div>
           <p className="text-muted-foreground text-sm line-clamp-2">
             {project.description || "Keine Beschreibung"}
           </p>
         </CardContent>
         <CardFooter className="bg-muted/50 p-4 flex items-center justify-between">
-          <ProjectLastAccessed 
-            lastAccessed={project.lastAccessed} 
-            createdAt={project.createdAt}
-          />
-          <CardActions 
-            isOwned={isOwned}
-            onShare={handleShareProject}
-            onDelete={handleDeleteClick}
-          />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <CalendarIcon className="mr-1 h-3 w-3" />
+            <span>
+              {project.lastAccessed 
+                ? `Zuletzt vor ${formatDistanceToNow(new Date(project.lastAccessed), {
+                    locale: de,
+                    addSuffix: false,
+                  })}`
+                : `Erstellt vor ${formatDistanceToNow(new Date(project.createdAt), {
+                    locale: de,
+                    addSuffix: false,
+                  })}`
+              }
+            </span>
+          </div>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" onClick={handleShareProject} className="h-8 w-8">
+              <Share2 className="h-4 w-4" />
+              <span className="sr-only">Teilen</span>
+            </Button>
+            {isOwned && (
+              <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="h-8 w-8 text-destructive">
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Löschen</span>
+              </Button>
+            )}
+          </div>
         </CardFooter>
       </Card>
 
-      <DeleteConfirmationDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        projectTitle={project.title}
-        onConfirm={handleDelete}
-      />
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Projekt löschen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie das Projekt "{project.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

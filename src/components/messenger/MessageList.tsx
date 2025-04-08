@@ -74,7 +74,7 @@ const MessageList = ({ messages, currentUserId, markAsRead, toggleImportant }: M
             <MessageComponent 
               key={message.id}
               message={message}
-              isOwnMessage={message.userId === currentUserId}
+              isOwnMessage={message.sender === currentUserId}
               markAsRead={markAsRead}
               toggleImportant={toggleImportant}
             />

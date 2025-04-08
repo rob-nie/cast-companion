@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, LogIn } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useUser } from "@/context/UserContext";
 
 const formSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -25,14 +25,13 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
-  const { login, isLoading } = useAuth();
+  const { login, isLoading } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   
-  // Redirect to projects page after login or to requested page
-  const from = location.state?.from?.pathname || "/projects";
+  // Get the intended destination from state, or default to projects instead of dashboard
+  const from = (location.state as any)?.from?.pathname || "/projects";
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -44,19 +43,11 @@ const Login = () => {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      setSubmitting(true);
       await login(values.email, values.password);
-      
-      // Force navigation after successful login with a small delay
-      setTimeout(() => {
-        console.log("Redirecting to:", from);
-        navigate(from, { replace: true });
-      }, 500);
+      navigate(from, { replace: true });
     } catch (error) {
-      // Error is already handled in the AuthContext
+      // Error is already handled in the UserContext
       console.error("Login failed:", error);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -122,9 +113,9 @@ const Login = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting || isLoading}
+              disabled={isLoading}
             >
-              {submitting ? (
+              {isLoading ? (
                 <div className="flex items-center">
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                   Anmelden...

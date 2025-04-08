@@ -22,15 +22,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ProjectSharing from "./pages/ProjectSharing";
 
-// Create QueryClient instance
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -38,7 +30,7 @@ const App = () => (
       <UserProvider>
         <ProjectProvider>
           <NotesProvider>
-            <MessagesProvider> {/* MessagesProvider is here, which is correct */}
+            <MessagesProvider>
               <WatchProvider>
                 <TooltipProvider>
                   <Toaster />

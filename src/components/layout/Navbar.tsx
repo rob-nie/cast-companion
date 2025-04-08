@@ -1,12 +1,10 @@
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Moon, Sun, LogOut, Settings, Bell } from "lucide-react";
+import { Moon, Sun, Users, Settings, LogOut } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { useProjects } from "@/context/ProjectContext";
-import { useAuth } from "@/context/AuthContext";
+import { useUser } from "@/context/UserContext";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,10 +17,9 @@ import {
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const { currentProject } = useProjects();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
 
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
@@ -31,14 +28,6 @@ const Navbar = () => {
   const handleLogout = () => {
     logout();
     navigate("/");
-  };
-
-  // Get user initials for avatar fallback
-  const getUserInitials = () => {
-    if (!user?.name) return "U";
-    const nameParts = user.name.split(" ");
-    if (nameParts.length === 1) return nameParts[0][0].toUpperCase();
-    return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
   };
 
   return (
@@ -79,6 +68,13 @@ const Navbar = () => {
             </span>
           )}
           
+          <Link to="/settings">
+            <Button variant="ghost" size="icon" className="focus-ring">
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">Settings</span>
+            </Button>
+          </Link>
+          
           <Button onClick={toggleTheme} variant="ghost" size="icon" className="focus-ring">
             {theme === "light" ? (
               <Moon className="h-5 w-5" />
@@ -92,22 +88,12 @@ const Navbar = () => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2">
-                  {isMobile ? (
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>{getUserInitials()}</AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    user?.name || user?.email || "User"
-                  )}
+                  {user?.name}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Konto</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/settings")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Einstellungen
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   Abmelden

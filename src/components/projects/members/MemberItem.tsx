@@ -1,7 +1,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ProjectMember } from "@/types/user";
+import { ProjectMember } from "@/context/UserContext";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Edit, Users, UserX, MoreHorizontal } from "lucide-react";
+import { Edit, Users, UserX } from "lucide-react";
 
 type MemberItemProps = {
   member: ProjectMember;
@@ -79,7 +79,7 @@ const MemberItem = ({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
+                <Users className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

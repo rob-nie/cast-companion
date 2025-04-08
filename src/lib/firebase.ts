@@ -1,65 +1,22 @@
 
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getDatabase, ref, get, set } from "firebase/database";
-import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDTT-Z9tnu84ItZh7hoH5l9kmQJBxW5adU",
-  authDomain: "castcompanion-d9241.firebaseapp.com",
-  databaseURL: "https://castcompanion-d9241-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "castcompanion-d9241",
-  storageBucket: "castcompanion-d9241.firebasestorage.app",
-  messagingSenderId: "50980785391",
-  appId: "1:50980785391:web:4ead0dca8e8ab31e239f1a",
-  measurementId: "G-865XN716C7"
+  apiKey: "AIzaSyDwKTQn0lISyFuOerfOkU26PQ1ZFXIXsPA",
+  authDomain: "castcompanion-ec3ee.firebaseapp.com",
+  databaseURL: "https://castcompanion-ec3ee-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "castcompanion-ec3ee",
+  storageBucket: "castcompanion-ec3ee.firebasestorage.app",
+  messagingSenderId: "1089617600286",
+  appId: "1:1089617600286:web:19f8115eb802072902330f",
+  measurementId: "G-D9P1PVD2V9"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const database = getDatabase(app);
-export const analytics = getAnalytics(app);
-
-// Helper function to check if a user is authenticated
-export const isUserAuthenticated = () => {
-  return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe();
-      resolve(!!user);
-    });
-  });
-};
-
-// Initialize database rules for new users
-export const initializeUserDatabaseAccess = async (userId: string) => {
-  try {
-    // Check if rules already exist for this user
-    const rulesRef = ref(database, `users/${userId}`);
-    const rulesSnapshot = await get(rulesRef);
-    
-    if (!rulesSnapshot.exists()) {
-      // Set initial data for the user
-      await set(rulesRef, {
-        initialized: true,
-        timestamp: new Date().toISOString()
-      });
-      console.log("Database access initialized for user:", userId);
-    }
-  } catch (error) {
-    console.error("Failed to initialize database access:", error);
-  }
-};
-
-// Helper function to check if user has permission to access a path
-export const checkPermission = async (path: string) => {
-  try {
-    const snapshot = await get(ref(database, path));
-    return true;
-  } catch (error) {
-    console.error("Permission check failed:", error);
-    return false;
-  }
-};
 
 export default app;

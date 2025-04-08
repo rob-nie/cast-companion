@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useUser } from "@/context/UserContext";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
@@ -30,10 +30,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
-  const { register, isLoading } = useAuth();
+  const { register, isLoading } = useUser();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -47,14 +46,11 @@ const Register = () => {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      setSubmitting(true);
       await register(values.name, values.email, values.password);
-      navigate("/projects", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error) {
-      // Error is already handled in the AuthContext
+      // Error is already handled in the UserContext
       console.error("Registration failed:", error);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -148,9 +144,9 @@ const Register = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting}
+              disabled={isLoading}
             >
-              {submitting ? (
+              {isLoading ? (
                 <div className="flex items-center">
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                   Registrieren...

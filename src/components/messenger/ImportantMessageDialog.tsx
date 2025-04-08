@@ -42,8 +42,8 @@ const ImportantMessageDialog = ({
 
   if (!message) return null;
 
-  const senderName = userNames[message.userId] || 'Unbekannter Nutzer';
-  const timeAgo = formatDistanceToNow(new Date(message.timestamp), { 
+  const senderName = userNames[message.sender] || 'Unbekannter Nutzer';
+  const timeAgo = formatDistanceToNow(message.timestamp, { 
     addSuffix: true,
     locale: de
   });

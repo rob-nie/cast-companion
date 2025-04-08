@@ -1,8 +1,7 @@
 
 import { createContext, useContext, ReactNode } from "react";
-import { ProjectManagementProvider, useProjectManagement, Project } from "./projectManagement";
+import { ProjectManagementProvider, useProjectManagement, Project } from "./ProjectManagementContext";
 import { ProjectSharingProvider, useProjectSharing } from "./ProjectSharingContext";
-import { ProjectMembersProvider, useProjectMembers } from "./projectMembers";
 
 // Re-export types
 export type { Project };
@@ -14,13 +13,22 @@ const ProjectContext = createContext<ReturnType<typeof useProjectCombined> | und
 const useProjectCombined = () => {
   const projectManagement = useProjectManagement();
   const projectSharing = useProjectSharing();
-  const projectMembers = useProjectMembers();
   
   return {
     ...projectManagement,
-    ...projectSharing,
-    ...projectMembers // Add all project members functions for full access
+    ...projectSharing
   };
+};
+
+// Combined provider
+export const ProjectProvider = ({ children }: { children: ReactNode }) => {
+  return (
+    <ProjectManagementProvider>
+      <ProjectSharingProvider>
+        <ProjectContextProvider>{children}</ProjectContextProvider>
+      </ProjectSharingProvider>
+    </ProjectManagementProvider>
+  );
 };
 
 // Internal provider that combines the contexts
@@ -31,19 +39,6 @@ const ProjectContextProvider = ({ children }: { children: ReactNode }) => {
     <ProjectContext.Provider value={combinedContext}>
       {children}
     </ProjectContext.Provider>
-  );
-};
-
-// Combined provider - restructured to fix the context hierarchy
-export const ProjectProvider = ({ children }: { children: ReactNode }) => {
-  return (
-    <ProjectManagementProvider>
-      <ProjectMembersProvider>
-        <ProjectSharingProvider>
-          <ProjectContextProvider>{children}</ProjectContextProvider>
-        </ProjectSharingProvider>
-      </ProjectMembersProvider>
-    </ProjectManagementProvider>
   );
 };
 

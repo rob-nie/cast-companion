@@ -87,7 +87,7 @@ const QuickPhrases = () => {
           </Button>
         </div>
         
-        {userPhrases && userPhrases.length > 0 ? (
+        {userPhrases.length > 0 ? (
           <div className="grid gap-2">
             {userPhrases.map((phrase) => (
               <Card key={phrase.id}>

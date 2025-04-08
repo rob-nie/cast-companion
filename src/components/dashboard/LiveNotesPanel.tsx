@@ -27,22 +27,17 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   // Get the current project's stopwatch
   const projectStopwatch = getProjectStopwatch(currentProject.id);
 
-  const handleAddEmptyNote = async () => {
-    try {
-      const newNote = await addNote({
-        projectId: currentProject.id,
-        content: '',
-        stopwatchTime: projectStopwatch.elapsedTime,
-        isLiveNote: true,
-      });
-      
-      // Auto-enter edit mode for the new note
-      if (newNote && newNote.id) {
-        setEditingNoteId(newNote.id);
-        setEditingContent('');
-      }
-    } catch (error) {
-      console.error("Error adding new note:", error);
+  const handleAddEmptyNote = () => {
+    const note = addNote({
+      projectId: currentProject.id,
+      content: '',
+      stopwatchTime: projectStopwatch.elapsedTime,
+      isLiveNote: true,
+    });
+    // Auto-enter edit mode for the new note
+    if (note?.id) {
+      setEditingNoteId(note.id);
+      setEditingContent('');
     }
   };
   
@@ -51,26 +46,18 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
     setEditingContent(content);
   };
   
-  const saveEditedNote = async () => {
+  const saveEditedNote = () => {
     if (editingNoteId) {
-      try {
-        await updateNote(editingNoteId, { content: editingContent });
-        setEditingNoteId(null);
-        setEditingContent('');
-      } catch (error) {
-        console.error("Error updating note:", error);
-      }
+      updateNote(editingNoteId, { content: editingContent });
+      setEditingNoteId(null);
+      setEditingContent('');
     }
   };
   
-  const saveNote = async (noteId: string, content: string) => {
-    try {
-      await updateNote(noteId, { content });
-      setEditingNoteId(null);
-      setEditingContent('');
-    } catch (error) {
-      console.error("Error saving note:", error);
-    }
+  const saveNote = (noteId: string, content: string) => {
+    updateNote(noteId, { content });
+    setEditingNoteId(null);
+    setEditingContent('');
   };
   
   const cancelEditing = () => {
@@ -78,12 +65,8 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
     setEditingContent('');
   };
   
-  const handleDeleteNote = async (noteId: string) => {
-    try {
-      await deleteNote(noteId);
-    } catch (error) {
-      console.error("Error deleting note:", error);
-    }
+  const handleDeleteNote = (noteId: string) => {
+    deleteNote(noteId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
