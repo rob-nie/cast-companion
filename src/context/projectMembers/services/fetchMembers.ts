@@ -31,8 +31,13 @@ export const fetchProjectMembers = async (
     
     // Echtzeitaktualisierungen abonnieren
     const unsubscribe = onValue(membersQuery, async (snapshot) => {
-      const updatedMembers = await processMembers(snapshot);
-      setMembers(projectId, updatedMembers);
+      try {
+        const updatedMembers = await processMembers(snapshot);
+        setMembers(projectId, updatedMembers);
+      } catch (error) {
+        console.error("Fehler bei der Verarbeitung der Mitgliederdaten:", error);
+        setMembers(projectId, []);
+      }
     }, (error) => {
       console.error("Fehler beim Laden der Projektmitglieder:", error);
       setMembers(projectId, []);
@@ -40,8 +45,12 @@ export const fetchProjectMembers = async (
     
     // Aufräumfunktion zurückgeben
     return () => {
-      off(membersQuery, 'value');
-      unsubscribe();
+      try {
+        off(membersQuery);
+        unsubscribe();
+      } catch (error) {
+        console.error("Fehler beim Aufräumen der Mitgliederabfrage:", error);
+      }
     };
   } catch (error) {
     console.error("Fehler beim Abrufen der Projektmitglieder:", error);

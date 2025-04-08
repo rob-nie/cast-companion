@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -10,68 +10,63 @@ import { useProjects } from "@/context/ProjectContext";
 import AddMemberDialog from "./members/AddMemberDialog";
 import MembersList from "./members/MembersList";
 import { ProjectMember } from "@/types/user";
-import { LoaderCircle, AlertTriangle } from "lucide-react";
+import { LoaderCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const ProjectMembers = () => {
-  const { currentProject, shareProject, shareProjectByUserId, revokeAccess, changeRole, getProjectMembers } = useProjects();
+  const { currentProject } = useProjects();
   const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
-  useEffect(() => {
-    let isMounted = true;
+  // Get these functions from the context
+  const { getProjectMembers, addProjectMember, addProjectMemberByUserId, removeProjectMember, updateProjectMemberRole } = useProjects();
+  
+  const loadMembers = useCallback(async () => {
+    if (!currentProject || !currentProject.id) {
+      setMembers([]);
+      return;
+    }
     
-    const loadMembers = async () => {
-      if (currentProject) {
-        setIsLoading(true);
-        setError(null);
-        try {
-          // Get the members from the current project
-          const projectMembers = await getProjectMembers(currentProject.id);
-          if (isMounted) {
-            setMembers(projectMembers);
-          }
-        } catch (error) {
-          console.error("Failed to load members:", error);
-          if (isMounted) {
-            setError("Mitglieder konnten nicht geladen werden.");
-          }
-        } finally {
-          if (isMounted) {
-            setIsLoading(false);
-          }
-        }
-      }
-    };
+    setIsLoading(true);
+    setError(null);
     
-    loadMembers();
-    
-    return () => {
-      isMounted = false;
-    };
+    try {
+      const projectMembers = await getProjectMembers(currentProject.id);
+      setMembers(projectMembers);
+    } catch (error) {
+      console.error("Fehler beim Laden der Mitglieder:", error);
+      setError("Mitglieder konnten nicht geladen werden");
+      toast.error("Fehler beim Laden der Projektmitglieder");
+    } finally {
+      setIsLoading(false);
+    }
   }, [currentProject, getProjectMembers]);
+  
+  useEffect(() => {
+    if (currentProject?.id) {
+      loadMembers();
+    }
+  }, [currentProject?.id, loadMembers]);
   
   if (!currentProject || !user) {
     return null;
   }
   
-  const currentUserMember = members.find(m => m.userId === user.id);
   const isOwner = currentProject.ownerId === user.id;
   
   const handleAddMember = async (email: string, role: "editor" | "viewer") => {
     setIsLoading(true);
     try {
-      await shareProject(currentProject.id, email, role);
-      // Members list will be updated via the next loadMembers call
-      const updatedMembers = await getProjectMembers(currentProject.id);
-      setMembers(updatedMembers);
+      await addProjectMember(currentProject.id, email, role);
+      loadMembers(); // Reload the members list
+      toast.success("Mitglied erfolgreich hinzugefügt");
     } catch (error) {
-      console.error("Failed to add member:", error);
-      setError("Mitglied konnte nicht hinzugefügt werden.");
-      throw error;
+      console.error("Fehler beim Hinzufügen des Mitglieds:", error);
+      setError("Mitglied konnte nicht hinzugefügt werden");
     } finally {
       setIsLoading(false);
     }
@@ -80,14 +75,12 @@ const ProjectMembers = () => {
   const handleAddMemberById = async (userId: string, role: "editor" | "viewer") => {
     setIsLoading(true);
     try {
-      await shareProjectByUserId(currentProject.id, userId, role);
-      // Members list will be updated via the next loadMembers call
-      const updatedMembers = await getProjectMembers(currentProject.id);
-      setMembers(updatedMembers);
+      await addProjectMemberByUserId(currentProject.id, userId, role);
+      loadMembers(); // Reload the members list
+      toast.success("Mitglied erfolgreich hinzugefügt");
     } catch (error) {
-      console.error("Failed to add member by ID:", error);
-      setError("Mitglied konnte nicht hinzugefügt werden.");
-      throw error;
+      console.error("Fehler beim Hinzufügen des Mitglieds über ID:", error);
+      setError("Mitglied konnte nicht hinzugefügt werden");
     } finally {
       setIsLoading(false);
     }
@@ -96,12 +89,14 @@ const ProjectMembers = () => {
   const handleRemoveMember = async (userId: string) => {
     setIsLoading(true);
     try {
-      await revokeAccess(currentProject.id, userId);
+      await removeProjectMember(currentProject.id, userId);
       // Update the local state without requiring a new API call
-      setMembers(members.filter(m => m.userId !== userId));
+      setMembers(prev => prev.filter(m => m.userId !== userId));
+      toast.success("Mitglied erfolgreich entfernt");
     } catch (error) {
-      console.error("Failed to remove member:", error);
-      setError("Mitglied konnte nicht entfernt werden.");
+      console.error("Fehler beim Entfernen des Mitglieds:", error);
+      setError("Mitglied konnte nicht entfernt werden");
+      loadMembers(); // Reload to ensure consistency
     } finally {
       setIsLoading(false);
     }
@@ -110,35 +105,21 @@ const ProjectMembers = () => {
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
     setIsLoading(true);
     try {
-      await changeRole(currentProject.id, userId, newRole);
+      await updateProjectMemberRole(currentProject.id, userId, newRole);
       // Update the local state without requiring a new API call
-      setMembers(members.map(m => 
-        m.userId === userId ? { ...m, role: newRole } : m
-      ));
+      setMembers(prev => 
+        prev.map(m => m.userId === userId ? { ...m, role: newRole } : m)
+      );
+      toast.success("Rolle erfolgreich aktualisiert");
     } catch (error) {
-      console.error("Failed to update role:", error);
-      setError("Rolle konnte nicht aktualisiert werden.");
+      console.error("Fehler beim Aktualisieren der Rolle:", error);
+      setError("Rolle konnte nicht aktualisiert werden");
+      loadMembers(); // Reload to ensure consistency
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRetryLoadMembers = async () => {
-    if (currentProject) {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const projectMembers = await getProjectMembers(currentProject.id);
-        setMembers(projectMembers);
-      } catch (error) {
-        console.error("Failed to reload members:", error);
-        setError("Mitglieder konnten nicht geladen werden.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-  
   return (
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -148,12 +129,24 @@ const ProjectMembers = () => {
               Verwalte Zugriff und Berechtigungen
             </p>
           </div>
-          {isOwner && !isLoading && (
-            <AddMemberDialog 
-              onAddMember={handleAddMember} 
-              onAddMemberById={handleAddMemberById}
-            />
-          )}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadMembers}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+              Aktualisieren
+            </Button>
+            
+            {isOwner && (
+              <AddMemberDialog 
+                onAddMember={handleAddMember} 
+                onAddMemberById={handleAddMemberById}
+              />
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -169,7 +162,7 @@ const ProjectMembers = () => {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
             <div className="flex justify-center">
-              <Button onClick={handleRetryLoadMembers} variant="outline" size="sm">
+              <Button onClick={loadMembers} variant="outline" size="sm">
                 Erneut versuchen
               </Button>
             </div>
