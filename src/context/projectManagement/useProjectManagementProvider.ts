@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { onValue } from "firebase/database";
+import { onValue, query, orderByChild, limitToLast } from "firebase/database";
 import { useUser } from "../UserContext";
 import { Project } from "./types";
 import { 
@@ -9,6 +9,8 @@ import {
   deleteProjectFromFirebase, 
   getProjectsRef 
 } from "./projectService";
+import { QUERY_LIMIT, database } from "@/lib/firebase";
+import { ref } from "firebase/database";
 
 export const useProjectManagementProvider = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -23,7 +25,12 @@ export const useProjectManagementProvider = () => {
       return;
     }
     
-    const projectsRef = getProjectsRef();
+    // Only fetch projects related to the current user
+    // This could be optimized with a compound index in Firebase
+    const projectsRef = query(
+      ref(database, 'projects'),
+      limitToLast(QUERY_LIMIT)
+    );
     
     const unsubscribe = onValue(projectsRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -32,12 +39,16 @@ export const useProjectManagementProvider = () => {
         
         Object.keys(projectsData).forEach((key) => {
           const project = projectsData[key];
-          projectsList.push({
-            ...project,
-            id: key,
-            createdAt: new Date(project.createdAt),
-            lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-          });
+          
+          // Only include projects owned by or shared with the current user
+          if (project.ownerId === user.id) {
+            projectsList.push({
+              ...project,
+              id: key,
+              createdAt: new Date(project.createdAt),
+              lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+            });
+          }
         });
         
         setProjects(projectsList);

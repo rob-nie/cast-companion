@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useProjects } from "./ProjectContext";
 import { useUser } from "./UserContext";
@@ -28,22 +27,17 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
   const { currentProject } = useProjects();
   const { user } = useUser();
   
-  // Optimierte Abfrage mit Begrenzung
+  // Optimized query with filtering and pagination
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !currentProject?.id) return;
     
-    // Nachrichten mit Projektfilter laden, wenn ein Projekt ausgewählt ist
-    const messagesRef = currentProject 
-      ? query(
-          ref(database, 'messages'),
-          orderByChild('projectId'),
-          equalTo(currentProject.id),
-          limitToLast(QUERY_LIMIT)
-        )
-      : query(
-          ref(database, 'messages'),
-          limitToLast(QUERY_LIMIT)
-        );
+    // Only fetch messages for the current project, with limit
+    const messagesRef = query(
+      ref(database, 'messages'),
+      orderByChild('projectId'),
+      equalTo(currentProject.id),
+      limitToLast(QUERY_LIMIT)
+    );
         
     const unsubscribe = onValue(messagesRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -66,9 +60,9 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => unsubscribe();
-  }, [currentProject, user]);
+  }, [currentProject?.id, user?.id]);
   
-  // Optimierte Abfrage für Schnellphrasen
+  // Optimized query for QuickPhrases - only fetch for current user
   useEffect(() => {
     if (!user?.id) return;
     
@@ -99,7 +93,7 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => unsubscribe();
-  }, [user]);
+  }, [user?.id]);
 
   // Update current messages when the project changes
   useEffect(() => {

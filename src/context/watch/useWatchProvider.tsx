@@ -2,32 +2,47 @@
 import { useState, useEffect } from "react";
 import { onValue } from "firebase/database";
 import { useUser } from "../UserContext";
+import { useProjects } from "../ProjectContext";
 import { ProjectStopwatch } from "./types";
-import { defaultStopwatch, getStopwatchesRef, updateStopwatchInFirebase } from "./watchService";
+import { defaultStopwatch, getStopwatchRef, getStopwatchesRef, updateStopwatchInFirebase } from "./watchService";
 import { formatStopwatchTime } from "./watchUtils";
 
 export const useWatchProvider = () => {
   const [projectStopwatches, setProjectStopwatches] = useState<Record<string, ProjectStopwatch>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
   const { user } = useUser();
+  const { currentProject } = useProjects();
   
   const currentUserId = user?.id || "user-1";
 
-  // Load stopwatches from Firebase when user is authenticated
+  // Load stopwatches from Firebase, optimized to only fetch current project when available
   useEffect(() => {
     if (!user?.id) return;
     
-    const stopwatchesRef = getStopwatchesRef();
+    // If we have a current project, only fetch that specific stopwatch
+    const stopwatchRef = currentProject 
+      ? getStopwatchRef(currentProject.id) 
+      : getStopwatchesRef();
     
-    const unsubscribe = onValue(stopwatchesRef, (snapshot) => {
+    const unsubscribe = onValue(stopwatchRef, (snapshot) => {
       if (snapshot.exists()) {
-        const stopwatchData = snapshot.val();
-        setProjectStopwatches(stopwatchData);
+        if (currentProject) {
+          // Single project case
+          const stopwatchData = snapshot.val();
+          setProjectStopwatches(prev => ({
+            ...prev,
+            [currentProject.id]: stopwatchData
+          }));
+        } else {
+          // Multiple projects case
+          const stopwatchData = snapshot.val();
+          setProjectStopwatches(stopwatchData);
+        }
       }
     });
     
     return () => unsubscribe();
-  }, [user?.id]);
+  }, [user?.id, currentProject?.id]);
 
   // Update current time and running stopwatches every second
   useEffect(() => {
