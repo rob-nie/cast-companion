@@ -66,13 +66,21 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
 
 export const createProject = async (project: Omit<Project, "id" | "createdAt" | "ownerId">): Promise<Project> => {
   try {
+    // Get the current user session
+    const session = await supabase.auth.getSession();
+    const user = session?.data?.session?.user;
+    
+    if (!user) {
+      throw new Error("No authenticated user found");
+    }
+
     const { data, error } = await supabase
       .from('projects')
       .insert([
         {
           title: project.title,
           description: project.description,
-          owner_id: supabase.auth.user()?.id,
+          owner_id: user.id,
         },
       ])
       .select()

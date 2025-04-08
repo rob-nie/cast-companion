@@ -15,7 +15,7 @@ export const fetchProjectMembers = async (projectId: string): Promise<ProjectMem
         user_id,
         role,
         project_id,
-        profiles:profiles!user_id(
+        profiles:user_id(
           name,
           email,
           avatar
@@ -28,14 +28,19 @@ export const fetchProjectMembers = async (projectId: string): Promise<ProjectMem
     if (!data) return [];
     
     // Transform data to expected format
-    return data.map(item => ({
-      userId: item.user_id,
-      projectId: item.project_id,
-      role: item.role as UserRole,
-      name: item.profiles?.name || 'Unknown User',
-      email: item.profiles?.email || '',
-      avatar: item.profiles?.avatar
-    }));
+    return data.map(item => {
+      // Safely extract profile data
+      const profile = item.profiles as { name?: string; email?: string; avatar?: string } | null;
+      
+      return {
+        userId: item.user_id,
+        projectId: item.project_id,
+        role: item.role as UserRole,
+        name: profile?.name || 'Unknown User',
+        email: profile?.email || '',
+        avatar: profile?.avatar
+      };
+    });
   } catch (error) {
     console.error("Error fetching project members:", error);
     throw error;
