@@ -4,7 +4,7 @@ import { PlusCircle, X, Pencil, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { useMessages } from '@/context/MessagesContext';
+import { useMessages } from '@/context/messages';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { QuickPhrase } from '@/types/messenger';

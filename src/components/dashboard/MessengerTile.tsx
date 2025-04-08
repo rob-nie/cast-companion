@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { useMessages } from '@/context/MessagesContext';
+import { useMessages } from '@/context/messages';
 import { useProjects } from '@/context/ProjectContext';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';

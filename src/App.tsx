@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProjectProvider } from "@/context/ProjectContext";
 import { NotesProvider } from "@/context/notes";
-import { MessagesProvider } from "@/context/MessagesContext";
+import { MessagesProvider } from "@/context/messages";
 import { WatchProvider } from "@/context/watch";
 import { UserProvider } from "@/context/UserContext";
 import AuthGuard from "@/components/auth/AuthGuard";
