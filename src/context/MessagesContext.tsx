@@ -3,8 +3,8 @@ import { createContext, useContext, useState, ReactNode, useEffect } from "react
 import { useProjects } from "./ProjectContext";
 import { useUser } from "./UserContext";
 import { Message, QuickPhrase } from "@/types/messenger";
-import { ref, push, update, remove, onValue, query, orderByChild, equalTo } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { ref, push, update, remove, onValue, query, orderByChild, limitToLast, equalTo } from "firebase/database";
+import { database, QUERY_LIMIT } from "@/lib/firebase";
 
 type MessagesContextType = {
   messages: Message[];
@@ -28,9 +28,23 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
   const { currentProject } = useProjects();
   const { user } = useUser();
   
-  // Load messages from Firebase
+  // Optimierte Abfrage mit Begrenzung
   useEffect(() => {
-    const messagesRef = ref(database, 'messages');
+    if (!user?.id) return;
+    
+    // Nachrichten mit Projektfilter laden, wenn ein Projekt ausgewählt ist
+    const messagesRef = currentProject 
+      ? query(
+          ref(database, 'messages'),
+          orderByChild('projectId'),
+          equalTo(currentProject.id),
+          limitToLast(QUERY_LIMIT)
+        )
+      : query(
+          ref(database, 'messages'),
+          limitToLast(QUERY_LIMIT)
+        );
+        
     const unsubscribe = onValue(messagesRef, (snapshot) => {
       if (snapshot.exists()) {
         const messagesData = snapshot.val();
@@ -52,11 +66,19 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => unsubscribe();
-  }, []);
+  }, [currentProject, user]);
   
-  // Load quick phrases from Firebase
+  // Optimierte Abfrage für Schnellphrasen
   useEffect(() => {
-    const quickPhrasesRef = ref(database, 'quickPhrases');
+    if (!user?.id) return;
+    
+    const quickPhrasesRef = query(
+      ref(database, 'quickPhrases'),
+      orderByChild('userId'),
+      equalTo(user.id),
+      limitToLast(QUERY_LIMIT)
+    );
+    
     const unsubscribe = onValue(quickPhrasesRef, (snapshot) => {
       if (snapshot.exists()) {
         const phrasesData = snapshot.val();
@@ -77,7 +99,7 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Update current messages when the project changes
   useEffect(() => {

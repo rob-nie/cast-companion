@@ -2,14 +2,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useProjects } from "./ProjectContext";
 import { useUser } from "./UserContext";
-import { ref, push, update, remove, onValue, query, orderByChild, equalTo } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { ref, push, update, remove, onValue, query, orderByChild, equalTo, limitToLast } from "firebase/database";
+import { database, QUERY_LIMIT } from "@/lib/firebase";
 import { set } from "firebase/database";
 
 export type Note = {
   id: string;
   projectId: string;
-  userId: string; // Added userId field to track which user created the note
+  userId: string;
   content: string;
   timestamp?: Date;
   stopwatchTime?: number;
@@ -38,9 +38,25 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   // User ID for the current user
   const currentUserId = user?.id || "user-1";
 
-  // Load notes from Firebase
+  // Optimierte Notizen-Abfrage
   useEffect(() => {
-    const notesRef = ref(database, 'notes');
+    if (!user?.id) return;
+    
+    // Lade nur Notizen für den aktuellen Benutzer, mit Projekt-Filter wenn verfügbar
+    const notesRef = currentProject
+      ? query(
+          ref(database, 'notes'),
+          orderByChild('projectId'),
+          equalTo(currentProject.id),
+          limitToLast(QUERY_LIMIT)
+        )
+      : query(
+          ref(database, 'notes'),
+          orderByChild('userId'),
+          equalTo(currentUserId),
+          limitToLast(QUERY_LIMIT)
+        );
+    
     const unsubscribe = onValue(notesRef, (snapshot) => {
       if (snapshot.exists()) {
         const notesData = snapshot.val();
@@ -62,7 +78,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => unsubscribe();
-  }, []);
+  }, [currentProject, currentUserId, user?.id]);
 
   // Update the current notes when the selected project or user changes
   useEffect(() => {

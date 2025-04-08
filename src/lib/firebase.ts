@@ -15,6 +15,10 @@ const firebaseConfig = {
   measurementId: "G-865XN716C7"
 };
 
+// Firebase-Konstanten für Datenbegrenzung
+export const QUERY_LIMIT = 50; // Limit für Abfragen
+export const RECENT_DATA_DAYS = 30; // Nur Daten der letzten X Tage laden
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);

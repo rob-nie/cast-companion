@@ -2,8 +2,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useUser } from "./UserContext";
 import { toast } from "sonner";
-import { ref, set, push, remove, update, onValue, get } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { ref, set, push, remove, update, onValue, get, query, orderByChild, limitToLast } from "firebase/database";
+import { database, QUERY_LIMIT } from "@/lib/firebase";
 
 export type Project = {
   id: string;
@@ -40,7 +40,12 @@ export const ProjectManagementProvider = ({ children }: { children: ReactNode })
       return;
     }
     
-    const projectsRef = ref(database, 'projects');
+    // Optimierte Projektabfrage mit Limit
+    const projectsRef = query(
+      ref(database, 'projects'),
+      limitToLast(QUERY_LIMIT)
+    );
+    
     const unsubscribe = onValue(projectsRef, (snapshot) => {
       if (snapshot.exists()) {
         const projectsData = snapshot.val();

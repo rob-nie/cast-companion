@@ -1,7 +1,6 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { ref, onValue, set, get } from "firebase/database";
-import { database } from "@/lib/firebase";
+import { ref, onValue, set, get, query, limitToLast, orderByChild, equalTo } from "firebase/database";
+import { database, QUERY_LIMIT } from "@/lib/firebase";
 import { useUser } from "./UserContext";
 
 type ProjectStopwatch = {
@@ -37,9 +36,14 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
   
   const currentUserId = user?.id || "user-1";
 
-  // Subscribe to Firebase stopwatch updates
+  // Optimierte Abfrage für Stoppuhren
   useEffect(() => {
-    const stopwatchesRef = ref(database, 'projectStopwatches');
+    if (!user?.id) return;
+    
+    const stopwatchesRef = query(
+      ref(database, 'projectStopwatches'),
+      limitToLast(QUERY_LIMIT)
+    );
     
     const unsubscribe = onValue(stopwatchesRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -49,7 +53,7 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => unsubscribe();
-  }, []);
+  }, [user?.id]);
 
   // Update current time and running stopwatches every second
   useEffect(() => {
