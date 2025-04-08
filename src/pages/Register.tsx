@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import LoadingScreen from "@/components/auth/LoadingScreen";
 
 const formSchema = z.object({
@@ -31,7 +31,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
-  const { register, isLoading, isAuthenticated, user } = useUser();
+  const { register, isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -68,7 +68,7 @@ const Register = () => {
     } catch (error) {
       console.error("Registration failed:", error);
       setSubmitting(false);
-      // Error is already handled in the UserContext
+      // Error is already handled in the AuthContext
     }
   };
 

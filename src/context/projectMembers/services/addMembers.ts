@@ -3,22 +3,63 @@ import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/user";
 import { toast } from "sonner";
 
-export const addMemberToProject = async (projectId: string, email: string, role: UserRole) => {
+/**
+ * Find a user by email
+ * @param email The email to search for
+ */
+export const findUserByEmail = async (email: string) => {
   try {
-    // First find the user by email
-    const { data: userData, error: userError } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, name, email')
       .eq('email', email)
       .single();
       
-    if (userError) {
-      if (userError.code === 'PGRST116') {
-        toast.error("User not found");
-      } else {
-        toast.error(userError.message || "Error finding user");
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // No results found
       }
-      throw userError;
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error finding user:", error);
+    throw error;
+  }
+};
+
+/**
+ * Add a member to a project
+ * @param projectId The project to add the member to
+ * @param email The email of the user to add
+ * @param role The role to assign to the user
+ */
+export const addMemberByEmail = async (projectId: string, email: string, role: UserRole) => {
+  try {
+    // Find the user by email
+    const userData = await findUserByEmail(email);
+    
+    if (!userData) {
+      toast.error("User not found");
+      throw new Error("User not found");
+    }
+    
+    // Check if user is already a member
+    const { data: existingMember, error: checkError } = await supabase
+      .from('project_members')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('user_id', userData.id)
+      .single();
+    
+    if (existingMember) {
+      toast.error("User is already a member of this project");
+      throw new Error("User is already a member of this project");
+    }
+    
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw checkError;
     }
     
     // Add the user to the project
@@ -31,58 +72,20 @@ export const addMemberToProject = async (projectId: string, email: string, role:
       });
       
     if (error) {
-      if (error.code === '23505') { // Unique constraint violation
-        toast.error("User is already a member of this project");
-      } else {
-        toast.error(error.message || "Error adding member");
-      }
+      toast.error(error.message || "Error adding member");
       throw error;
     }
     
-    toast.success("Member added successfully");
-    return true;
+    toast.success(`${userData.name} added to the project`);
+    return {
+      userId: userData.id,
+      projectId,
+      role,
+      name: userData.name,
+      email: userData.email
+    };
   } catch (error) {
     console.error("Error adding member:", error);
-    throw error;
-  }
-};
-
-export const addMemberToProjectByUserId = async (projectId: string, userId: string, role: UserRole) => {
-  try {
-    // Check if user exists
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('id', userId)
-      .single();
-      
-    if (userError) {
-      toast.error("User not found");
-      throw userError;
-    }
-    
-    // Add the user to the project
-    const { error } = await supabase
-      .from('project_members')
-      .insert({
-        project_id: projectId,
-        user_id: userId,
-        role
-      });
-      
-    if (error) {
-      if (error.code === '23505') { // Unique constraint violation
-        toast.error("User is already a member of this project");
-      } else {
-        toast.error(error.message || "Error adding member");
-      }
-      throw error;
-    }
-    
-    toast.success(`${userData.name || "User"} added to project`);
-    return true;
-  } catch (error) {
-    console.error("Error adding member by ID:", error);
     throw error;
   }
 };

@@ -1,258 +1,202 @@
 
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Project } from "./types";
-import { UserRole } from "@/types/user";
+import { toast } from "sonner";
+import { ProjectMember, UserRole } from "@/types/user";
 
-// Helper to convert database date strings to Date objects
-const convertDates = (project: any): Project => ({
-  ...project,
-  id: project.id,
-  title: project.title,
-  description: project.description,
-  ownerId: project.owner_id,
-  createdAt: project.created_at ? new Date(project.created_at) : new Date(),
-  lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined
-});
+/**
+ * Converts a Supabase project to our local Project model
+ */
+const mapDbProjectToProject = (dbProject: any): Project => {
+  return {
+    id: dbProject.id,
+    title: dbProject.title,
+    description: dbProject.description,
+    ownerId: dbProject.owner_id,
+    createdAt: new Date(dbProject.created_at),
+    lastAccessed: dbProject.last_accessed ? new Date(dbProject.last_accessed) : undefined,
+  };
+};
 
-// Projects retrieval with subscription capability
-export const fetchProjects = (userId: string, callback: (projects: Project[]) => void) => {
-  if (!userId) {
-    callback([]);
-    return () => {};
-  }
-
-  // Fetch projects where user is owner or member
-  const fetchAllProjects = async () => {
-    try {
-      console.log(`Fetching projects for user: ${userId}`);
-      
-      // Get projects where user is owner
-      const { data: ownedProjects, error: ownedError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('owner_id', userId);
-      
-      if (ownedError) throw ownedError;
-      
-      // Get projects where user is a member
-      const { data: memberships, error: memberError } = await supabase
+/**
+ * Fetch all projects the current user has access to
+ */
+export const fetchUserProjects = async (): Promise<Project[]> => {
+  try {
+    // Get all projects where the user is the owner or a member
+    const { data: projectsData, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('last_accessed', { ascending: false, nullsFirst: false });
+    
+    if (error) throw error;
+    
+    if (!projectsData || projectsData.length === 0) {
+      return [];
+    }
+    
+    // For each project, check if there are any members
+    for (const project of projectsData) {
+      const { data: membersData, error: membersError } = await supabase
         .from('project_members')
-        .select('project_id')
-        .eq('user_id', userId);
+        .select('count(*)', { count: 'exact' })
+        .eq('project_id', project.id);
         
-      if (memberError) throw memberError;
-      
-      // If user is a member of any projects, fetch those projects
-      let memberProjects: any[] = [];
-      
-      if (memberships && memberships.length > 0) {
-        const projectIds = memberships.map(m => m.project_id);
-        
-        const { data: projects, error: projectsError } = await supabase
-          .from('projects')
-          .select('*')
-          .in('id', projectIds);
-          
-        if (projectsError) throw projectsError;
-        
-        memberProjects = projects || [];
+      if (!membersError) {
+        project.memberCount = membersData ? membersData.length : 0;
       }
-      
-      // Combine and deduplicate projects
-      const allProjects = [...(ownedProjects || []), ...memberProjects];
-      const uniqueProjects = allProjects.filter((project, index, self) =>
-        index === self.findIndex(p => p.id === project.id)
-      );
-      
-      // Convert to our Project type and sort by last accessed
-      const formattedProjects = uniqueProjects.map(convertDates);
-      
-      formattedProjects.sort((a, b) => {
-        const dateA = a.lastAccessed || a.createdAt;
-        const dateB = b.lastAccessed || b.createdAt;
-        return dateB.getTime() - dateA.getTime();
-      });
-      
-      callback(formattedProjects);
-      console.log(`Loaded ${formattedProjects.length} projects`);
-    } catch (error) {
-      console.error("Error fetching projects:", error);
-      toast.error("Projects could not be loaded");
-      callback([]);
-    }
-  };
-  
-  // Initial fetch
-  fetchAllProjects();
-  
-  // Set up real-time subscription for projects
-  const projectsSubscription = supabase
-    .channel('projects-changes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'projects',
-    }, () => {
-      fetchAllProjects();
-    })
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'project_members',
-      filter: `user_id=eq.${userId}`,
-    }, () => {
-      fetchAllProjects();
-    })
-    .subscribe();
-
-  // Return cleanup function
-  return () => {
-    supabase.removeChannel(projectsSubscription);
-  };
-};
-
-// Add project with appropriate error handling
-export const addProjectToFirebase = async (
-  project: Omit<Project, "id" | "createdAt" | "ownerId">, 
-  userId: string
-) => {
-  if (!userId) {
-    toast.error("You must be logged in to create a project");
-    return null;
-  }
-  
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .insert({
-        title: project.title,
-        description: project.description,
-        owner_id: userId
-      })
-      .select()
-      .single();
-      
-    if (error) throw error;
-    
-    toast.success("Project created");
-    return convertDates(data);
-  } catch (error: any) {
-    console.error("Error creating project:", error);
-    toast.error(error.message || "Error creating project");
-    return null;
-  }
-};
-
-// Update project
-export const updateProjectInFirebase = async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
-  try {
-    // Convert our camelCase to snake_case for Supabase
-    const updates: Record<string, any> = {};
-    
-    if (projectUpdate.title !== undefined) updates.title = projectUpdate.title;
-    if (projectUpdate.description !== undefined) updates.description = projectUpdate.description;
-    if (projectUpdate.lastAccessed !== undefined) updates.last_accessed = projectUpdate.lastAccessed;
-    
-    const { error } = await supabase
-      .from('projects')
-      .update(updates)
-      .eq('id', id);
-      
-    if (error) throw error;
-    
-    if (!silent) {
-      toast.success("Project updated");
-    }
-    return true;
-  } catch (error: any) {
-    console.error("Error updating project:", error);
-    if (!silent) {
-      toast.error(error.message || "Error updating project");
-    }
-    return false;
-  }
-};
-
-// Delete project
-export const deleteProjectFromFirebase = async (id: string) => {
-  try {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', id);
-      
-    if (error) throw error;
-    
-    toast.success("Project deleted");
-    return true;
-  } catch (error: any) {
-    console.error("Error deleting project:", error);
-    toast.error(error.message || "Error deleting project");
-    return false;
-  }
-};
-
-// Project members management
-export const addMemberToProject = async (projectId: string, email: string, role: UserRole) => {
-  try {
-    // First find the user by email
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .single();
-      
-    if (userError) {
-      if (userError.code === 'PGRST116') {
-        toast.error("User not found");
-      } else {
-        toast.error(userError.message || "Error finding user");
-      }
-      throw userError;
     }
     
-    // Add the user to the project
-    const { error } = await supabase
-      .from('project_members')
-      .insert({
-        project_id: projectId,
-        user_id: userData.id,
-        role
-      });
-      
-    if (error) {
-      if (error.code === '23505') { // Unique constraint violation
-        toast.error("User is already a member of this project");
-      } else {
-        toast.error(error.message || "Error adding member");
-      }
-      throw error;
-    }
-    
-    toast.success("Member added successfully");
-    return true;
+    // Convert to our model
+    return projectsData.map(mapDbProjectToProject);
   } catch (error) {
-    console.error("Error adding member:", error);
+    console.error("Error fetching projects:", error);
     throw error;
   }
 };
 
-export const addMemberToProjectByUserId = async (projectId: string, userId: string, role: UserRole) => {
+/**
+ * Create a new project
+ */
+export const createProject = async (projectData: Omit<Project, "id" | "createdAt" | "ownerId">): Promise<Project> => {
+  try {
+    // Get current user ID
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      toast.error("You must be logged in to create a project");
+      throw new Error("User not logged in");
+    }
+    
+    const userId = session.user.id;
+    
+    // Create project
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        title: projectData.title,
+        description: projectData.description,
+        owner_id: userId
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      toast.error("Failed to create project");
+      throw error;
+    }
+    
+    toast.success("Project created successfully");
+    
+    return mapDbProjectToProject(data);
+  } catch (error) {
+    console.error("Error creating project:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update a project
+ */
+export const updateProject = async (id: string, updateData: Partial<Project>, silent = false): Promise<Project> => {
+  try {
+    // Map to DB field names
+    const dbUpdateData: Record<string, any> = {};
+    
+    if (updateData.title !== undefined) dbUpdateData.title = updateData.title;
+    if (updateData.description !== undefined) dbUpdateData.description = updateData.description;
+    if (updateData.lastAccessed !== undefined) dbUpdateData.last_accessed = updateData.lastAccessed;
+    
+    // Update project
+    const { data, error } = await supabase
+      .from('projects')
+      .update(dbUpdateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      if (!silent) toast.error("Failed to update project");
+      throw error;
+    }
+    
+    if (!silent) toast.success("Project updated");
+    
+    return mapDbProjectToProject(data);
+  } catch (error) {
+    console.error("Error updating project:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a project
+ */
+export const deleteProject = async (id: string): Promise<void> => {
+  try {
+    // Delete project (cascade will handle deleting members)
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      toast.error("Failed to delete project");
+      throw error;
+    }
+    
+    toast.success("Project deleted");
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch a single project by ID
+ */
+export const fetchProjectById = async (id: string): Promise<Project | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code !== 'PGRST116') { // Not found
+        toast.error("Error fetching project");
+      }
+      return null;
+    }
+    
+    if (!data) return null;
+    
+    return mapDbProjectToProject(data);
+  } catch (error) {
+    console.error("Error fetching project:", error);
+    throw error;
+  }
+};
+
+/**
+ * Add a member to a project
+ */
+export const addProjectMember = async (projectId: string, userId: string, role: UserRole): Promise<ProjectMember | null> => {
   try {
     // Check if user exists
     const { data: userData, error: userError } = await supabase
       .from('profiles')
-      .select('name')
+      .select('id, name, email, avatar')
       .eq('id', userId)
       .single();
-      
-    if (userError) {
+    
+    if (userError || !userData) {
       toast.error("User not found");
-      throw userError;
+      return null;
     }
     
-    // Add the user to the project
+    // Add member
     const { error } = await supabase
       .from('project_members')
       .insert({
@@ -260,76 +204,118 @@ export const addMemberToProjectByUserId = async (projectId: string, userId: stri
         user_id: userId,
         role
       });
-      
+    
     if (error) {
-      if (error.code === '23505') { // Unique constraint violation
-        toast.error("User is already a member of this project");
-      } else {
-        toast.error(error.message || "Error adding member");
-      }
+      toast.error("Failed to add member");
       throw error;
     }
     
-    toast.success(`${userData.name || "User"} added to project`);
-    return true;
+    toast.success(`${userData.name} added to project`);
+    
+    return {
+      userId,
+      projectId,
+      role,
+      name: userData.name,
+      email: userData.email,
+      avatar: userData.avatar
+    };
   } catch (error) {
-    console.error("Error adding member by ID:", error);
+    console.error("Error adding project member:", error);
     throw error;
   }
 };
 
-export const removeMemberFromProject = async (projectId: string, userId: string) => {
+/**
+ * Fetch project members
+ */
+export const fetchProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
   try {
-    // Check if user is project owner
+    // Join project_members with profiles
+    const { data, error } = await supabase
+      .from('project_members')
+      .select(`
+        user_id,
+        role,
+        project_id,
+        profiles:user_id(
+          name,
+          email,
+          avatar
+        )
+      `)
+      .eq('project_id', projectId);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) return [];
+    
+    // Transform to ProjectMember type
+    return data.map(member => ({
+      userId: member.user_id,
+      projectId: member.project_id,
+      role: member.role as UserRole,
+      name: member.profiles?.name || 'Unknown User',
+      email: member.profiles?.email || '',
+      avatar: member.profiles?.avatar
+    }));
+  } catch (error) {
+    console.error("Error fetching project members:", error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a member from a project
+ */
+export const removeProjectMember = async (projectId: string, userId: string): Promise<void> => {
+  try {
+    // Check if user is the owner
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .select('owner_id')
       .eq('id', projectId)
       .single();
-      
-    if (projectError) {
-      toast.error("Project not found");
-      throw projectError;
-    }
+    
+    if (projectError) throw projectError;
     
     if (projectData.owner_id === userId) {
       toast.error("Cannot remove the project owner");
       throw new Error("Cannot remove the project owner");
     }
     
-    // Remove the user from the project
+    // Remove member
     const { error } = await supabase
       .from('project_members')
       .delete()
       .eq('project_id', projectId)
       .eq('user_id', userId);
-      
+    
     if (error) {
-      toast.error(error.message || "Error removing member");
+      toast.error("Failed to remove member");
       throw error;
     }
     
     toast.success("Member removed");
-    return true;
   } catch (error) {
-    console.error("Error removing member:", error);
+    console.error("Error removing project member:", error);
     throw error;
   }
 };
 
-export const updateMemberRole = async (projectId: string, userId: string, role: UserRole) => {
+/**
+ * Update a member's role
+ */
+export const updateMemberRole = async (projectId: string, userId: string, role: UserRole): Promise<void> => {
   try {
-    // Check if user is project owner
+    // Check if user is the owner
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .select('owner_id')
       .eq('id', projectId)
       .single();
-      
-    if (projectError) {
-      toast.error("Project not found");
-      throw projectError;
-    }
+    
+    if (projectError) throw projectError;
     
     // Cannot change owner's role
     if (projectData.owner_id === userId && role !== 'owner') {
@@ -337,22 +323,21 @@ export const updateMemberRole = async (projectId: string, userId: string, role: 
       throw new Error("Cannot change the owner's role");
     }
     
-    // Update the member role
+    // Update role
     const { error } = await supabase
       .from('project_members')
       .update({ role })
       .eq('project_id', projectId)
       .eq('user_id', userId);
-      
+    
     if (error) {
-      toast.error(error.message || "Error updating role");
+      toast.error("Failed to update role");
       throw error;
     }
     
     toast.success("Role updated");
-    return true;
   } catch (error) {
-    console.error("Error updating role:", error);
+    console.error("Error updating member role:", error);
     throw error;
   }
 };

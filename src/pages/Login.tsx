@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { z } from "zod";
@@ -14,7 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Eye, EyeOff, LogIn } from "lucide-react";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import LoadingScreen from "@/components/auth/LoadingScreen";
 
@@ -26,7 +27,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
-  const { login, isLoading, isAuthenticated, user } = useUser();
+  const { login, isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
