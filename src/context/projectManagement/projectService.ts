@@ -12,35 +12,29 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
 
     console.log("Fetching projects for user:", session.user.id);
 
-    // Fetch projects the user owns
-    const { data: ownedProjects, error: ownedError } = await supabase
+    // Fetch projects directly with one query instead of separate queries
+    // This avoids potential recursive policy issues
+    const { data: allProjects, error } = await supabase
       .from('projects')
-      .select('*')
-      .eq('owner_id', session.user.id);
-
-    if (ownedError) {
-      console.error("Error fetching owned projects:", ownedError);
-      throw ownedError;
-    }
-
-    // Fetch projects the user is a member of (but doesn't own)
-    const { data: memberProjects, error: memberError } = await supabase
-      .from('project_members')
       .select(`
-        project_id,
-        role,
-        projects!inner (*)
+        *,
+        project_members!project_members_project_id_fkey (
+          role
+        )
       `)
-      .eq('user_id', session.user.id)
-      .neq('role', 'owner');
+      .or(`owner_id.eq.${session.user.id},project_members.user_id.eq.${session.user.id}`);
 
-    if (memberError) {
-      console.error("Error fetching member projects:", memberError);
-      throw memberError;
+    if (error) {
+      console.error("Error fetching projects:", error);
+      throw error;
     }
 
-    // Process owned projects
-    const ownedProjectsList = ownedProjects.map(project => {
+    if (!allProjects) {
+      return [];
+    }
+
+    // Process into the expected format
+    const projectsList = allProjects.map(project => {
       return {
         id: project.id,
         title: project.title,
@@ -48,35 +42,13 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
         ownerId: project.owner_id,
         createdAt: new Date(project.created_at),
         lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined,
+        // If there's a role from project_members, use that
+        role: project.project_members?.length > 0 ? project.project_members[0].role : undefined
       };
     });
 
-    // Process projects where the user is a member
-    const memberProjectsList = memberProjects
-      .filter(item => item.projects) // Filter out any null projects
-      .map(item => {
-        const project = item.projects;
-        return {
-          id: project.id,
-          title: project.title,
-          description: project.description || '',
-          ownerId: project.owner_id,
-          createdAt: new Date(project.created_at),
-          lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined,
-          role: item.role,
-        };
-      });
-
-    console.log("Fetched owned projects:", ownedProjectsList.length);
-    console.log("Fetched member projects:", memberProjectsList.length);
-
-    // Combine the lists, avoiding duplicates
-    const allProjects = [
-      ...ownedProjectsList,
-      ...memberProjectsList.filter(p => !ownedProjectsList.some(op => op.id === p.id))
-    ];
-
-    return allProjects;
+    console.log("Fetched total projects:", projectsList.length);
+    return projectsList;
   } catch (error) {
     console.error("Error fetching projects:", error);
     toast.error("Fehler beim Laden der Projekte. Bitte versuchen Sie es später erneut.");

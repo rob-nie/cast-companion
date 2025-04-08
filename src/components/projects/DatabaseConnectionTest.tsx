@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { testSupabaseConnection } from "@/utils/databaseTest";
-import { DatabaseIcon, CheckCircle, XCircle } from "lucide-react";
+import { DatabaseIcon, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 
 const DatabaseConnectionTest = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -35,8 +35,17 @@ const DatabaseConnectionTest = () => {
         disabled={isLoading}
         className="gap-2"
       >
-        <DatabaseIcon className="h-4 w-4" />
-        {isLoading ? "Verbindung wird getestet..." : "Datenbankverbindung testen"}
+        {isLoading ? (
+          <>
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            Verbindung wird getestet...
+          </>
+        ) : (
+          <>
+            <DatabaseIcon className="h-4 w-4" />
+            Datenbankverbindung testen
+          </>
+        )}
       </Button>
       
       {connectionStatus !== null && (
