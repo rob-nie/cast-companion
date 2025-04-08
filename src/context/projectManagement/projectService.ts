@@ -1,14 +1,27 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Project } from "./types";
+import { toast } from "sonner";
 
 export const fetchUserProjects = async (): Promise<Project[]> => {
   try {
+    // Get the current user session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error("No authenticated user found");
+    }
+
+    console.log("Fetching projects for user:", session.user.id);
+
     // Fetch projects the user owns
     const { data: ownedProjects, error: ownedError } = await supabase
       .from('projects')
-      .select('*');
+      .select('*')
+      .eq('owner_id', session.user.id);
 
-    if (ownedError) throw ownedError;
+    if (ownedError) {
+      console.error("Error fetching owned projects:", ownedError);
+      throw ownedError;
+    }
 
     // Fetch projects the user is a member of (but doesn't own)
     const { data: memberProjects, error: memberError } = await supabase
@@ -16,11 +29,15 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
       .select(`
         project_id,
         role,
-        projects!project_id (*)
+        projects!inner (*)
       `)
+      .eq('user_id', session.user.id)
       .neq('role', 'owner');
 
-    if (memberError) throw memberError;
+    if (memberError) {
+      console.error("Error fetching member projects:", memberError);
+      throw memberError;
+    }
 
     // Process owned projects
     const ownedProjectsList = ownedProjects.map(project => {
@@ -31,7 +48,6 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
         ownerId: project.owner_id,
         createdAt: new Date(project.created_at),
         lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined,
-        // We'll count members in a separate query or add this field in the database
       };
     });
 
@@ -51,6 +67,9 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
         };
       });
 
+    console.log("Fetched owned projects:", ownedProjectsList.length);
+    console.log("Fetched member projects:", memberProjectsList.length);
+
     // Combine the lists, avoiding duplicates
     const allProjects = [
       ...ownedProjectsList,
@@ -60,15 +79,17 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
     return allProjects;
   } catch (error) {
     console.error("Error fetching projects:", error);
+    toast.error("Fehler beim Laden der Projekte. Bitte versuchen Sie es später erneut.");
     throw error;
   }
 };
 
+// Rest of the file stays the same
 export const createProject = async (project: Omit<Project, "id" | "createdAt" | "ownerId">): Promise<Project> => {
   try {
     // Get the current user session
-    const session = await supabase.auth.getSession();
-    const user = session?.data?.session?.user;
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
     
     if (!user) {
       throw new Error("No authenticated user found");

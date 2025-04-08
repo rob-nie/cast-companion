@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { testDatabaseConnection } from "@/utils/databaseTest";
+import { testSupabaseConnection } from "@/utils/databaseTest";
 import { DatabaseIcon, CheckCircle, XCircle } from "lucide-react";
 
 const DatabaseConnectionTest = () => {
@@ -13,7 +13,7 @@ const DatabaseConnectionTest = () => {
     setConnectionStatus(null);
     
     try {
-      const success = await testDatabaseConnection();
+      const success = await testSupabaseConnection();
       setConnectionStatus(success);
     } catch (error) {
       console.error("Fehler beim Testen der Datenbankverbindung:", error);
@@ -27,7 +27,7 @@ const DatabaseConnectionTest = () => {
     <div className="flex flex-col items-center space-y-2 p-4 border rounded-lg bg-muted/30 mt-4">
       <h3 className="text-lg font-semibold">Datenbankverbindung testen</h3>
       <p className="text-sm text-muted-foreground text-center mb-2">
-        Prüft, ob die Verbindung zu Firebase funktioniert und die richtigen Berechtigungen vorhanden sind
+        Prüft, ob die Verbindung zu Supabase funktioniert und die richtigen Berechtigungen vorhanden sind
       </p>
       
       <Button 
