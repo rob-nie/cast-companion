@@ -20,7 +20,7 @@ const InterviewDashboard = () => {
   }, [currentProject, navigate, updateProject]);
 
   return (
-    <PageLayout withPadding={false}>
+    <PageLayout withPadding={false} containerClassName="flex flex-col h-full">
       <Dashboard />
     </PageLayout>
   );

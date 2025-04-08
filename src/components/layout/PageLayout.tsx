@@ -15,9 +15,9 @@ const PageLayout = ({
   withPadding = true 
 }: PageLayoutProps) => {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen h-screen">
       <Navbar />
-      <main className={`flex-1 container ${withPadding ? 'py-8' : ''} ${containerClassName}`}>
+      <main className={`flex-1 container overflow-hidden ${withPadding ? 'py-8' : ''} ${containerClassName}`}>
         {children}
       </main>
       <Footer />
