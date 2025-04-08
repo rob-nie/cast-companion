@@ -1,4 +1,5 @@
 
+import { Link } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 
 const Footer = () => {
@@ -10,11 +11,16 @@ const Footer = () => {
         <div>
           &copy; {new Date().getFullYear()} Cast Companion
         </div>
-        {user && (
-          <div className="mt-2 md:mt-0">
-            Benutzer-ID: <span className="font-mono bg-muted p-1 rounded">{user.id}</span>
-          </div>
-        )}
+        <div className="flex items-center space-x-3 mt-2 md:mt-0">
+          <Link to="/debug" className="hover:text-foreground transition-colors">
+            Debug
+          </Link>
+          {user && (
+            <div>
+              Benutzer-ID: <span className="font-mono bg-muted p-1 rounded">{user.id}</span>
+            </div>
+          )}
+        </div>
       </div>
     </footer>
   );
