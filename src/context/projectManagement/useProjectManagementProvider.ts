@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { onValue, query, orderByChild, equalTo, limitToLast, get, ref } from "firebase/database";
+import { onValue, query, ref, limitToLast, get } from "firebase/database";
 import { useUser } from "../UserContext";
 import { Project } from "./types";
 import { 
@@ -21,11 +21,10 @@ export const useProjectManagementProvider = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { user, isAuthenticated } = useUser();
-  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   
-  // Load projects owned by the user from Firebase when user is authenticated
+  // Load all projects from Firebase
   useEffect(() => {
     if (!isAuthenticated || !user) {
       setProjects([]);
@@ -37,14 +36,12 @@ export const useProjectManagementProvider = () => {
     setIsLoading(true);
     setLoadError(null);
     
-    console.log("Loading projects for user:", user.id);
+    console.log("Loading all projects for user:", user.id);
     
     try {
-      // Use the ownerId index with pagination
+      // Get all projects - we'll filter in the client
       const projectsRef = query(
         ref(database, 'projects'),
-        orderByChild('ownerId'),
-        equalTo(user.id),
         limitToLast(QUERY_LIMIT)
       );
       
@@ -56,12 +53,17 @@ export const useProjectManagementProvider = () => {
             
             Object.keys(projectsData).forEach((key) => {
               const project = projectsData[key];
-              projectsList.push({
-                ...project,
-                id: key,
-                createdAt: new Date(project.createdAt),
-                lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-              });
+              
+              // Check if user is owner or member
+              if (project.ownerId === user.id || 
+                 (project.members && project.members[user.id])) {
+                projectsList.push({
+                  ...project,
+                  id: key,
+                  createdAt: new Date(project.createdAt),
+                  lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
+                });
+              }
             });
             
             // Sort by most recently accessed
@@ -72,10 +74,10 @@ export const useProjectManagementProvider = () => {
             });
             
             setProjects(projectsList);
-            console.log(`Loaded ${projectsList.length} owned projects`);
+            console.log(`Loaded ${projectsList.length} total projects`);
           } else {
             setProjects([]);
-            console.log("No owned projects found");
+            console.log("No projects found");
           }
           setIsLoading(false);
         } catch (error) {
@@ -94,75 +96,6 @@ export const useProjectManagementProvider = () => {
       console.error("Error setting up projects subscription:", error);
       setLoadError("Failed to load projects");
       setIsLoading(false);
-    }
-  }, [isAuthenticated, user]);
-
-  // Load shared projects - now using the members structure inside projects
-  useEffect(() => {
-    if (!isAuthenticated || !user) {
-      setSharedProjects([]);
-      return;
-    }
-
-    console.log("Loading shared projects for user:", user.id);
-    
-    try {
-      // Find all projects where current user is in members but not the owner
-      // We need to cycle through projects and check locally since Firebase doesn't support complex queries
-      const projectsRef = ref(database, 'projects');
-      
-      const unsubscribe = onValue(projectsRef, (snapshot) => {
-        try {
-          if (!snapshot.exists()) {
-            setSharedProjects([]);
-            console.log("No projects found at all");
-            return;
-          }
-          
-          const projectsData = snapshot.val();
-          const sharedProjectsList: Project[] = [];
-          
-          Object.keys(projectsData).forEach(key => {
-            const project = projectsData[key];
-            
-            // Check if the project has members and the current user is a member
-            // but not the owner of the project
-            if (
-              project.members && 
-              project.members[user.id] && 
-              project.ownerId !== user.id
-            ) {
-              sharedProjectsList.push({
-                ...project,
-                id: key,
-                createdAt: new Date(project.createdAt),
-                lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-              });
-            }
-          });
-          
-          // Sort by most recently accessed
-          sharedProjectsList.sort((a, b) => {
-            const dateA = a.lastAccessed || a.createdAt;
-            const dateB = b.lastAccessed || b.createdAt;
-            return dateB.getTime() - dateA.getTime();
-          });
-          
-          console.log(`Loaded ${sharedProjectsList.length} shared projects`);
-          setSharedProjects(sharedProjectsList);
-        } catch (error) {
-          console.error("Error processing shared projects:", error);
-          setLoadError((prev) => prev || "Failed to process shared projects");
-        }
-      }, (error) => {
-        console.error("Error loading shared projects:", error);
-        setLoadError((prev) => prev || "Failed to load shared projects");
-      });
-      
-      return () => unsubscribe();
-    } catch (error) {
-      console.error("Error setting up shared projects subscription:", error);
-      setLoadError((prev) => prev || "Failed to load shared projects");
     }
   }, [isAuthenticated, user]);
   
@@ -193,13 +126,6 @@ export const useProjectManagementProvider = () => {
       if (success) {
         // Update local state
         setProjects((prev) =>
-          prev.map((project) =>
-            project.id === id ? { ...project, ...projectUpdate } : project
-          )
-        );
-        
-        // Also update sharedProjects if that's where the project is
-        setSharedProjects((prev) =>
           prev.map((project) =>
             project.id === id ? { ...project, ...projectUpdate } : project
           )
@@ -247,23 +173,11 @@ export const useProjectManagementProvider = () => {
       toast.error("Failed to delete project");
     }
   };
-
-  // Get projects owned by the current user
-  const getUserProjects = () => {
-    if (!user) return [];
-    return projects;
-  };
-
-  // Get projects shared with the current user
-  const getSharedProjects = () => {
-    if (!user) return [];
-    return sharedProjects;
-  };
   
   // Get project members from the members field inside the project
   const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
     // Find the project
-    const project = [...projects, ...sharedProjects].find(p => p.id === projectId);
+    const project = projects.find(p => p.id === projectId);
     
     if (!project || !project.members) {
       return [];
@@ -350,14 +264,12 @@ export const useProjectManagementProvider = () => {
   };
 
   return {
-    projects: [...projects, ...sharedProjects],
+    projects,
     currentProject,
     setCurrentProject,
     addProject,
     updateProject,
     deleteProject,
-    getUserProjects,
-    getSharedProjects,
     getProjectMembers,
     shareProject,
     shareProjectByUserId,

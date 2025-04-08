@@ -9,56 +9,38 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
 import ProjectCard from "./ProjectCard";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Project } from "@/context/projectManagement";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 
 const ProjectsOverview = () => {
-  const { getUserProjects, getSharedProjects, addProject, isLoading } = useProjects();
+  const { projects, addProject, isLoading } = useProjects();
   const { isAuthenticated, user } = useUser();
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredProjects, setFilteredProjects] = useState<{
-    myProjects: Project[],
-    sharedProjects: Project[],
-  }>({
-    myProjects: [],
-    sharedProjects: []
-  });
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [retryCount, setRetryCount] = useState(0);
-  
-  // Get user-specific projects
-  const myProjects = getUserProjects();
-  const sharedProjects = getSharedProjects();
   
   // Filter projects when search term or projects change
   useEffect(() => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      setFilteredProjects({
-        myProjects: myProjects.filter(
-          project => project.title.toLowerCase().includes(term) || 
-                     project.description?.toLowerCase().includes(term)
-        ),
-        sharedProjects: sharedProjects.filter(
+      setFilteredProjects(
+        projects.filter(
           project => project.title.toLowerCase().includes(term) || 
                      project.description?.toLowerCase().includes(term)
         )
-      });
+      );
     } else {
-      setFilteredProjects({
-        myProjects,
-        sharedProjects
-      });
+      setFilteredProjects(projects);
     }
-  }, [searchTerm, myProjects, sharedProjects]);
+  }, [searchTerm, projects]);
 
   // Log the number of projects loaded for debugging
   useEffect(() => {
-    console.log(`ProjectsOverview: Loaded ${myProjects.length} owned projects and ${sharedProjects.length} shared projects`);
-  }, [myProjects, sharedProjects]);
+    console.log(`ProjectsOverview: Loaded ${projects.length} total projects`);
+  }, [projects]);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +125,7 @@ const ProjectsOverview = () => {
             </p>
           ) : (
             <p className="text-muted-foreground mt-1">
-              Es gibt noch keine Projekte in dieser Kategorie
+              Es gibt noch keine Projekte
             </p>
           )}
         </div>
@@ -231,75 +213,22 @@ const ProjectsOverview = () => {
             )}
           </div>
           
-          <Tabs defaultValue="all" className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">Alle Projekte</TabsTrigger>
-              <TabsTrigger value="my">Meine Projekte</TabsTrigger>
-              <TabsTrigger value="shared">Geteilte Projekte</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="all">
-              {isLoading ? (
-                renderLoadingState()
-              ) : filteredProjects.myProjects.length === 0 && filteredProjects.sharedProjects.length === 0 ? (
-                searchTerm ? (
-                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
-                    <h3 className="text-lg font-medium">Keine Ergebnisse</h3>
-                    <p className="text-muted-foreground mt-1">
-                      Es wurden keine Projekte gefunden, die "{searchTerm}" enthalten
-                    </p>
-                  </div>
-                ) : (
-                  renderEmptyState("Noch keine Projekte")
-                )
-              ) : (
-                renderProjectGrid([...filteredProjects.myProjects, ...filteredProjects.sharedProjects])
-              )}
-            </TabsContent>
-            
-            <TabsContent value="my">
-              {isLoading ? (
-                renderLoadingState()
-              ) : filteredProjects.myProjects.length === 0 ? (
-                searchTerm ? (
-                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
-                    <h3 className="text-lg font-medium">Keine Ergebnisse</h3>
-                    <p className="text-muted-foreground mt-1">
-                      Es wurden keine eigenen Projekte gefunden, die "{searchTerm}" enthalten
-                    </p>
-                  </div>
-                ) : (
-                  renderEmptyState("Noch keine eigenen Projekte")
-                )
-              ) : (
-                renderProjectGrid(filteredProjects.myProjects)
-              )}
-            </TabsContent>
-            
-            <TabsContent value="shared">
-              {isLoading ? (
-                renderLoadingState()
-              ) : filteredProjects.sharedProjects.length === 0 ? (
-                searchTerm ? (
-                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
-                    <h3 className="text-lg font-medium">Keine Ergebnisse</h3>
-                    <p className="text-muted-foreground mt-1">
-                      Es wurden keine geteilten Projekte gefunden, die "{searchTerm}" enthalten
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
-                    <h3 className="text-lg font-medium">Keine geteilten Projekte</h3>
-                    <p className="text-muted-foreground mt-1">
-                      Noch hat niemand ein Projekt mit dir geteilt
-                    </p>
-                  </div>
-                )
-              ) : (
-                renderProjectGrid(filteredProjects.sharedProjects)
-              )}
-            </TabsContent>
-          </Tabs>
+          {isLoading ? (
+            renderLoadingState()
+          ) : filteredProjects.length === 0 ? (
+            searchTerm ? (
+              <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+                <h3 className="text-lg font-medium">Keine Ergebnisse</h3>
+                <p className="text-muted-foreground mt-1">
+                  Es wurden keine Projekte gefunden, die "{searchTerm}" enthalten
+                </p>
+              </div>
+            ) : (
+              renderEmptyState("Noch keine Projekte")
+            )
+          ) : (
+            renderProjectGrid(filteredProjects)
+          )}
         </div>
       ) : (
         // Show a message for non-authenticated users
