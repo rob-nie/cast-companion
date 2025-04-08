@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useTheme } from "@/context/ThemeContext";
@@ -59,8 +60,8 @@ const Navbar = () => {
             <>
               <Link to="/settings">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.photoURL || ""} alt={user?.displayName || "Profile"} />
-                  <AvatarFallback>{user?.displayName?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                  <AvatarImage src={user?.photoUrl || ""} alt={user?.name || "Profile"} />
+                  <AvatarFallback>{user?.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
                 </Avatar>
               </Link>
               <Button variant="outline" size="sm" onClick={logout} className="hidden md:block">
