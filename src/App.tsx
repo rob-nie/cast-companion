@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProjectProvider } from "@/context/ProjectContext";
-import { NotesProvider } from "@/context/NotesContext";
+import { NotesProvider } from "@/context/notes";
 import { MessagesProvider } from "@/context/MessagesContext";
 import { WatchProvider } from "@/context/WatchContext";
 import { UserProvider } from "@/context/UserContext";

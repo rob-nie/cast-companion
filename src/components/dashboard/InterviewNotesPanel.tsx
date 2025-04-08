@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useNotes } from '@/context/NotesContext';
+import { useNotes } from '@/context/notes';
 import { useProjects } from '@/context/ProjectContext';
 import { useUser } from '@/context/UserContext';
 import RichTextEditor from './RichTextEditor';
