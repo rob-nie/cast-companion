@@ -8,7 +8,7 @@ import {
   onAuthStateChanged,
   updateProfile as updateFirebaseProfile,
 } from "firebase/auth";
-import { ref, set, get, update } from "firebase/database";
+import { ref, set, get } from "firebase/database";
 import { auth, database } from "@/lib/firebase";
 import { User } from "@/types/user";
 
@@ -18,7 +18,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,8 +32,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.log("Setting up auth state listener");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log("Auth state changed:", firebaseUser);
-      if (firebaseUser) {
-        try {
+      setIsLoading(true);
+      
+      try {
+        if (firebaseUser) {
           // Get user data from database
           const userRef = ref(database, `users/${firebaseUser.uid}`);
           const snapshot = await get(userRef);
@@ -63,14 +65,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               createdAt: new Date(newUser.createdAt)
             });
           }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          toast.error("Fehler beim Laden der Benutzerdaten");
+        } else {
+          setUser(null);
         }
-      } else {
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        toast.error("Fehler beim Laden der Benutzerdaten");
         setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     
     return () => unsubscribe();
@@ -80,10 +84,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       console.log("Attempting login with:", email);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login successful:", userCredential.user.uid);
-      toast.success("Erfolgreich angemeldet");
-      // Don't return the user here, just let the auth state listener handle it
+      await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login credentials verified");
+      // Auth state listener will handle the rest
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "Anmeldung fehlgeschlagen";
@@ -93,9 +96,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         errorMessage = "Firebase-Konfigurationsfehler. Bitte kontaktieren Sie den Administrator.";
       }
       toast.error(errorMessage);
-      throw error;
-    } finally {
       setIsLoading(false);
+      throw error;
     }
   };
 
@@ -120,7 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       await set(ref(database, `users/${firebaseUser.uid}`), newUser);
       toast.success("Konto erfolgreich erstellt");
-      // Don't return the user here, just let the auth state listener handle it
+      // Auth state listener will handle the rest
     } catch (error: any) {
       let errorMessage = "Registrierung fehlgeschlagen";
       if (error.code === "auth/email-already-in-use") {
@@ -129,33 +131,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         errorMessage = "Firebase-Konfigurationsfehler. Bitte kontaktieren Sie den Administrator.";
       }
       toast.error(errorMessage);
+      setIsLoading(false);
       throw error;
-    } finally {
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      await signOut(auth);
+      toast.success("Erfolgreich abgemeldet");
+      // Auth state listener will handle the rest
+    } catch (error) {
+      toast.error("Abmeldung fehlgeschlagen");
+      console.error("Logout error:", error);
       setIsLoading(false);
     }
   };
 
-  const logout = async () => {
-    try {
-      await signOut(auth);
-      toast.success("Erfolgreich abgemeldet");
-    } catch (error) {
-      toast.error("Abmeldung fehlgeschlagen");
-      console.error("Logout error:", error);
-    }
+  const contextValue = {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    register,
+    logout
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        register,
-        logout
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

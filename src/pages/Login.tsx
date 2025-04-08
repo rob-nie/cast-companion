@@ -30,8 +30,9 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
-  // Get the intended destination from state, or default to projects instead of dashboard
+  // Get the intended destination from state, or default to projects
   const from = (location.state as any)?.from?.pathname || "/projects";
   
   const form = useForm<FormValues>({
@@ -43,16 +44,26 @@ const Login = () => {
   });
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) return;
+    
+    setSubmitting(true);
     try {
       await login(values.email, values.password);
       console.log("Login successful, navigating to:", from);
-      toast.success("Erfolgreich angemeldet");
-      navigate(from, { replace: true });
+      
+      // Small delay to ensure auth state is fully processed
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 500);
     } catch (error) {
       console.error("Login failed:", error);
-      // Error is already handled in the UserContext
+      setSubmitting(false);
+      // Error is already handled in the AuthContext
     }
   };
+
+  // Determine if we should show loading state
+  const isProcessing = isLoading || submitting;
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
@@ -73,7 +84,7 @@ const Login = () => {
                 <FormItem>
                   <FormLabel>E-Mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="email@example.com" {...field} />
+                    <Input placeholder="email@example.com" {...field} disabled={isProcessing} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -92,6 +103,7 @@ const Login = () => {
                         type={showPassword ? "text" : "password"}
                         placeholder="******"
                         {...field}
+                        disabled={isProcessing}
                       />
                       <Button
                         type="button"
@@ -99,6 +111,7 @@ const Login = () => {
                         size="icon"
                         className="absolute right-0 top-0 h-full"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isProcessing}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -116,9 +129,9 @@ const Login = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isProcessing}
             >
-              {isLoading ? (
+              {isProcessing ? (
                 <div className="flex items-center">
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                   Anmelden...

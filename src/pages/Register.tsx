@@ -33,6 +33,7 @@ const Register = () => {
   const { register, isLoading } = useUser();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -45,14 +46,25 @@ const Register = () => {
   });
 
   const onSubmit = async (values: FormValues) => {
+    if (submitting) return;
+    
+    setSubmitting(true);
     try {
       await register(values.name, values.email, values.password);
-      navigate("/dashboard", { replace: true });
+      
+      // Small delay to ensure auth state is fully processed
+      setTimeout(() => {
+        navigate("/projects", { replace: true });
+      }, 500);
     } catch (error) {
-      // Error is already handled in the UserContext
       console.error("Registration failed:", error);
+      setSubmitting(false);
+      // Error is already handled in the UserContext
     }
   };
+
+  // Determine if we should show loading state
+  const isProcessing = isLoading || submitting;
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
@@ -73,7 +85,7 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Max Mustermann" {...field} />
+                    <Input placeholder="Max Mustermann" {...field} disabled={isProcessing} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -87,7 +99,7 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>E-Mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="email@example.com" {...field} />
+                    <Input placeholder="email@example.com" {...field} disabled={isProcessing} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -106,6 +118,7 @@ const Register = () => {
                         type={showPassword ? "text" : "password"}
                         placeholder="******"
                         {...field}
+                        disabled={isProcessing}
                       />
                       <Button
                         type="button"
@@ -113,6 +126,7 @@ const Register = () => {
                         size="icon"
                         className="absolute right-0 top-0 h-full"
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isProcessing}
                       >
                         {showPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -134,7 +148,12 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>Passwort bestätigen</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="******" {...field} />
+                    <Input 
+                      type="password" 
+                      placeholder="******" 
+                      {...field} 
+                      disabled={isProcessing} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -144,9 +163,9 @@ const Register = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isProcessing}
             >
-              {isLoading ? (
+              {isProcessing ? (
                 <div className="flex items-center">
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                   Registrieren...

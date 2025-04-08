@@ -9,16 +9,18 @@ const AuthGuard = () => {
 
   console.log("AuthGuard - isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
 
+  // Show loading screen while checking authentication
   if (isLoading) {
     return <LoadingScreen />;
   }
 
+  // If not authenticated, redirect to login
   if (!isAuthenticated) {
-    // Redirect to login page, but save the intended destination
     console.log("Not authenticated, redirecting to login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // User is authenticated, render the protected route
   console.log("User is authenticated, rendering outlet");
   return <Outlet />;
 };
