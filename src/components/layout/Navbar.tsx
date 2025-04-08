@@ -1,112 +1,140 @@
-
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Moon, Sun, Users, Settings, LogOut } from "lucide-react";
+import { useState } from "react";
+import { Link, NavLink } from "react-router-dom";
 import { useTheme } from "@/context/ThemeContext";
-import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
-import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ModeToggle } from "@/components/ModeToggle";
+import { navigation } from "@/data/navigation";
+import { Menu, X, LogOut } from "lucide-react";
 
 const Navbar = () => {
-  const { theme, setTheme } = useTheme();
-  const { currentProject } = useProjects();
-  const { user, logout, isAuthenticated } = useUser();
-  const location = useLocation();
-  const navigate = useNavigate();
+  const { theme } = useTheme();
+  const { user, isAuthenticated, logout } = useUser();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
 
   return (
-    <header className="border-b border-border/40 bg-background/80 backdrop-blur-sm">
-      <div className="container flex h-16 items-center justify-between py-4">
-        <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl font-medium tracking-tight">CastCompanion</span>
-          </Link>
-          
-          <nav className="hidden md:flex items-center gap-6">
-            <Link 
-              to="/projects" 
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                location.pathname === "/projects" ? "text-primary" : "text-foreground/70"
-              }`}
-            >
-              Projects
-            </Link>
-            
-            {currentProject && (
-              <Link 
-                to="/dashboard" 
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  location.pathname === "/dashboard" ? "text-primary" : "text-foreground/70"
-                }`}
-              >
-                Dashboard
-              </Link>
-            )}
-          </nav>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {currentProject && (
-            <span className="hidden sm:inline-block mr-4 text-sm font-medium text-muted-foreground">
-              Current: {currentProject.title}
-            </span>
-          )}
-          
-          <Link to="/settings">
-            <Button variant="ghost" size="icon" className="focus-ring">
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
-            </Button>
-          </Link>
-          
-          <Button onClick={toggleTheme} variant="ghost" size="icon" className="focus-ring">
-            {theme === "light" ? (
-              <Moon className="h-5 w-5" />
-            ) : (
-              <Sun className="h-5 w-5" />
-            )}
-            <span className="sr-only">Toggle theme</span>
-          </Button>
+    <header className="bg-background sticky top-0 z-50 w-full border-b">
+      <div className="container flex h-16 items-center justify-between">
+        <Link to="/" className="flex items-center space-x-2 font-semibold">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src="/logo.png" alt="Cast Companion Logo" />
+            <AvatarFallback>CC</AvatarFallback>
+          </Avatar>
+          <span>Cast Companion</span>
+        </Link>
 
+        <nav className="hidden md:flex items-center space-x-6">
+          {navigation.map((item) => (
+            <NavLink
+              key={item.href}
+              to={item.href}
+              className={({ isActive }) =>
+                `text-sm font-medium transition-colors hover:text-foreground/80 ${
+                  isActive ? "text-foreground" : "text-foreground/60"
+                }`
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="flex items-center space-x-2">
+          <ModeToggle />
           {isAuthenticated ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  {user?.name}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Konto</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Abmelden
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Link to="/login">
-              <Button variant="default" size="sm">
-                Anmelden
+            <>
+              <Link to="/settings">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.photoURL || ""} alt={user?.displayName || "Profile"} />
+                  <AvatarFallback>{user?.displayName?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                </Avatar>
+              </Link>
+              <Button variant="outline" size="sm" onClick={logout} className="hidden md:block">
+                Abmelden
               </Button>
-            </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="outline" size="sm" className="hidden md:block">
+                  Anmelden
+                </Button>
+              </Link>
+            </>
           )}
+
+          {/* Mobile navigation */}
+          <Sheet>
+            <SheetTrigger asChild className="md:hidden">
+              <Button variant="ghost" size="sm" className="px-2">
+                {isMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                <span className="sr-only">Menü</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="sm:max-w-sm">
+              <SheetHeader className="text-left">
+                <SheetTitle>Navigation</SheetTitle>
+                <SheetDescription>
+                  Erkunde die Cast Companion App
+                </SheetDescription>
+              </SheetHeader>
+              <nav className="grid gap-4 text-lg font-medium">
+                {navigation.map((item) => (
+                  <SheetClose asChild key={item.href}>
+                    <NavLink
+                      to={item.href}
+                      className={({ isActive }) =>
+                        `flex items-center space-x-2 rounded-md p-2 hover:bg-secondary ${
+                          isActive ? "text-foreground" : "text-foreground/60"
+                        }`
+                      }
+                    >
+                      <span>{item.label}</span>
+                    </NavLink>
+                  </SheetClose>
+                ))}
+                {isAuthenticated && (
+                  <SheetClose asChild>
+                    <Link to="/settings">
+                      <Button variant="ghost" className="justify-start">
+                        Einstellungen
+                      </Button>
+                    </Link>
+                  </SheetClose>
+                )}
+                {isAuthenticated ? (
+                  <SheetClose asChild>
+                    <Button variant="ghost" className="justify-start" onClick={logout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Abmelden
+                    </Button>
+                  </SheetClose>
+                ) : (
+                  <SheetClose asChild>
+                    <Link to="/login">
+                      <Button variant="ghost" className="justify-start">
+                        Anmelden
+                      </Button>
+                    </Link>
+                  </SheetClose>
+                )}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

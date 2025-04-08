@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
 import ProjectCard from "./ProjectCard";
-import DatabaseConnectionTest from "./DatabaseConnectionTest";
 
 const ProjectsOverview = () => {
   const { projects, addProject, getUserProjects, getSharedProjects } = useProjects();
@@ -88,9 +87,6 @@ const ProjectsOverview = () => {
 
       {isAuthenticated ? (
         <>
-          {/* Datenbank-Tester einfügen */}
-          <DatabaseConnectionTest />
-
           {allProjects.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
               <h3 className="text-lg font-medium">Noch keine Projekte</h3>
