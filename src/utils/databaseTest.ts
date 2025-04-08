@@ -5,11 +5,7 @@ import { toast } from "sonner";
 export const testSupabaseConnection = async (): Promise<boolean> => {
   try {
     // Prüfen, ob eine gültige Supabase-Session existiert
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      throw sessionError;
-    }
+    const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
       toast.error("Nicht angemeldet. Bitte melden Sie sich an, um die Datenbankverbindung zu testen.");
@@ -19,13 +15,13 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
     console.log("Teste Supabase-Verbindung...");
     
     // Versuchen, ein einfaches Profil abzurufen, um die Verbindung zu testen
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('id')
-      .limit(1)
+      .select('id, name')
+      .eq('id', session.user.id)
       .single();
     
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (error) {
       console.error("Datenbankabfragefehler:", error);
       
       if (error.message.includes("JWTError")) {
@@ -39,7 +35,7 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
       return false;
     }
     
-    console.log("Supabase-Verbindung erfolgreich getestet!");
+    console.log("Supabase-Verbindung erfolgreich getestet:", data);
     toast.success("Datenbankverbindung ist aktiv und funktioniert!");
     return true;
   } catch (error: any) {
