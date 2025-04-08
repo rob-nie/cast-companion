@@ -1,19 +1,13 @@
 
-import { useState, useEffect } from "react";
-import { onValue, query, ref, limitToLast, get } from "firebase/database";
+import { useState, useEffect, useCallback } from "react";
 import { useUser } from "../UserContext";
 import { Project } from "./types";
 import { 
+  fetchProjects,
   addProjectToFirebase, 
   updateProjectInFirebase, 
-  deleteProjectFromFirebase, 
-  getProjectsRef,
-  addMemberToProject,
-  addMemberToProjectByUserId,
-  removeMemberFromProject,
-  updateMemberRole 
+  deleteProjectFromFirebase
 } from "./projectService";
-import { QUERY_LIMIT, database } from "@/lib/firebase";
 import { ProjectMember, UserRole } from "@/types/user";
 import { toast } from "sonner";
 
@@ -24,136 +18,92 @@ export const useProjectManagementProvider = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   
-  // Load all projects from Firebase
+  // Optimierte Methode zum Laden der Projekte
   useEffect(() => {
+    let unsubscribe: () => void = () => {};
+    
     if (!isAuthenticated || !user) {
       setProjects([]);
       setCurrentProject(null);
       setIsLoading(false);
-      return;
+      return () => {};
     }
     
     setIsLoading(true);
     setLoadError(null);
     
-    console.log("Loading all projects for user:", user.id);
-    
     try {
-      // Get all projects - we'll filter in the client
-      const projectsRef = query(
-        ref(database, 'projects'),
-        limitToLast(QUERY_LIMIT)
-      );
+      console.log("Lade Projekte für Benutzer:", user.id);
       
-      const unsubscribe = onValue(projectsRef, (snapshot) => {
-        try {
-          if (snapshot.exists()) {
-            const projectsData = snapshot.val();
-            const projectsList: Project[] = [];
-            
-            Object.keys(projectsData).forEach((key) => {
-              const project = projectsData[key];
-              
-              // Check if user is owner or member
-              if (project.ownerId === user.id || 
-                 (project.members && project.members[user.id])) {
-                projectsList.push({
-                  ...project,
-                  id: key,
-                  createdAt: new Date(project.createdAt),
-                  lastAccessed: project.lastAccessed ? new Date(project.lastAccessed) : undefined,
-                });
-              }
-            });
-            
-            // Sort by most recently accessed
-            projectsList.sort((a, b) => {
-              const dateA = a.lastAccessed || a.createdAt;
-              const dateB = b.lastAccessed || b.createdAt;
-              return dateB.getTime() - dateA.getTime();
-            });
-            
-            setProjects(projectsList);
-            console.log(`Loaded ${projectsList.length} total projects`);
-          } else {
-            setProjects([]);
-            console.log("No projects found");
-          }
-          setIsLoading(false);
-        } catch (error) {
-          console.error("Error processing projects data:", error);
-          setLoadError("Failed to process projects data");
-          setIsLoading(false);
-        }
-      }, (error) => {
-        console.error("Error loading projects:", error);
-        setLoadError("Failed to load projects");
+      // Callback vom Service für Projektaktualisierungen
+      const handleProjectsUpdate = (loadedProjects: Project[]) => {
+        setProjects(loadedProjects);
         setIsLoading(false);
-      });
+        console.log(`${loadedProjects.length} Projekte geladen`);
+      };
       
-      return () => unsubscribe();
+      // Abonnieren von Projekt-Updates
+      unsubscribe = fetchProjects(user.id, handleProjectsUpdate);
     } catch (error) {
-      console.error("Error setting up projects subscription:", error);
-      setLoadError("Failed to load projects");
+      console.error("Fehler beim Einrichten des Projekt-Abonnements:", error);
+      setLoadError("Projekte konnten nicht geladen werden");
       setIsLoading(false);
     }
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [isAuthenticated, user]);
   
-  // Reset current project when user logs out
+  // Aktuelles Projekt zurücksetzen, wenn Benutzer sich abmeldet
   useEffect(() => {
     if (!isAuthenticated) {
       setCurrentProject(null);
     }
   }, [isAuthenticated]);
 
-  const addProject = async (project: Omit<Project, "id" | "createdAt" | "ownerId">) => {
+  // Projekt hinzufügen
+  const addProject = useCallback(async (project: Omit<Project, "id" | "createdAt" | "ownerId">) => {
     if (!user) return;
     
     try {
-      const newProject = await addProjectToFirebase(project, user.id);
-      toast.success("Project created successfully");
-      // Firebase real-time updates will handle adding this to the projects list
+      await addProjectToFirebase(project, user.id);
+      // Echtzeit-Updates werden das Projekt zur Liste hinzufügen
     } catch (error) {
-      console.error("Failed to add project:", error);
-      toast.error("Failed to create project");
+      console.error("Fehler beim Hinzufügen des Projekts:", error);
     }
-  };
+  }, [user]);
 
-  const updateProject = async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
+  // Projekt aktualisieren mit optimierter Fehlerbehandlung
+  const updateProject = useCallback(async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
     try {
       const success = await updateProjectInFirebase(id, projectUpdate, silent);
       
       if (success) {
-        // Update local state
+        // Lokalen Status aktualisieren
         setProjects((prev) =>
           prev.map((project) =>
             project.id === id ? { ...project, ...projectUpdate } : project
           )
         );
         
-        // Also update currentProject if that's the one being modified
+        // Auch aktuelles Projekt aktualisieren, wenn es dasselbe ist
         if (currentProject?.id === id) {
           setCurrentProject(prev => prev ? { ...prev, ...projectUpdate } : null);
         }
-        
-        if (!silent) {
-          toast.success("Project updated successfully");
-        }
       }
     } catch (error) {
-      console.error("Failed to update project:", error);
-      if (!silent) {
-        toast.error("Failed to update project");
-      }
+      console.error("Fehler beim Aktualisieren des Projekts:", error);
     }
-  };
+  }, [currentProject?.id]);
   
-  const deleteProject = async (id: string) => {
-    // Check if user is the owner or has rights to delete
+  // Projekt löschen mit optimierter Fehlerbehandlung
+  const deleteProject = useCallback(async (id: string) => {
+    // Überprüfen, ob der Benutzer Eigentümer ist
     const project = projects.find(p => p.id === id);
     
     if (project && project.ownerId !== user?.id) {
-      toast.error("You don't have permission to delete this project");
+      toast.error("Du hast keine Berechtigung, dieses Projekt zu löschen");
       return;
     }
     
@@ -161,107 +111,102 @@ export const useProjectManagementProvider = () => {
       const success = await deleteProjectFromFirebase(id);
       
       if (success) {
-        // Update local state
+        // Lokalen Status aktualisieren
         setProjects((prev) => prev.filter((project) => project.id !== id));
         if (currentProject?.id === id) {
           setCurrentProject(null);
         }
-        toast.success("Project deleted successfully");
       }
     } catch (error) {
-      console.error("Failed to delete project:", error);
-      toast.error("Failed to delete project");
+      console.error("Fehler beim Löschen des Projekts:", error);
     }
-  };
+  }, [projects, currentProject?.id, user?.id]);
   
-  // Get project members from the members field inside the project
-  const getProjectMembers = async (projectId: string): Promise<ProjectMember[]> => {
-    // Find the project
-    const project = projects.find(p => p.id === projectId);
-    
-    if (!project || !project.members) {
+  // Projekt-Mitglieder abrufen in optimierter Form
+  const getProjectMembers = useCallback(async (projectId: string): Promise<ProjectMember[]> => {
+    try {
+      const project = projects.find(p => p.id === projectId);
+      if (!project || !project.members) return [];
+      
+      // Mitglieds-Einträge in ein Array umwandeln und auflösen
+      const memberPromises = Object.entries(project.members).map(async ([userId, memberData]) => {
+        let name = "Unbekannter Benutzer";
+        let email = "";
+        let avatar = undefined;
+        
+        try {
+          const userResponse = await fetch(`/api/users/${userId}`);
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            name = userData.name || name;
+            email = userData.email || email;
+            avatar = userData.avatar;
+          }
+        } catch (error) {
+          console.error("Fehler beim Abrufen der Benutzerdetails:", error);
+        }
+        
+        return {
+          userId,
+          projectId,
+          role: memberData.role,
+          name,
+          email,
+          avatar
+        };
+      });
+      
+      return Promise.all(memberPromises);
+    } catch (error) {
+      console.error("Fehler beim Abrufen der Projektmitglieder:", error);
       return [];
     }
-    
-    // Convert members object to array of promises and resolve them
-    const memberPromises = Object.entries(project.members).map(async ([userId, memberData]) => {
-      // Try to get user details from the users collection
-      let name = "Unknown User";
-      let email = "";
-      let avatar = undefined;
-      
-      try {
-        const userRef = ref(database, `users/${userId}`);
-        const userSnapshot = await get(userRef);
-        
-        if (userSnapshot.exists()) {
-          const userData = userSnapshot.val();
-          name = userData.name || name;
-          email = userData.email || email;
-          avatar = userData.avatar;
-        }
-      } catch (error) {
-        console.error("Error fetching user details:", error);
-      }
-      
-      return {
-        userId,
-        projectId,
-        role: memberData.role,
-        name,
-        email,
-        avatar
-      };
-    });
-    
-    // Resolve all promises to get the actual members array
-    return Promise.all(memberPromises);
-  };
+  }, [projects]);
   
-  // Project sharing functions
-  const shareProject = async (projectId: string, email: string, role: "editor" | "viewer") => {
+  // Projektfreigabe-Funktionen
+  const shareProject = useCallback(async (projectId: string, email: string, role: "editor" | "viewer") => {
     try {
+      // Import und Ausführung der Dienste für die Mitgliederverwaltung
+      const { addMemberToProject } = await import('./projectService');
       await addMemberToProject(projectId, email, role);
-      toast.success("Project shared successfully");
     } catch (error) {
-      console.error("Error sharing project:", error);
-      toast.error("Failed to share project");
+      console.error("Fehler bei der Projektfreigabe:", error);
       throw error;
     }
-  };
+  }, []);
   
-  const shareProjectByUserId = async (projectId: string, userId: string, role: "editor" | "viewer") => {
+  const shareProjectByUserId = useCallback(async (projectId: string, userId: string, role: "editor" | "viewer") => {
     try {
+      // Import und Ausführung der Dienste für die Mitgliederverwaltung
+      const { addMemberToProjectByUserId } = await import('./projectService');
       await addMemberToProjectByUserId(projectId, userId, role);
-      toast.success("Project shared successfully");
     } catch (error) {
-      console.error("Error sharing project by user ID:", error);
-      toast.error("Failed to share project");
+      console.error("Fehler bei der Projektfreigabe über Benutzer-ID:", error);
       throw error;
     }
-  };
+  }, []);
   
-  const revokeAccess = async (projectId: string, userId: string) => {
+  const revokeAccess = useCallback(async (projectId: string, userId: string) => {
     try {
+      // Import und Ausführung der Dienste für die Mitgliederverwaltung
+      const { removeMemberFromProject } = await import('./projectService');
       await removeMemberFromProject(projectId, userId);
-      toast.success("Access revoked successfully");
     } catch (error) {
-      console.error("Error revoking access:", error);
-      toast.error("Failed to revoke access");
+      console.error("Fehler beim Widerrufen des Zugriffs:", error);
       throw error;
     }
-  };
+  }, []);
   
-  const changeRole = async (projectId: string, userId: string, newRole: UserRole) => {
+  const changeRole = useCallback(async (projectId: string, userId: string, newRole: UserRole) => {
     try {
+      // Import und Ausführung der Dienste für die Mitgliederverwaltung
+      const { updateMemberRole } = await import('./projectService');
       await updateMemberRole(projectId, userId, newRole);
-      toast.success("Role updated successfully");
     } catch (error) {
-      console.error("Error changing role:", error);
-      toast.error("Failed to update role");
+      console.error("Fehler beim Ändern der Rolle:", error);
       throw error;
     }
-  };
+  }, []);
 
   return {
     projects,

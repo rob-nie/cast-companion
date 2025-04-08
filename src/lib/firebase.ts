@@ -15,10 +15,17 @@ const firebaseConfig = {
   measurementId: "G-865XN716C7"
 };
 
-// Firebase constants for data limitation
-export const QUERY_LIMIT = 10; // Further reduced from 15 to 10 to prevent payload size issues
-export const SHARED_QUERY_LIMIT = 5; // Even smaller limit for shared projects
-export const RECENT_DATA_DAYS = 7; // Keep 7 days to limit data
+// Firebase constants for data limitation and indexing
+export const QUERY_LIMIT = 5; // Reduziert auf 5 für bessere Leistung
+export const SHARED_QUERY_LIMIT = 3; // Ebenfalls reduziert
+export const RECENT_DATA_DAYS = 7; // Behalte 7 Tage
+
+// Index-Namen für Firebase
+export const INDEXES = {
+  PROJECT_OWNER: 'project_owner_idx',
+  PROJECT_MEMBER: 'project_member_idx',
+  PROJECT_LAST_ACCESSED: 'project_last_accessed_idx'
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
