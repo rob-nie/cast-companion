@@ -21,6 +21,7 @@ import InterviewDashboard from "./pages/InterviewDashboard";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ProjectSharing from "./pages/ProjectSharing";
+import DatabaseRules from "./pages/DatabaseRules";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/dashboard" element={<InterviewDashboard />} />
                         <Route path="/project-sharing" element={<ProjectSharing />} />
+                        <Route path="/database-rules" element={<DatabaseRules />} />
                       </Route>
                       
                       <Route path="*" element={<NotFound />} />

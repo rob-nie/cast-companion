@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
 import ProjectCard from "./ProjectCard";
+import DatabaseConnectionTest from "./DatabaseConnectionTest";
 
 const ProjectsOverview = () => {
   const { projects, addProject, getUserProjects, getSharedProjects } = useProjects();
@@ -87,8 +88,11 @@ const ProjectsOverview = () => {
 
       {isAuthenticated ? (
         <>
+          {/* Datenbank-Tester einfügen */}
+          <DatabaseConnectionTest />
+
           {allProjects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
+            <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
               <h3 className="text-lg font-medium">Noch keine Projekte</h3>
               <p className="text-muted-foreground mt-1 mb-4">
                 Erstelle dein erstes Projekt, um loszulegen
@@ -103,7 +107,7 @@ const ProjectsOverview = () => {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
               {allProjects.map((project) => (
                 <ProjectCard 
                   key={project.id} 
