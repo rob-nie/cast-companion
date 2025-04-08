@@ -17,35 +17,43 @@ const Debug = () => {
     "projects": {
       ".indexOn": ["ownerId"],
       "$projectId": {
-        ".read": "auth != null",
-        ".write": "auth != null" 
+        ".read": "auth != null && (data.child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo($projectId).orderByChild('userId').equalTo(auth.uid).exists())",
+        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid)"
       }
     },
     "projectMembers": {
       ".indexOn": ["projectId", "userId"],
       "$memberId": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && (!data.exists() || root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid)"
       }
     },
     "quickPhrases": {
       ".indexOn": ["userId"],
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$phraseId": {
+        ".read": "auth != null && data.child('userId').val() === auth.uid",
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
+      }
     },
     "notes": {
       ".indexOn": ["projectId"],
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$noteId": {
+        ".read": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).exists())",
+        ".write": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).child('role').val() === 'editor')"
+      }
     },
     "messages": {
       ".indexOn": ["projectId"],
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$messageId": {
+        ".read": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).exists())",
+        ".write": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).child('role').val() in ['owner', 'editor'])"
+      }
     },
     "projectStopwatches": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$projectId": {
+        ".read": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo($projectId).orderByChild('userId').equalTo(auth.uid).exists())",
+        ".write": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo($projectId).orderByChild('userId').equalTo(auth.uid).child('role').val() in ['owner', 'editor'])"
+      }
     }
   }
 }`;
@@ -99,10 +107,10 @@ const Debug = () => {
             </div>
 
             <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-4 rounded">
-              <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">Hinweis zur Sicherheit</h4>
+              <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">Verbesserte Sicherheit</h4>
               <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                Diese vereinfachten Regeln gewähren Zugriff für alle authentifizierten Benutzer und sind für die Testphase gedacht. 
-                Für den Produktivbetrieb sollten Sie detailliertere Regeln verwenden.
+                Diese neuen Regeln schränken den Zugriff basierend auf Nutzerberechtigungen ein. Projektdaten sind nur für 
+                Besitzer und eingeladene Mitglieder verfügbar, und Schreibzugriffe sind nach Rollen strukturiert.
               </p>
             </div>
             

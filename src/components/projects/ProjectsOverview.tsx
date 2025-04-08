@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { PlusCircle, LoaderCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { PlusCircle, LoaderCircle, Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -10,16 +10,47 @@ import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
 import ProjectCard from "./ProjectCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Project } from "@/context/projectManagement";
 
 const ProjectsOverview = () => {
   const { getUserProjects, getSharedProjects, addProject, isLoading } = useProjects();
   const { isAuthenticated, user } = useUser();
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProjects, setFilteredProjects] = useState<{
+    myProjects: Project[],
+    sharedProjects: Project[],
+  }>({
+    myProjects: [],
+    sharedProjects: []
+  });
   
   // Get user-specific projects
   const myProjects = getUserProjects();
   const sharedProjects = getSharedProjects();
+  
+  // Filter projects when search term or projects change
+  useEffect(() => {
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      setFilteredProjects({
+        myProjects: myProjects.filter(
+          project => project.title.toLowerCase().includes(term) || 
+                     project.description?.toLowerCase().includes(term)
+        ),
+        sharedProjects: sharedProjects.filter(
+          project => project.title.toLowerCase().includes(term) || 
+                     project.description?.toLowerCase().includes(term)
+        )
+      });
+    } else {
+      setFilteredProjects({
+        myProjects,
+        sharedProjects
+      });
+    }
+  }, [searchTerm, myProjects, sharedProjects]);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,16 +88,33 @@ const ProjectsOverview = () => {
     </div>
   );
 
-  const renderProjectGrid = (projects: any[]) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-      {projects.map((project) => (
-        <ProjectCard 
-          key={project.id} 
-          project={project} 
-          isOwned={user?.id === project.ownerId}
-        />
-      ))}
-    </div>
+  const renderProjectGrid = (projects: Project[]) => (
+    <>
+      {projects.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+          {projects.map((project) => (
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              isOwned={user?.id === project.ownerId}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+          <h3 className="text-lg font-medium">Keine Projekte gefunden</h3>
+          {searchTerm ? (
+            <p className="text-muted-foreground mt-1">
+              Keine Projekte entsprechen deiner Suche
+            </p>
+          ) : (
+            <p className="text-muted-foreground mt-1">
+              Es gibt noch keine Projekte in dieser Kategorie
+            </p>
+          )}
+        </div>
+      )}
+    </>
   );
 
   return (
@@ -123,43 +171,96 @@ const ProjectsOverview = () => {
       </div>
 
       {isAuthenticated ? (
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="all">Alle Projekte</TabsTrigger>
-            <TabsTrigger value="my">Meine Projekte</TabsTrigger>
-            <TabsTrigger value="shared">Geteilte Projekte</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all">
-            {isLoading ? (
-              renderLoadingState()
-            ) : myProjects.length === 0 && sharedProjects.length === 0 ? (
-              renderEmptyState("Noch keine Projekte")
-            ) : (
-              renderProjectGrid([...myProjects, ...sharedProjects])
+        <div>
+          <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Projekte durchsuchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            {isLoading && (
+              <Button variant="outline" disabled className="whitespace-nowrap">
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Lädt...
+              </Button>
             )}
-          </TabsContent>
+          </div>
           
-          <TabsContent value="my">
-            {isLoading ? (
-              renderLoadingState()
-            ) : myProjects.length === 0 ? (
-              renderEmptyState("Noch keine eigenen Projekte")
-            ) : (
-              renderProjectGrid(myProjects)
-            )}
-          </TabsContent>
-          
-          <TabsContent value="shared">
-            {isLoading ? (
-              renderLoadingState()
-            ) : sharedProjects.length === 0 ? (
-              renderEmptyState("Keine geteilten Projekte")
-            ) : (
-              renderProjectGrid(sharedProjects)
-            )}
-          </TabsContent>
-        </Tabs>
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="all">Alle Projekte</TabsTrigger>
+              <TabsTrigger value="my">Meine Projekte</TabsTrigger>
+              <TabsTrigger value="shared">Geteilte Projekte</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="all">
+              {isLoading ? (
+                renderLoadingState()
+              ) : filteredProjects.myProjects.length === 0 && filteredProjects.sharedProjects.length === 0 ? (
+                searchTerm ? (
+                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+                    <h3 className="text-lg font-medium">Keine Ergebnisse</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Es wurden keine Projekte gefunden, die "{searchTerm}" enthalten
+                    </p>
+                  </div>
+                ) : (
+                  renderEmptyState("Noch keine Projekte")
+                )
+              ) : (
+                renderProjectGrid([...filteredProjects.myProjects, ...filteredProjects.sharedProjects])
+              )}
+            </TabsContent>
+            
+            <TabsContent value="my">
+              {isLoading ? (
+                renderLoadingState()
+              ) : filteredProjects.myProjects.length === 0 ? (
+                searchTerm ? (
+                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+                    <h3 className="text-lg font-medium">Keine Ergebnisse</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Es wurden keine eigenen Projekte gefunden, die "{searchTerm}" enthalten
+                    </p>
+                  </div>
+                ) : (
+                  renderEmptyState("Noch keine eigenen Projekte")
+                )
+              ) : (
+                renderProjectGrid(filteredProjects.myProjects)
+              )}
+            </TabsContent>
+            
+            <TabsContent value="shared">
+              {isLoading ? (
+                renderLoadingState()
+              ) : filteredProjects.sharedProjects.length === 0 ? (
+                searchTerm ? (
+                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+                    <h3 className="text-lg font-medium">Keine Ergebnisse</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Es wurden keine geteilten Projekte gefunden, die "{searchTerm}" enthalten
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+                    <h3 className="text-lg font-medium">Keine geteilten Projekte</h3>
+                    <p className="text-muted-foreground mt-1">
+                      Noch hat niemand ein Projekt mit dir geteilt
+                    </p>
+                  </div>
+                )
+              ) : (
+                renderProjectGrid(filteredProjects.sharedProjects)
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       ) : (
         // Show a message for non-authenticated users
         <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">

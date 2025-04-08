@@ -16,8 +16,9 @@ const firebaseConfig = {
 };
 
 // Firebase constants for data limitation
-export const QUERY_LIMIT = 15; // Reduced from 20 to 15 to prevent payload size issues
-export const RECENT_DATA_DAYS = 7; // Reduced from 14 to 7 days to further limit data
+export const QUERY_LIMIT = 10; // Further reduced from 15 to 10 to prevent payload size issues
+export const SHARED_QUERY_LIMIT = 5; // Even smaller limit for shared projects
+export const RECENT_DATA_DAYS = 7; // Keep 7 days to limit data
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

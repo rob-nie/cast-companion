@@ -1,6 +1,6 @@
 
 import { toast } from "sonner";
-import { ref, set, push, remove, update, get, query, limitToLast } from "firebase/database";
+import { ref, set, push, remove, update, get, query, limitToLast, orderByChild, equalTo } from "firebase/database";
 import { database, QUERY_LIMIT } from "@/lib/firebase";
 import { Project } from "./types";
 
@@ -90,44 +90,61 @@ export const deleteProjectFromFirebase = async (id: string) => {
 
 // Helper function to clean up related data when a project is deleted
 export const cleanupProjectData = async (projectId: string) => {
-  // Remove project members
-  const membersRef = ref(database, 'projectMembers');
-  get(membersRef).then((snapshot) => {
-    if (snapshot.exists()) {
-      const membersData = snapshot.val();
-      Object.keys(membersData).forEach((key) => {
-        if (membersData[key].projectId === projectId) {
-          remove(ref(database, `projectMembers/${key}`));
-        }
+  try {
+    // Remove project members
+    const membersRef = query(
+      ref(database, 'projectMembers'),
+      orderByChild('projectId'),
+      equalTo(projectId)
+    );
+    
+    const memberSnapshot = await get(membersRef);
+    if (memberSnapshot.exists()) {
+      const membersData = memberSnapshot.val();
+      Object.keys(membersData).forEach(async (key) => {
+        await remove(ref(database, `projectMembers/${key}`));
       });
     }
-  });
-  
-  // Remove notes
-  const notesRef = ref(database, 'notes');
-  get(notesRef).then((snapshot) => {
-    if (snapshot.exists()) {
-      const notesData = snapshot.val();
-      Object.keys(notesData).forEach((key) => {
-        if (notesData[key].projectId === projectId) {
-          remove(ref(database, `notes/${key}`));
-        }
+    
+    // Remove notes with batching to avoid large operations
+    const notesRef = query(
+      ref(database, 'notes'),
+      orderByChild('projectId'),
+      equalTo(projectId),
+      limitToLast(50)
+    );
+    
+    const noteSnapshot = await get(notesRef);
+    if (noteSnapshot.exists()) {
+      const notesData = noteSnapshot.val();
+      Object.keys(notesData).forEach(async (key) => {
+        await remove(ref(database, `notes/${key}`));
       });
     }
-  });
-  
-  // Remove messages
-  const messagesRef = ref(database, 'messages');
-  get(messagesRef).then((snapshot) => {
-    if (snapshot.exists()) {
-      const messagesData = snapshot.val();
-      Object.keys(messagesData).forEach((key) => {
-        if (messagesData[key].projectId === projectId) {
-          remove(ref(database, `messages/${key}`));
-        }
+    
+    // Remove messages with batching to avoid large operations
+    const messagesRef = query(
+      ref(database, 'messages'),
+      orderByChild('projectId'),
+      equalTo(projectId),
+      limitToLast(50)
+    );
+    
+    const messageSnapshot = await get(messagesRef);
+    if (messageSnapshot.exists()) {
+      const messagesData = messageSnapshot.val();
+      Object.keys(messagesData).forEach(async (key) => {
+        await remove(ref(database, `messages/${key}`));
       });
     }
-  });
+    
+    // Remove project stopwatches
+    await remove(ref(database, `projectStopwatches/${projectId}`));
+    
+  } catch (error) {
+    console.error("Error cleaning up project data:", error);
+    toast.error("Einige Projektdaten konnten nicht vollständig gelöscht werden");
+  }
 };
 
 export const getProjectsRef = () => {
