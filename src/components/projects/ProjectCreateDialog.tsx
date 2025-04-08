@@ -35,11 +35,18 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
         setIsSubmitting(true);
         console.log("Creating new project with title:", newProject.title);
         
-        // Create the project without relying on its return value
+        // Create the project
         await addProject(newProject);
         
-        // Wait a bit longer for the projects to update with the new project
-        setTimeout(() => {
+        // Reset form and close dialog
+        setNewProject({ title: "", description: "" });
+        setIsOpen(false);
+        
+        // Show success message
+        toast.success("Projekt erfolgreich erstellt");
+        
+        // Give Firebase time to update and then look for the project
+        setTimeout(async () => {
           // Find the newly created project by title and owner
           const createdProject = projects.find(p => 
             p.title === newProject.title && 
@@ -54,22 +61,11 @@ const ProjectCreateDialog = ({ isOpen, setIsOpen, triggerButton }: ProjectCreate
             // Also store in localStorage
             localStorage.setItem('currentProject', JSON.stringify(createdProject));
             
-            // Reset form and close dialog
-            setNewProject({ title: "", description: "" });
-            setIsOpen(false);
-            
-            // Show success message
-            toast.success("Projekt erfolgreich erstellt");
-            
-            // Navigate to dashboard after a short delay
-            setTimeout(() => {
-              navigate("/dashboard");
-            }, 300);
+            // Navigate to dashboard
+            navigate("/dashboard");
           } else {
             console.error("Could not find created project");
             toast.error("Projekt wurde erstellt, konnte aber nicht geöffnet werden");
-            setIsOpen(false);
-            setNewProject({ title: "", description: "" });
             setIsSubmitting(false);
           }
         }, 800); // Wait longer for project to be available in the projects array
