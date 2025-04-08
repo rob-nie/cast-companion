@@ -28,16 +28,22 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   const projectStopwatch = getProjectStopwatch(currentProject.id);
 
   const handleAddEmptyNote = () => {
-    const note = addNote({
+    console.log("Adding new empty note for project:", currentProject.id);
+    
+    const newNote = addNote({
       projectId: currentProject.id,
       content: '',
       stopwatchTime: projectStopwatch.elapsedTime,
       isLiveNote: true,
     });
+    
     // Auto-enter edit mode for the new note
-    if (note?.id) {
-      setEditingNoteId(note.id);
+    if (newNote?.id) {
+      console.log("Created new note with ID:", newNote.id);
+      setEditingNoteId(newNote.id);
       setEditingContent('');
+    } else {
+      console.error("Failed to create new note, returned value:", newNote);
     }
   };
   
@@ -132,6 +138,7 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
           size="sm"
           className="w-full gap-1"
           onClick={handleAddEmptyNote}
+          type="button"
         >
           <Plus className="h-4 w-4" />
           New Live Note

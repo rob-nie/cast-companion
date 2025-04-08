@@ -20,7 +20,7 @@ type NotesContextType = {
   notes: Note[];
   interviewNotes: Note | null;
   liveNotes: Note[];
-  addNote: (note: Omit<Note, "id" | "timestamp" | "userId">) => Note;
+  addNote: (note: Omit<Note, "id" | "timestamp" | "userId">) => Note | null;
   updateNote: (id: string, updates: Partial<Omit<Note, "id" | "userId">>) => void;
   deleteNote: (id: string) => void;
   exportLiveNotesAsCSV: (projectId: string) => string;
@@ -90,30 +90,47 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   }, [currentProject, notes, currentUserId]);
 
   const addNote = (note: Omit<Note, "id" | "timestamp" | "userId">) => {
-    const newNoteRef = push(ref(database, 'notes'));
-    const newNote: Note = {
-      ...note,
-      id: newNoteRef.key!,
-      userId: currentUserId, // Add the current user's ID
-      timestamp: new Date(),
-    };
-    
-    // Prepare for Firebase
-    const firebaseNote = {
-      ...note,
-      userId: currentUserId,
-      timestamp: new Date().toISOString(),
-    };
-    
-    set(newNoteRef, firebaseNote)
-      .catch((error) => {
-        console.error("Error adding note:", error);
-      });
-    
-    return newNote;
+    try {
+      console.log("Adding note:", note);
+      const newNoteRef = push(ref(database, 'notes'));
+      
+      if (!newNoteRef.key) {
+        console.error("Failed to generate key for new note");
+        return null;
+      }
+      
+      const newNote: Note = {
+        ...note,
+        id: newNoteRef.key,
+        userId: currentUserId,
+        timestamp: new Date(),
+      };
+      
+      // Prepare for Firebase
+      const firebaseNote = {
+        ...note,
+        userId: currentUserId,
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Use set instead of push to specify the key
+      set(newNoteRef, firebaseNote)
+        .then(() => {
+          console.log("Note added successfully with ID:", newNoteRef.key);
+        })
+        .catch((error) => {
+          console.error("Error adding note:", error);
+        });
+      
+      return newNote;
+    } catch (error) {
+      console.error("Exception when adding note:", error);
+      return null;
+    }
   };
 
   const updateNote = (id: string, updates: Partial<Omit<Note, "id" | "userId">>) => {
+    console.log("Updating note:", id, updates);
     // Prepare data for Firebase
     const updateData: Record<string, any> = { ...updates };
     
@@ -124,14 +141,21 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     
     const noteRef = ref(database, `notes/${id}`);
     update(noteRef, updateData)
+      .then(() => {
+        console.log("Note updated successfully:", id);
+      })
       .catch((error) => {
         console.error("Error updating note:", error);
       });
   };
   
   const deleteNote = (id: string) => {
+    console.log("Deleting note:", id);
     const noteRef = ref(database, `notes/${id}`);
     remove(noteRef)
+      .then(() => {
+        console.log("Note deleted successfully:", id);
+      })
       .catch((error) => {
         console.error("Error deleting note:", error);
       });
@@ -158,7 +182,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
     // Add each note as a row
     projectNotes.forEach((note) => {
       const timestamp = note.stopwatchTime !== undefined 
-        ? formatTime(note.stopwatchTime)
+        ? formatTime(note.stopwatchTime / 1000) // Convert ms to seconds
         : "";
       
       // Escape quotes in content and wrap in quotes
@@ -173,7 +197,7 @@ export const NotesProvider = ({ children }: { children: ReactNode }) => {
   // Helper to format time in mm:ss format
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 

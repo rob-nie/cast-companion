@@ -96,6 +96,7 @@ const MessengerTile = () => {
   };
   
   const handleSendMessage = (content: string) => {
+    console.log('Sending message:', content, 'for project:', currentProject?.id);
     if (!content.trim() || !currentProject) return;
     
     addMessage({

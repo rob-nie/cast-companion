@@ -43,6 +43,7 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
     
     const unsubscribe = onValue(stopwatchesRef, (snapshot) => {
       if (snapshot.exists()) {
+        console.log("Firebase stopwatch data updated:", snapshot.val());
         const stopwatchData = snapshot.val();
         setProjectStopwatches(stopwatchData);
       }
@@ -83,19 +84,24 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Update stopwatch in Firebase
-  const updateStopwatchInFirebase = (projectId: string, stopwatch: ProjectStopwatch) => {
-    const stopwatchRef = ref(database, `projectStopwatches/${projectId}`);
-    set(stopwatchRef, stopwatch)
-      .catch(error => {
-        console.error("Error updating stopwatch in Firebase:", error);
-      });
+  const updateStopwatchInFirebase = async (projectId: string, stopwatch: ProjectStopwatch) => {
+    console.log("Updating stopwatch in Firebase for project:", projectId, stopwatch);
+    try {
+      const stopwatchRef = ref(database, `projectStopwatches/${projectId}`);
+      await set(stopwatchRef, stopwatch);
+      console.log("Stopwatch updated successfully in Firebase");
+    } catch (error) {
+      console.error("Error updating stopwatch in Firebase:", error);
+    }
   };
 
-  const startStopwatch = (projectId: string) => {
+  const startStopwatch = async (projectId: string) => {
     // Get current stopwatch state
     const current = getProjectStopwatch(projectId);
     
     if (current.isRunning) return;
+    
+    console.log("Starting stopwatch for project:", projectId);
     
     // Create updated stopwatch
     const updatedStopwatch: ProjectStopwatch = {
@@ -105,21 +111,23 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
       lastUpdatedBy: currentUserId
     };
     
-    // Update Firebase (will trigger the onValue subscription in other clients)
-    updateStopwatchInFirebase(projectId, updatedStopwatch);
-    
     // Update local state immediately for responsive UI
     setProjectStopwatches(prev => ({
       ...prev,
       [projectId]: updatedStopwatch
     }));
+    
+    // Update Firebase (will trigger the onValue subscription in other clients)
+    await updateStopwatchInFirebase(projectId, updatedStopwatch);
   };
 
-  const stopStopwatch = (projectId: string) => {
+  const stopStopwatch = async (projectId: string) => {
     // Get current stopwatch state
     const current = getProjectStopwatch(projectId);
     
     if (!current.isRunning) return;
+    
+    console.log("Stopping stopwatch for project:", projectId);
     
     // Calculate current elapsed time
     const elapsedTime = current.startTime 
@@ -134,17 +142,19 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
       lastUpdatedBy: currentUserId
     };
     
-    // Update Firebase
-    updateStopwatchInFirebase(projectId, updatedStopwatch);
-    
     // Update local state immediately
     setProjectStopwatches(prev => ({
       ...prev,
       [projectId]: updatedStopwatch
     }));
+    
+    // Update Firebase
+    await updateStopwatchInFirebase(projectId, updatedStopwatch);
   };
 
-  const resetStopwatch = (projectId: string) => {
+  const resetStopwatch = async (projectId: string) => {
+    console.log("Resetting stopwatch for project:", projectId);
+    
     // Create reset stopwatch
     const resetStopwatch: ProjectStopwatch = {
       isRunning: false,
@@ -153,14 +163,14 @@ export const WatchProvider = ({ children }: { children: ReactNode }) => {
       lastUpdatedBy: currentUserId
     };
     
-    // Update Firebase
-    updateStopwatchInFirebase(projectId, resetStopwatch);
-    
     // Update local state immediately
     setProjectStopwatches(prev => ({
       ...prev,
       [projectId]: resetStopwatch
     }));
+    
+    // Update Firebase
+    await updateStopwatchInFirebase(projectId, resetStopwatch);
   };
 
   const formatStopwatchTime = (timeMs: number) => {
