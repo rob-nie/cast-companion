@@ -1,42 +1,44 @@
 
-import { 
-  ref,
-  update,
-  get
-} from "firebase/database";
-import { database } from "@/lib/firebase";
+import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "@/types/user";
 import { toast } from "sonner";
 
 export const updateMemberRole = async (projectId: string, userId: string, role: UserRole) => {
   try {
-    // Da wir keinen Index für userId haben, müssen wir alle Mitglieder abrufen und lokal filtern
-    const membersRef = ref(database, 'projectMembers');
-    const snapshot = await get(membersRef);
-    let memberKey = "";
-    
-    if (snapshot.exists()) {
-      // Lokal nach Mitgliedschaft suchen
-      const membersData = snapshot.val();
-      for (const key in membersData) {
-        const memberData = membersData[key];
-        if (memberData.projectId === projectId && memberData.userId === userId) {
-          memberKey = key;
-          break;
-        }
-      }
+    // Check if user is project owner
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('owner_id')
+      .eq('id', projectId)
+      .single();
+      
+    if (projectError) {
+      toast.error("Project not found");
+      throw projectError;
     }
     
-    if (!memberKey) {
-      toast.error("Mitglied nicht gefunden");
-      throw new Error("Mitglied nicht gefunden");
+    // Cannot change owner's role
+    if (projectData.owner_id === userId && role !== 'owner') {
+      toast.error("Cannot change the owner's role");
+      throw new Error("Cannot change the owner's role");
     }
     
-    // Update role
-    await update(ref(database, `projectMembers/${memberKey}`), { role });
-    toast.success("Rolle aktualisiert");
+    // Update the member role
+    const { error } = await supabase
+      .from('project_members')
+      .update({ role })
+      .eq('project_id', projectId)
+      .eq('user_id', userId);
+      
+    if (error) {
+      toast.error(error.message || "Error updating role");
+      throw error;
+    }
+    
+    toast.success("Role updated");
+    return true;
   } catch (error) {
-    toast.error("Fehler beim Aktualisieren der Rolle");
+    console.error("Error updating role:", error);
     throw error;
   }
 };

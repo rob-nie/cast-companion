@@ -1,30 +1,22 @@
 
-import { ProjectMember, UserRole } from "@/types/user";
+import { UserRole } from "@/types/user";
 
-// Define project structure
 export interface Project {
   id: string;
   title: string;
   description?: string;
+  ownerId: string;
   createdAt: Date;
   lastAccessed?: Date;
-  ownerId: string;
-  members?: Record<string, { role: UserRole }>;
 }
 
-// Context type for ProjectManagement
-export type ProjectManagementContextType = {
+export interface ProjectManagementContextType {
   projects: Project[];
   currentProject: Project | null;
   setCurrentProject: (project: Project | null) => void;
-  addProject: (project: Omit<Project, "id" | "createdAt" | "ownerId">) => void;
+  addProject: (project: Omit<Project, "id" | "createdAt" | "ownerId">) => Promise<void>;
   updateProject: (id: string, projectUpdate: Partial<Project>, silent?: boolean) => Promise<void>;
-  deleteProject: (id: string) => void;
-  getProjectMembers: (projectId: string) => Promise<ProjectMember[]>;
-  shareProject: (projectId: string, email: string, role: "editor" | "viewer") => Promise<void>;
-  shareProjectByUserId: (projectId: string, userId: string, role: "editor" | "viewer") => Promise<void>;
-  revokeAccess: (projectId: string, userId: string) => Promise<void>;
-  changeRole: (projectId: string, userId: string, newRole: UserRole) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   isLoading: boolean;
   loadError: string | null;
-};
+}

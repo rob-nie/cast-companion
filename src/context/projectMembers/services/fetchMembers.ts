@@ -1,109 +1,71 @@
 
-import { 
-  ref, 
-  query,
-  orderByChild,
-  equalTo,
-  onValue,
-  get,
-  off
-} from "firebase/database";
-import { database } from "@/lib/firebase";
+import { supabase } from "@/integrations/supabase/client";
 import { ProjectMember } from "@/types/user";
 import { SetMembersFunction } from "../serviceTypes";
 
 export const fetchProjectMembers = async (
-  projectId: string, 
+  projectId: string,
   setMembers: SetMembersFunction
-) => {
-  try {
-    // Optimierte Abfrage mit Index für projektMitglieder
-    const membersQuery = query(
-      ref(database, 'projectMembers'),
-      orderByChild('projectId'),
-      equalTo(projectId)
-    );
-    
-    // Einmaliges Laden zur sofortigen Anzeige
-    const snapshot = await get(membersQuery);
-    const initialMembers = await processMembers(snapshot);
-    setMembers(projectId, initialMembers);
-    
-    // Echtzeitaktualisierungen abonnieren
-    const unsubscribe = onValue(membersQuery, async (snapshot) => {
-      try {
-        const updatedMembers = await processMembers(snapshot);
-        setMembers(projectId, updatedMembers);
-      } catch (error) {
-        console.error("Fehler bei der Verarbeitung der Mitgliederdaten:", error);
-        setMembers(projectId, []);
-      }
-    }, (error) => {
-      console.error("Fehler beim Laden der Projektmitglieder:", error);
-      setMembers(projectId, []);
-    });
-    
-    // Aufräumfunktion zurückgeben
-    return () => {
-      try {
-        off(membersQuery);
-        unsubscribe();
-      } catch (error) {
-        console.error("Fehler beim Aufräumen der Mitgliederabfrage:", error);
-      }
-    };
-  } catch (error) {
-    console.error("Fehler beim Abrufen der Projektmitglieder:", error);
-    setMembers(projectId, []);
+): Promise<() => void> => {
+  if (!projectId) {
+    console.error("Project ID is required");
     return () => {};
   }
-};
 
-// Hilfsfunktion zur Verarbeitung von Mitgliedsdaten mit Benutzerdetails
-async function processMembers(snapshot: any): Promise<ProjectMember[]> {
-  if (!snapshot.exists()) {
-    return [];
-  }
-  
-  const members: ProjectMember[] = [];
-  const membersData = snapshot.val();
-  const userDetailsCache: Record<string, any> = {};
-  
-  // Benutzer-IDs sammeln
-  const userIds = new Set<string>();
-  for (const key in membersData) {
-    const member = membersData[key];
-    userIds.add(member.userId);
-  }
-  
-  // Benutzerdetails in einem Batch laden
-  for (const userId of userIds) {
+  // Function to load members
+  const loadMembers = async () => {
     try {
-      const userRef = ref(database, `users/${userId}`);
-      const userSnapshot = await get(userRef);
-      
-      if (userSnapshot.exists()) {
-        userDetailsCache[userId] = userSnapshot.val();
-      }
+      // Get project members including profiles data
+      const { data, error } = await supabase
+        .from('project_members')
+        .select(`
+          user_id,
+          role,
+          profiles:user_id (
+            name,
+            email,
+            avatar
+          )
+        `)
+        .eq('project_id', projectId);
+
+      if (error) throw error;
+
+      // Transform to our ProjectMember format
+      const projectMembers: ProjectMember[] = (data || []).map((item: any) => ({
+        userId: item.user_id,
+        projectId: projectId,
+        role: item.role,
+        name: item.profiles?.name || 'Unknown User',
+        email: item.profiles?.email || '',
+        avatar: item.profiles?.avatar
+      }));
+
+      setMembers(projectId, projectMembers);
     } catch (error) {
-      console.error(`Fehler beim Laden der Benutzerdetails für ${userId}:`, error);
+      console.error("Error fetching project members:", error);
+      setMembers(projectId, []);
     }
-  }
-  
-  // Mitgliedsdaten mit Benutzerdetails zusammenführen
-  for (const key in membersData) {
-    const member = membersData[key];
-    const userData = userDetailsCache[member.userId] || {};
-    
-    members.push({
-      userId: member.userId,
-      projectId: member.projectId,
-      role: member.role,
-      name: userData.name || "Unbekannter Benutzer",
-      email: userData.email || "",
-      avatar: userData.avatar
-    });
-  }
-  
-  return members;
-}
+  };
+
+  // Initial load
+  await loadMembers();
+
+  // Setup real-time subscription
+  const subscription = supabase
+    .channel('project-members-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'project_members',
+      filter: `project_id=eq.${projectId}`,
+    }, () => {
+      loadMembers();
+    })
+    .subscribe();
+
+  // Return cleanup function
+  return () => {
+    supabase.removeChannel(subscription);
+  };
+};

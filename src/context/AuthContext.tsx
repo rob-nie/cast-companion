@@ -1,16 +1,9 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { toast } from "sonner";
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  updateProfile as updateFirebaseProfile,
-} from "firebase/auth";
-import { ref, set, get } from "firebase/database";
-import { auth, database } from "@/lib/firebase";
 import { User } from "@/types/user";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, AuthError } from '@supabase/supabase-js';
 
 type AuthContextType = {
   user: User | null;
@@ -25,76 +18,99 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   // Listen for auth state changes
   useEffect(() => {
     console.log("Setting up auth state listener");
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("Auth state changed:", firebaseUser);
-      setIsLoading(true);
-      
-      try {
-        if (firebaseUser) {
-          // Get user data from database
-          const userRef = ref(database, `users/${firebaseUser.uid}`);
-          const snapshot = await get(userRef);
-          
-          if (snapshot.exists()) {
-            const userData = snapshot.val();
-            setUser({
-              id: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              name: userData.name || firebaseUser.displayName || "",
-              avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-              createdAt: new Date(userData.createdAt)
-            });
-          } else {
-            // Create user data if it doesn't exist
-            const newUser = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              name: firebaseUser.displayName || "",
-              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-              createdAt: new Date().toISOString()
-            };
-            
-            await set(userRef, newUser);
-            setUser({
-              ...newUser,
-              createdAt: new Date(newUser.createdAt)
-            });
-          }
+    
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("Auth state changed:", event);
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user profile in a separate call to avoid deadlocks
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
         } else {
           setUser(null);
+          setIsLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-        toast.error("Fehler beim Laden der Benutzerdaten");
-        setUser(null);
-      } finally {
+      }
+    );
+    
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
         setIsLoading(false);
       }
     });
     
-    return () => unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+  
+  // Helper to fetch user profile
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        setUser({
+          id: userId,
+          email: data.email,
+          name: data.name,
+          avatar: data.avatar,
+          createdAt: new Date(data.created_at)
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      toast.error("Error loading user profile");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Attempting login with:", email);
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login credentials verified");
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      
+      console.log("Login successful");
       // Auth state listener will handle the rest
     } catch (error: any) {
       console.error("Login error:", error);
-      let errorMessage = "Anmeldung fehlgeschlagen";
-      if (error.code === "auth/invalid-email" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
-        errorMessage = "Ungültige E-Mail oder Passwort";
-      } else if (error.code === "auth/api-key-not-valid.-please-pass-a-valid-api-key.") {
-        errorMessage = "Firebase-Konfigurationsfehler. Bitte kontaktieren Sie den Administrator.";
+      let errorMessage = "Login failed";
+      
+      if (error instanceof AuthError) {
+        if (error.message.includes("Invalid login")) {
+          errorMessage = "Invalid email or password";
+        }
       }
+      
       toast.error(errorMessage);
       setIsLoading(false);
       throw error;
@@ -104,32 +120,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (name: string, email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
+      // Create user in Supabase Auth
+      const { data: { user }, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            full_name: name,
+          }
+        }
+      });
       
-      // Update display name
-      await updateFirebaseProfile(firebaseUser, { displayName: name });
+      if (error) throw error;
       
-      // Create user entry in database
-      const newUser = {
-        id: firebaseUser.uid,
-        email: email,
-        name: name,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-        createdAt: new Date().toISOString()
-      };
-      
-      await set(ref(database, `users/${firebaseUser.uid}`), newUser);
-      toast.success("Konto erfolgreich erstellt");
-      // Auth state listener will handle the rest
-    } catch (error: any) {
-      let errorMessage = "Registrierung fehlgeschlagen";
-      if (error.code === "auth/email-already-in-use") {
-        errorMessage = "E-Mail wird bereits verwendet";
-      } else if (error.code === "auth/api-key-not-valid.-please-pass-a-valid-api-key.") {
-        errorMessage = "Firebase-Konfigurationsfehler. Bitte kontaktieren Sie den Administrator.";
+      if (!user) {
+        throw new Error("Failed to create user");
       }
+      
+      toast.success("Account created successfully");
+      // The trigger function will create the profile and the auth state listener will handle the rest
+    } catch (error: any) {
+      let errorMessage = "Registration failed";
+      
+      if (error instanceof AuthError) {
+        if (error.message.includes("already registered")) {
+          errorMessage = "Email already registered";
+        }
+      }
+      
       toast.error(errorMessage);
       setIsLoading(false);
       throw error;
@@ -139,11 +158,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      await signOut(auth);
-      toast.success("Erfolgreich abgemeldet");
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+      
+      toast.success("Successfully logged out");
       // Auth state listener will handle the rest
-    } catch (error) {
-      toast.error("Abmeldung fehlgeschlagen");
+    } catch (error: any) {
+      toast.error("Failed to log out");
       console.error("Logout error:", error);
       setIsLoading(false);
     }

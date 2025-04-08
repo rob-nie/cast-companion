@@ -8,7 +8,6 @@ import {
   updateProjectInFirebase, 
   deleteProjectFromFirebase
 } from "./projectService";
-import { ProjectMember, UserRole } from "@/types/user";
 import { toast } from "sonner";
 
 export const useProjectManagementProvider = () => {
@@ -18,7 +17,7 @@ export const useProjectManagementProvider = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   
-  // Optimierte Methode zum Laden der Projekte
+  // Load projects when user is authenticated
   useEffect(() => {
     let unsubscribe: () => void = () => {};
     
@@ -33,20 +32,20 @@ export const useProjectManagementProvider = () => {
     setLoadError(null);
     
     try {
-      console.log("Lade Projekte für Benutzer:", user.id);
+      console.log("Loading projects for user:", user.id);
       
-      // Callback vom Service für Projektaktualisierungen
+      // Callback from service for project updates
       const handleProjectsUpdate = (loadedProjects: Project[]) => {
         setProjects(loadedProjects);
         setIsLoading(false);
-        console.log(`${loadedProjects.length} Projekte geladen`);
+        console.log(`${loadedProjects.length} projects loaded`);
       };
       
-      // Abonnieren von Projekt-Updates
+      // Subscribe to project updates
       unsubscribe = fetchProjects(user.id, handleProjectsUpdate);
     } catch (error) {
-      console.error("Fehler beim Einrichten des Projekt-Abonnements:", error);
-      setLoadError("Projekte konnten nicht geladen werden");
+      console.error("Error setting up project subscription:", error);
+      setLoadError("Projects could not be loaded");
       setIsLoading(false);
     }
     
@@ -55,55 +54,55 @@ export const useProjectManagementProvider = () => {
     };
   }, [isAuthenticated, user]);
   
-  // Aktuelles Projekt zurücksetzen, wenn Benutzer sich abmeldet
+  // Reset current project when user logs out
   useEffect(() => {
     if (!isAuthenticated) {
       setCurrentProject(null);
     }
   }, [isAuthenticated]);
 
-  // Projekt hinzufügen
+  // Add project
   const addProject = useCallback(async (project: Omit<Project, "id" | "createdAt" | "ownerId">) => {
     if (!user) return;
     
     try {
       await addProjectToFirebase(project, user.id);
-      // Echtzeit-Updates werden das Projekt zur Liste hinzufügen
+      // Real-time updates will add the project to the list
     } catch (error) {
-      console.error("Fehler beim Hinzufügen des Projekts:", error);
+      console.error("Error adding project:", error);
     }
   }, [user]);
 
-  // Projekt aktualisieren mit optimierter Fehlerbehandlung
+  // Update project
   const updateProject = useCallback(async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
     try {
       const success = await updateProjectInFirebase(id, projectUpdate, silent);
       
       if (success) {
-        // Lokalen Status aktualisieren
+        // Update local state
         setProjects((prev) =>
           prev.map((project) =>
             project.id === id ? { ...project, ...projectUpdate } : project
           )
         );
         
-        // Auch aktuelles Projekt aktualisieren, wenn es dasselbe ist
+        // Also update current project if it's the same
         if (currentProject?.id === id) {
           setCurrentProject(prev => prev ? { ...prev, ...projectUpdate } : null);
         }
       }
     } catch (error) {
-      console.error("Fehler beim Aktualisieren des Projekts:", error);
+      console.error("Error updating project:", error);
     }
   }, [currentProject?.id]);
   
-  // Projekt löschen mit optimierter Fehlerbehandlung
+  // Delete project
   const deleteProject = useCallback(async (id: string) => {
-    // Überprüfen, ob der Benutzer Eigentümer ist
+    // Check if user is owner
     const project = projects.find(p => p.id === id);
     
     if (project && project.ownerId !== user?.id) {
-      toast.error("Du hast keine Berechtigung, dieses Projekt zu löschen");
+      toast.error("You don't have permission to delete this project");
       return;
     }
     
@@ -111,102 +110,16 @@ export const useProjectManagementProvider = () => {
       const success = await deleteProjectFromFirebase(id);
       
       if (success) {
-        // Lokalen Status aktualisieren
+        // Update local state
         setProjects((prev) => prev.filter((project) => project.id !== id));
         if (currentProject?.id === id) {
           setCurrentProject(null);
         }
       }
     } catch (error) {
-      console.error("Fehler beim Löschen des Projekts:", error);
+      console.error("Error deleting project:", error);
     }
   }, [projects, currentProject?.id, user?.id]);
-  
-  // Projekt-Mitglieder abrufen in optimierter Form
-  const getProjectMembers = useCallback(async (projectId: string): Promise<ProjectMember[]> => {
-    try {
-      const project = projects.find(p => p.id === projectId);
-      if (!project || !project.members) return [];
-      
-      // Mitglieds-Einträge in ein Array umwandeln und auflösen
-      const memberPromises = Object.entries(project.members).map(async ([userId, memberData]) => {
-        let name = "Unbekannter Benutzer";
-        let email = "";
-        let avatar = undefined;
-        
-        try {
-          const userResponse = await fetch(`/api/users/${userId}`);
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            name = userData.name || name;
-            email = userData.email || email;
-            avatar = userData.avatar;
-          }
-        } catch (error) {
-          console.error("Fehler beim Abrufen der Benutzerdetails:", error);
-        }
-        
-        return {
-          userId,
-          projectId,
-          role: memberData.role,
-          name,
-          email,
-          avatar
-        };
-      });
-      
-      return Promise.all(memberPromises);
-    } catch (error) {
-      console.error("Fehler beim Abrufen der Projektmitglieder:", error);
-      return [];
-    }
-  }, [projects]);
-  
-  // Projektfreigabe-Funktionen
-  const shareProject = useCallback(async (projectId: string, email: string, role: "editor" | "viewer") => {
-    try {
-      // Import und Ausführung der Dienste für die Mitgliederverwaltung
-      const { addMemberToProject } = await import('./projectService');
-      await addMemberToProject(projectId, email, role);
-    } catch (error) {
-      console.error("Fehler bei der Projektfreigabe:", error);
-      throw error;
-    }
-  }, []);
-  
-  const shareProjectByUserId = useCallback(async (projectId: string, userId: string, role: "editor" | "viewer") => {
-    try {
-      // Import und Ausführung der Dienste für die Mitgliederverwaltung
-      const { addMemberToProjectByUserId } = await import('./projectService');
-      await addMemberToProjectByUserId(projectId, userId, role);
-    } catch (error) {
-      console.error("Fehler bei der Projektfreigabe über Benutzer-ID:", error);
-      throw error;
-    }
-  }, []);
-  
-  const revokeAccess = useCallback(async (projectId: string, userId: string) => {
-    try {
-      // Import und Ausführung der Dienste für die Mitgliederverwaltung
-      const { removeMemberFromProject } = await import('./projectService');
-      await removeMemberFromProject(projectId, userId);
-    } catch (error) {
-      console.error("Fehler beim Widerrufen des Zugriffs:", error);
-      throw error;
-    }
-  }, []);
-  
-  const changeRole = useCallback(async (projectId: string, userId: string, newRole: UserRole) => {
-    try {
-      // Import und Ausführung der Dienste für die Mitgliederverwaltung
-      const { updateMemberRole } = await import('./projectService');
-      await updateMemberRole(projectId, userId, newRole);
-    } catch (error) {
-      console.error("Fehler beim Ändern der Rolle:", error);
-      throw error;
-    }
-  }, []);
 
   return {
     projects,
@@ -215,11 +128,6 @@ export const useProjectManagementProvider = () => {
     addProject,
     updateProject,
     deleteProject,
-    getProjectMembers,
-    shareProject,
-    shareProjectByUserId,
-    revokeAccess,
-    changeRole,
     isLoading,
     loadError
   };

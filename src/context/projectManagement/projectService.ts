@@ -1,533 +1,358 @@
 
 import { toast } from "sonner";
-import { 
-  ref, 
-  set, 
-  push, 
-  remove, 
-  update, 
-  get, 
-  query, 
-  limitToLast, 
-  orderByChild, 
-  equalTo,
-  onValue,
-  off
-} from "firebase/database";
-import { database, QUERY_LIMIT, INDEXES } from "@/lib/firebase";
+import { supabase } from "@/integrations/supabase/client";
 import { Project } from "./types";
 import { UserRole } from "@/types/user";
 
-// Optimierte Zugriffsmethoden mit Fehlerbehandlung
-const safeDbOperation = async (operation: () => Promise<any>, errorMsg: string) => {
-  try {
-    return await operation();
-  } catch (error) {
-    console.error(`${errorMsg}:`, error);
-    toast.error(errorMsg);
-    return null;
-  }
-};
+// Helper to convert database date strings to Date objects
+const convertDates = (project: any): Project => ({
+  ...project,
+  id: project.id,
+  title: project.title,
+  description: project.description,
+  ownerId: project.owner_id,
+  createdAt: project.created_at ? new Date(project.created_at) : new Date(),
+  lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined
+});
 
-// Projekte abrufen mit Pagination
+// Projects retrieval with subscription capability
 export const fetchProjects = (userId: string, callback: (projects: Project[]) => void) => {
-  if (!userId) return () => {};
-  
-  // Effizientere Abfrage mit Index für Eigentümer
-  const ownedProjectsRef = query(
-    ref(database, 'projects'),
-    orderByChild('ownerId'),
-    equalTo(userId),
-    limitToLast(QUERY_LIMIT)
-  );
+  if (!userId) {
+    callback([]);
+    return () => {};
+  }
 
-  const processProjects = (snapshot: any) => {
+  // Fetch projects where user is owner or member
+  const fetchAllProjects = async () => {
     try {
-      if (!snapshot.exists()) return callback([]);
+      console.log(`Fetching projects for user: ${userId}`);
       
-      const projectsData = snapshot.val();
-      const projects: Project[] = Object.entries(projectsData).map(([id, data]: [string, any]) => ({
-        ...data,
-        id,
-        createdAt: new Date(data.createdAt),
-        lastAccessed: data.lastAccessed ? new Date(data.lastAccessed) : undefined,
-      }));
+      // Get projects where user is owner
+      const { data: ownedProjects, error: ownedError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('owner_id', userId);
       
-      projects.sort((a, b) => {
+      if (ownedError) throw ownedError;
+      
+      // Get projects where user is a member
+      const { data: memberships, error: memberError } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('user_id', userId);
+        
+      if (memberError) throw memberError;
+      
+      // If user is a member of any projects, fetch those projects
+      let memberProjects: any[] = [];
+      
+      if (memberships && memberships.length > 0) {
+        const projectIds = memberships.map(m => m.project_id);
+        
+        const { data: projects, error: projectsError } = await supabase
+          .from('projects')
+          .select('*')
+          .in('id', projectIds);
+          
+        if (projectsError) throw projectsError;
+        
+        memberProjects = projects || [];
+      }
+      
+      // Combine and deduplicate projects
+      const allProjects = [...(ownedProjects || []), ...memberProjects];
+      const uniqueProjects = allProjects.filter((project, index, self) =>
+        index === self.findIndex(p => p.id === project.id)
+      );
+      
+      // Convert to our Project type and sort by last accessed
+      const formattedProjects = uniqueProjects.map(convertDates);
+      
+      formattedProjects.sort((a, b) => {
         const dateA = a.lastAccessed || a.createdAt;
         const dateB = b.lastAccessed || b.createdAt;
         return dateB.getTime() - dateA.getTime();
       });
       
-      callback(projects);
-      console.log(`Geladene Projekte: ${projects.length}`);
+      callback(formattedProjects);
+      console.log(`Loaded ${formattedProjects.length} projects`);
     } catch (error) {
-      console.error("Fehler beim Verarbeiten der Projektdaten:", error);
+      console.error("Error fetching projects:", error);
+      toast.error("Projects could not be loaded");
       callback([]);
     }
   };
+  
+  // Initial fetch
+  fetchAllProjects();
+  
+  // Set up real-time subscription for projects
+  const projectsSubscription = supabase
+    .channel('projects-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'projects',
+    }, () => {
+      fetchAllProjects();
+    })
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'project_members',
+      filter: `user_id=eq.${userId}`,
+    }, () => {
+      fetchAllProjects();
+    })
+    .subscribe();
 
-  // Event-Listener registrieren
-  onValue(ownedProjectsRef, processProjects, (error) => {
-    console.error("Fehler beim Laden der Projekte:", error);
-    toast.error("Projekte konnten nicht geladen werden");
-    callback([]);
-  });
-  
-  // Event-Listener für Mitgliedschaften in separater Abfrage
-  const fetchSharedProjects = async () => {
-    try {
-      // Zuerst finden wir Projekte, bei denen der Benutzer Mitglied ist
-      const memberProjectsRef = query(
-        ref(database, 'projectMembers'),
-        orderByChild('userId'),
-        equalTo(userId),
-        limitToLast(QUERY_LIMIT)
-      );
-      
-      const memberSnapshot = await get(memberProjectsRef);
-      if (!memberSnapshot.exists()) return [];
-      
-      const memberData = memberSnapshot.val();
-      const projectIds = Object.values(memberData)
-        .map((member: any) => member.projectId);
-      
-      // Dann laden wir die eigentlichen Projektdetails
-      const sharedProjects: Project[] = [];
-      
-      for (const projectId of projectIds) {
-        const projectRef = ref(database, `projects/${projectId}`);
-        const projectSnapshot = await get(projectRef);
-        
-        if (projectSnapshot.exists()) {
-          const data = projectSnapshot.val();
-          sharedProjects.push({
-            ...data,
-            id: projectId,
-            createdAt: new Date(data.createdAt),
-            lastAccessed: data.lastAccessed ? new Date(data.lastAccessed) : undefined,
-          });
-        }
-      }
-      
-      return sharedProjects;
-    } catch (error) {
-      console.error("Fehler beim Laden geteilter Projekte:", error);
-      return [];
-    }
-  };
-  
-  // Kombinierte Projekte laden
-  const loadAllProjects = async () => {
-    try {
-      const sharedProjects = await fetchSharedProjects();
-      const ownedSnapshot = await get(ownedProjectsRef);
-      let allProjects: Project[] = [...sharedProjects];
-      
-      if (ownedSnapshot.exists()) {
-        const ownedData = ownedSnapshot.val();
-        const ownedProjects = Object.entries(ownedData).map(([id, data]: [string, any]) => ({
-          ...data,
-          id,
-          createdAt: new Date(data.createdAt),
-          lastAccessed: data.lastAccessed ? new Date(data.lastAccessed) : undefined,
-        }));
-        allProjects = [...allProjects, ...ownedProjects];
-      }
-      
-      allProjects.sort((a, b) => {
-        const dateA = a.lastAccessed || a.createdAt;
-        const dateB = b.lastAccessed || b.createdAt;
-        return dateB.getTime() - dateA.getTime();
-      });
-      
-      callback(allProjects);
-    } catch (error) {
-      console.error("Fehler beim Kombinieren der Projekte:", error);
-    }
-  };
-  
-  loadAllProjects();
-  
-  // Cleanup-Funktion zurückgeben
+  // Return cleanup function
   return () => {
-    off(ownedProjectsRef);
+    supabase.removeChannel(projectsSubscription);
   };
 };
 
-// Projekt hinzufügen mit optimierter Fehlerbehandlung
+// Add project with appropriate error handling
 export const addProjectToFirebase = async (
   project: Omit<Project, "id" | "createdAt" | "ownerId">, 
   userId: string
 ) => {
   if (!userId) {
-    toast.error("Du musst angemeldet sein, um ein Projekt zu erstellen");
+    toast.error("You must be logged in to create a project");
     return null;
   }
-
-  return safeDbOperation(async () => {
-    const newProjectRef = push(ref(database, 'projects'));
+  
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        title: project.title,
+        description: project.description,
+        owner_id: userId
+      })
+      .select()
+      .single();
+      
+    if (error) throw error;
     
-    if (!newProjectRef.key) {
-      throw new Error("Projekt-ID konnte nicht generiert werden");
-    }
-    
-    const newProject = {
-      ...project,
-      id: newProjectRef.key,
-      createdAt: new Date().toISOString(),
-      ownerId: userId,
-      members: {
-        [userId]: {
-          role: "owner"
-        }
-      }
-    };
-    
-    await set(newProjectRef, newProject);
-    
-    // Erstelle auch einen Eintrag in projectMembers für verbesserte Indizierung
-    const memberRef = push(ref(database, 'projectMembers'));
-    await set(memberRef, {
-      userId,
-      projectId: newProjectRef.key,
-      role: "owner"
-    });
-    
-    toast.success("Projekt erstellt");
-    return { ...newProject, createdAt: new Date(newProject.createdAt) };
-  }, "Fehler beim Erstellen des Projekts");
+    toast.success("Project created");
+    return convertDates(data);
+  } catch (error: any) {
+    console.error("Error creating project:", error);
+    toast.error(error.message || "Error creating project");
+    return null;
+  }
 };
 
-// Projekt aktualisieren mit optimierter Fehlerbehandlung
+// Update project
 export const updateProjectInFirebase = async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
-  // Prepare data for Firebase
-  const updateData: Record<string, any> = { ...projectUpdate };
-  
-  // Convert Date objects to ISO strings for Firebase
-  if (updateData.createdAt instanceof Date) {
-    updateData.createdAt = updateData.createdAt.toISOString();
-  }
-  
-  if (updateData.lastAccessed instanceof Date) {
-    updateData.lastAccessed = updateData.lastAccessed.toISOString();
-  }
-  
-  return safeDbOperation(async () => {
-    const projectRef = ref(database, `projects/${id}`);
-    await update(projectRef, updateData);
+  try {
+    // Convert our camelCase to snake_case for Supabase
+    const updates: Record<string, any> = {};
+    
+    if (projectUpdate.title !== undefined) updates.title = projectUpdate.title;
+    if (projectUpdate.description !== undefined) updates.description = projectUpdate.description;
+    if (projectUpdate.lastAccessed !== undefined) updates.last_accessed = projectUpdate.lastAccessed;
+    
+    const { error } = await supabase
+      .from('projects')
+      .update(updates)
+      .eq('id', id);
+      
+    if (error) throw error;
     
     if (!silent) {
-      toast.success("Projekt aktualisiert");
+      toast.success("Project updated");
     }
     return true;
-  }, "Fehler beim Aktualisieren des Projekts");
-};
-
-// Projekt löschen mit optimierter Fehlerbehandlung
-export const deleteProjectFromFirebase = async (id: string) => {
-  return safeDbOperation(async () => {
-    const projectRef = ref(database, `projects/${id}`);
-    await remove(projectRef);
-    
-    // Zugehörige Mitgliedschaften löschen
-    const membersRef = query(
-      ref(database, 'projectMembers'),
-      orderByChild('projectId'),
-      equalTo(id)
-    );
-    
-    const memberSnapshot = await get(membersRef);
-    if (memberSnapshot.exists()) {
-      const membersData = memberSnapshot.val();
-      for (const key in membersData) {
-        await remove(ref(database, `projectMembers/${key}`));
-      }
+  } catch (error: any) {
+    console.error("Error updating project:", error);
+    if (!silent) {
+      toast.error(error.message || "Error updating project");
     }
-    
-    // Weitere zugehörige Daten löschen
-    await cleanupProjectData(id);
-    toast.success("Projekt gelöscht");
-    return true;
-  }, "Fehler beim Löschen des Projekts");
-};
-
-// Aufräumen von Projektdaten (mit optimierter Fehlerbehandlung)
-export const cleanupProjectData = async (projectId: string) => {
-  try {
-    // Entfernen der Notizen
-    const notesRef = query(
-      ref(database, 'notes'),
-      orderByChild('projectId'),
-      equalTo(projectId),
-      limitToLast(20) // Kleinere Batch-Größe für bessere Performance
-    );
-    
-    const noteSnapshot = await get(notesRef);
-    if (noteSnapshot.exists()) {
-      const notesData = noteSnapshot.val();
-      const deletionPromises = Object.keys(notesData).map(key => 
-        remove(ref(database, `notes/${key}`))
-      );
-      await Promise.allSettled(deletionPromises);
-    }
-    
-    // Entfernen der Nachrichten
-    const messagesRef = query(
-      ref(database, 'messages'),
-      orderByChild('projectId'),
-      equalTo(projectId),
-      limitToLast(20) // Kleinere Batch-Größe für bessere Performance
-    );
-    
-    const messageSnapshot = await get(messagesRef);
-    if (messageSnapshot.exists()) {
-      const messagesData = messageSnapshot.val();
-      const deletionPromises = Object.keys(messagesData).map(key => 
-        remove(ref(database, `messages/${key}`))
-      );
-      await Promise.allSettled(deletionPromises);
-    }
-    
-    // Entfernen von Stoppuhren
-    await remove(ref(database, `projectStopwatches/${projectId}`));
-  } catch (error) {
-    console.error("Fehler beim Aufräumen der Projektdaten:", error);
+    return false;
   }
 };
 
-// Projektmitglieder verwalten
+// Delete project
+export const deleteProjectFromFirebase = async (id: string) => {
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+      
+    if (error) throw error;
+    
+    toast.success("Project deleted");
+    return true;
+  } catch (error: any) {
+    console.error("Error deleting project:", error);
+    toast.error(error.message || "Error deleting project");
+    return false;
+  }
+};
+
+// Project members management
 export const addMemberToProject = async (projectId: string, email: string, role: UserRole) => {
-  return safeDbOperation(async () => {
-    // Benutzer durch E-Mail finden
-    const usersRef = ref(database, 'users');
-    const snapshot = await get(usersRef);
-    
-    if (!snapshot.exists()) {
-      toast.error("Keine Benutzer gefunden");
-      throw new Error("Keine Benutzer gefunden");
-    }
-    
-    // Suche nach der E-Mail
-    let userId = "";
-    let userData = null;
-    
-    snapshot.forEach((childSnapshot) => {
-      const user = childSnapshot.val();
-      if (user.email === email) {
-        userId = childSnapshot.key || "";
-        userData = user;
+  try {
+    // First find the user by email
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single();
+      
+    if (userError) {
+      if (userError.code === 'PGRST116') {
+        toast.error("User not found");
+      } else {
+        toast.error(userError.message || "Error finding user");
       }
-    });
-    
-    if (!userId) {
-      toast.error("Benutzer nicht gefunden");
-      throw new Error("Benutzer nicht gefunden");
+      throw userError;
     }
     
-    // Prüfen, ob Projekt existiert
-    const projectRef = ref(database, `projects/${projectId}`);
-    const projectSnapshot = await get(projectRef);
-    
-    if (!projectSnapshot.exists()) {
-      toast.error("Projekt nicht gefunden");
-      throw new Error("Projekt nicht gefunden");
-    }
-    
-    // Prüfen, ob Benutzer bereits Mitglied ist
-    const membersRef = query(
-      ref(database, 'projectMembers'),
-      orderByChild('userId'),
-      equalTo(userId)
-    );
-    
-    const memberSnapshot = await get(membersRef);
-    let isAlreadyMember = false;
-    
-    if (memberSnapshot.exists()) {
-      const membersData = memberSnapshot.val();
-      for (const key in membersData) {
-        const memberData = membersData[key];
-        if (memberData.projectId === projectId) {
-          isAlreadyMember = true;
-          break;
-        }
+    // Add the user to the project
+    const { error } = await supabase
+      .from('project_members')
+      .insert({
+        project_id: projectId,
+        user_id: userData.id,
+        role
+      });
+      
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        toast.error("User is already a member of this project");
+      } else {
+        toast.error(error.message || "Error adding member");
       }
+      throw error;
     }
     
-    if (isAlreadyMember) {
-      toast.error("Benutzer ist bereits Mitglied dieses Projekts");
-      throw new Error("Benutzer ist bereits Mitglied dieses Projekts");
-    }
-    
-    // Mitglied zum Projekt hinzufügen
-    const newMemberRef = push(ref(database, 'projectMembers'));
-    await set(newMemberRef, {
-      userId,
-      projectId,
-      role
-    });
-    
-    // Auch im Projekt selbst speichern für schnelle Abfragen
-    await update(ref(database, `projects/${projectId}/members/${userId}`), { role });
-    
-    toast.success(`${userData.name} wurde zum Projekt hinzugefügt`);
-  }, "Fehler beim Hinzufügen des Mitglieds");
+    toast.success("Member added successfully");
+    return true;
+  } catch (error) {
+    console.error("Error adding member:", error);
+    throw error;
+  }
 };
 
 export const addMemberToProjectByUserId = async (projectId: string, userId: string, role: UserRole) => {
-  return safeDbOperation(async () => {
-    // Überprüfen, ob Benutzer existiert
-    const userRef = ref(database, `users/${userId}`);
-    const userSnapshot = await get(userRef);
-    
-    if (!userSnapshot.exists()) {
-      toast.error("Benutzer nicht gefunden");
-      throw new Error("Benutzer nicht gefunden");
+  try {
+    // Check if user exists
+    const { data: userData, error: userError } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', userId)
+      .single();
+      
+    if (userError) {
+      toast.error("User not found");
+      throw userError;
     }
     
-    const userData = userSnapshot.val();
-    
-    // Überprüfen, ob Projekt existiert
-    const projectRef = ref(database, `projects/${projectId}`);
-    const projectSnapshot = await get(projectRef);
-    
-    if (!projectSnapshot.exists()) {
-      toast.error("Projekt nicht gefunden");
-      throw new Error("Projekt nicht gefunden");
-    }
-    
-    // Überprüfen, ob Benutzer bereits Mitglied ist
-    const membersRef = query(
-      ref(database, 'projectMembers'),
-      orderByChild('userId'),
-      equalTo(userId)
-    );
-    
-    const memberSnapshot = await get(membersRef);
-    let isAlreadyMember = false;
-    
-    if (memberSnapshot.exists()) {
-      const membersData = memberSnapshot.val();
-      for (const key in membersData) {
-        const memberData = membersData[key];
-        if (memberData.projectId === projectId) {
-          isAlreadyMember = true;
-          break;
-        }
+    // Add the user to the project
+    const { error } = await supabase
+      .from('project_members')
+      .insert({
+        project_id: projectId,
+        user_id: userId,
+        role
+      });
+      
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        toast.error("User is already a member of this project");
+      } else {
+        toast.error(error.message || "Error adding member");
       }
+      throw error;
     }
     
-    if (isAlreadyMember) {
-      toast.error("Benutzer ist bereits Mitglied dieses Projekts");
-      throw new Error("Benutzer ist bereits Mitglied dieses Projekts");
-    }
-    
-    // Mitglied zum Projekt hinzufügen
-    const newMemberRef = push(ref(database, 'projectMembers'));
-    await set(newMemberRef, {
-      userId,
-      projectId,
-      role
-    });
-    
-    // Auch im Projekt selbst speichern für schnelle Abfragen
-    await update(ref(database, `projects/${projectId}/members/${userId}`), { role });
-    
-    toast.success(`${userData.name || "Benutzer"} wurde zum Projekt hinzugefügt`);
-  }, "Fehler beim Hinzufügen des Mitglieds");
+    toast.success(`${userData.name || "User"} added to project`);
+    return true;
+  } catch (error) {
+    console.error("Error adding member by ID:", error);
+    throw error;
+  }
 };
 
 export const removeMemberFromProject = async (projectId: string, userId: string) => {
-  return safeDbOperation(async () => {
-    // Überprüfen, ob Projekt existiert
-    const projectRef = ref(database, `projects/${projectId}`);
-    const projectSnapshot = await get(projectRef);
-    
-    if (!projectSnapshot.exists()) {
-      toast.error("Projekt nicht gefunden");
-      throw new Error("Projekt nicht gefunden");
+  try {
+    // Check if user is project owner
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('owner_id')
+      .eq('id', projectId)
+      .single();
+      
+    if (projectError) {
+      toast.error("Project not found");
+      throw projectError;
     }
     
-    const projectData = projectSnapshot.val();
-    
-    // Überprüfen, ob Benutzer Mitglied ist
-    if (!projectData.members || !projectData.members[userId]) {
-      toast.error("Benutzer ist kein Mitglied dieses Projekts");
-      throw new Error("Benutzer ist kein Mitglied dieses Projekts");
+    if (projectData.owner_id === userId) {
+      toast.error("Cannot remove the project owner");
+      throw new Error("Cannot remove the project owner");
     }
     
-    // Überprüfen, ob wir den Eigentümer entfernen
-    if (projectData.members[userId].role === "owner") {
-      toast.error("Der Projektinhaber kann nicht entfernt werden");
-      throw new Error("Der Projektinhaber kann nicht entfernt werden");
+    // Remove the user from the project
+    const { error } = await supabase
+      .from('project_members')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('user_id', userId);
+      
+    if (error) {
+      toast.error(error.message || "Error removing member");
+      throw error;
     }
     
-    // Aus dem Projekt entfernen
-    await remove(ref(database, `projects/${projectId}/members/${userId}`));
-    
-    // Aus der projektMitglieder-Tabelle entfernen
-    const membersRef = query(
-      ref(database, 'projectMembers'),
-      orderByChild('userId'),
-      equalTo(userId)
-    );
-    
-    const memberSnapshot = await get(membersRef);
-    if (memberSnapshot.exists()) {
-      const membersData = memberSnapshot.val();
-      for (const key in membersData) {
-        const memberData = membersData[key];
-        if (memberData.projectId === projectId) {
-          await remove(ref(database, `projectMembers/${key}`));
-        }
-      }
-    }
-    
-    toast.success("Mitglied entfernt");
-  }, "Fehler beim Entfernen des Mitglieds");
+    toast.success("Member removed");
+    return true;
+  } catch (error) {
+    console.error("Error removing member:", error);
+    throw error;
+  }
 };
 
 export const updateMemberRole = async (projectId: string, userId: string, role: UserRole) => {
-  return safeDbOperation(async () => {
-    // Überprüfen, ob Projekt existiert
-    const projectRef = ref(database, `projects/${projectId}`);
-    const projectSnapshot = await get(projectRef);
-    
-    if (!projectSnapshot.exists()) {
-      toast.error("Projekt nicht gefunden");
-      throw new Error("Projekt nicht gefunden");
+  try {
+    // Check if user is project owner
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('owner_id')
+      .eq('id', projectId)
+      .single();
+      
+    if (projectError) {
+      toast.error("Project not found");
+      throw projectError;
     }
     
-    const projectData = projectSnapshot.val();
-    
-    // Überprüfen, ob Benutzer Mitglied ist
-    if (!projectData.members || !projectData.members[userId]) {
-      toast.error("Benutzer ist kein Mitglied dieses Projekts");
-      throw new Error("Benutzer ist kein Mitglied dieses Projekts");
+    // Cannot change owner's role
+    if (projectData.owner_id === userId && role !== 'owner') {
+      toast.error("Cannot change the owner's role");
+      throw new Error("Cannot change the owner's role");
     }
     
-    // Rolle im Projekt aktualisieren
-    await update(ref(database, `projects/${projectId}/members/${userId}`), { role });
-    
-    // Rolle in der projektMitglieder-Tabelle aktualisieren
-    const membersRef = query(
-      ref(database, 'projectMembers'),
-      orderByChild('userId'),
-      equalTo(userId)
-    );
-    
-    const memberSnapshot = await get(membersRef);
-    if (memberSnapshot.exists()) {
-      const membersData = memberSnapshot.val();
-      for (const key in membersData) {
-        const memberData = membersData[key];
-        if (memberData.projectId === projectId) {
-          await update(ref(database, `projectMembers/${key}`), { role });
-        }
-      }
+    // Update the member role
+    const { error } = await supabase
+      .from('project_members')
+      .update({ role })
+      .eq('project_id', projectId)
+      .eq('user_id', userId);
+      
+    if (error) {
+      toast.error(error.message || "Error updating role");
+      throw error;
     }
     
-    toast.success("Rolle aktualisiert");
-  }, "Fehler beim Aktualisieren der Rolle");
+    toast.success("Role updated");
+    return true;
+  } catch (error) {
+    console.error("Error updating role:", error);
+    throw error;
+  }
 };
