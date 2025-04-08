@@ -1,14 +1,13 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { useProjectMembers } from "../projectMembers";
-import { useProjectManagement } from "../projectManagement";
 import { ProjectSharingContextType } from "./types";
+import { toast } from "sonner";
 
 const ProjectSharingContext = createContext<ProjectSharingContextType | undefined>(undefined);
 
 export const ProjectSharingProvider = ({ children }: { children: ReactNode }) => {
   const { addProjectMember, addProjectMemberByUserId, removeProjectMember, updateProjectMemberRole } = useProjectMembers();
-  const { projects, currentProject } = useProjectManagement();
 
   // Share a project with another user using email
   const shareProject = async (projectId: string, email: string, role: "editor" | "viewer") => {

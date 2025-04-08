@@ -9,7 +9,7 @@ export type { Project } from "./projectManagement";
 // Combined project context
 const ProjectContext = createContext<ReturnType<typeof useProjectCombined> | undefined>(undefined);
 
-// Combine hooks
+// Combined hook
 const useProjectCombined = () => {
   const projectManagement = useProjectManagement();
   const projectSharing = useProjectSharing();
@@ -20,7 +20,7 @@ const useProjectCombined = () => {
   };
 };
 
-// Combined provider
+// Combined provider - ensuring proper nesting order
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   return (
     <ProjectManagementProvider>
