@@ -1,9 +1,11 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useProjects } from "./ProjectContext";
 import { useUser } from "./UserContext";
 import { Message, QuickPhrase } from "@/types/messenger";
 import { ref, push, update, remove, onValue, query, orderByChild, limitToLast, equalTo } from "firebase/database";
 import { database, QUERY_LIMIT } from "@/lib/firebase";
+import { toast } from "sonner";
 
 type MessagesContextType = {
   messages: Message[];
@@ -31,7 +33,7 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!user?.id || !currentProject?.id) return;
     
-    // Only fetch messages for the current project, with limit
+    // Using the added indexOn for projectId
     const messagesRef = query(
       ref(database, 'messages'),
       orderByChild('projectId'),
@@ -53,19 +55,25 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
           });
         });
         
+        // Sort messages chronologically
+        messagesList.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
         setMessages(messagesList);
       } else {
         setMessages([]);
       }
+    }, error => {
+      console.error("Error fetching messages:", error);
+      toast.error("Fehler beim Laden der Nachrichten");
     });
     
     return () => unsubscribe();
   }, [currentProject?.id, user?.id]);
   
-  // Optimized query for QuickPhrases - only fetch for current user
+  // Optimized query for QuickPhrases using new index
   useEffect(() => {
     if (!user?.id) return;
     
+    // Using the newly added indexOn for userId
     const quickPhrasesRef = query(
       ref(database, 'quickPhrases'),
       orderByChild('userId'),
@@ -90,6 +98,9 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setQuickPhrases([]);
       }
+    }, error => {
+      console.error("Error fetching quick phrases:", error);
+      // Silent error - don't show toast for quick phrases loading issues
     });
     
     return () => unsubscribe();
@@ -108,72 +119,101 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
   }, [currentProject, messages]);
 
   const addMessage = (message: Omit<Message, "id" | "timestamp" | "isRead">) => {
-    const newMessageRef = push(ref(database, 'messages'));
-    const currentUserId = user?.id || "user-1";
-    
-    const newMessage = {
-      ...message,
-      id: newMessageRef.key!,
-      timestamp: new Date().toISOString(),
-      isRead: message.sender === currentUserId, // Messages from current user are automatically read
-    };
-    
-    push(ref(database, 'messages'), newMessage)
-      .catch((error) => {
-        console.error("Error adding message:", error);
-      });
+    try {
+      const newMessageRef = push(ref(database, 'messages'));
+      const currentUserId = user?.id || "user-1";
+      
+      const newMessage = {
+        ...message,
+        timestamp: new Date().toISOString(),
+        isRead: message.sender === currentUserId, // Messages from current user are automatically read
+      };
+      
+      push(ref(database, 'messages'), newMessage)
+        .catch((error) => {
+          console.error("Error adding message:", error);
+          toast.error("Nachricht konnte nicht gesendet werden");
+        });
+    } catch (error) {
+      console.error("Error in addMessage:", error);
+      toast.error("Nachricht konnte nicht gesendet werden");
+    }
   };
 
   const markAsRead = (id: string) => {
-    console.log('MessagesContext: Marking message as read:', id);
-    const messageRef = ref(database, `messages/${id}`);
-    update(messageRef, { isRead: true })
-      .catch((error) => {
-        console.error("Error marking message as read:", error);
-      });
+    try {
+      const messageRef = ref(database, `messages/${id}`);
+      update(messageRef, { isRead: true })
+        .catch((error) => {
+          console.error("Error marking message as read:", error);
+        });
+    } catch (error) {
+      console.error("Error in markAsRead:", error);
+    }
   };
 
   const toggleImportant = (id: string) => {
-    console.log('MessagesContext: Toggling message importance:', id);
-    
-    // First get current importance state
-    const message = messages.find(m => m.id === id);
-    if (!message) return;
-    
-    const messageRef = ref(database, `messages/${id}`);
-    update(messageRef, { isImportant: !message.isImportant })
-      .catch((error) => {
-        console.error("Error toggling message importance:", error);
-      });
+    try {
+      // First get current importance state
+      const message = messages.find(m => m.id === id);
+      if (!message) return;
+      
+      const messageRef = ref(database, `messages/${id}`);
+      update(messageRef, { isImportant: !message.isImportant })
+        .catch((error) => {
+          console.error("Error toggling message importance:", error);
+          toast.error("Wichtiger Status konnte nicht geändert werden");
+        });
+    } catch (error) {
+      console.error("Error in toggleImportant:", error);
+      toast.error("Wichtiger Status konnte nicht geändert werden");
+    }
   };
 
   const addQuickPhrase = (content: string, userId: string) => {
-    const newPhraseRef = push(ref(database, 'quickPhrases'));
-    const newQuickPhrase = {
-      userId,
-      content,
-    };
-    
-    push(ref(database, 'quickPhrases'), newQuickPhrase)
-      .catch((error) => {
-        console.error("Error adding quick phrase:", error);
-      });
+    try {
+      const newQuickPhrase = {
+        userId,
+        content,
+      };
+      
+      push(ref(database, 'quickPhrases'), newQuickPhrase)
+        .catch((error) => {
+          console.error("Error adding quick phrase:", error);
+          toast.error("Quick Phrase konnte nicht hinzugefügt werden");
+        });
+    } catch (error) {
+      console.error("Error in addQuickPhrase:", error);
+      toast.error("Quick Phrase konnte nicht hinzugefügt werden");
+    }
   };
 
   const updateQuickPhrase = (id: string, content: string) => {
-    const phraseRef = ref(database, `quickPhrases/${id}`);
-    update(phraseRef, { content })
-      .catch((error) => {
-        console.error("Error updating quick phrase:", error);
-      });
+    try {
+      const phraseRef = ref(database, `quickPhrases/${id}`);
+      update(phraseRef, { content })
+        .catch((error) => {
+          console.error("Error updating quick phrase:", error);
+          toast.error("Quick Phrase konnte nicht aktualisiert werden");
+        });
+    } catch (error) {
+      console.error("Error in updateQuickPhrase:", error);
+      toast.error("Quick Phrase konnte nicht aktualisiert werden");
+    }
   };
 
   const deleteQuickPhrase = (id: string) => {
-    const phraseRef = ref(database, `quickPhrases/${id}`);
-    remove(phraseRef)
-      .catch((error) => {
-        console.error("Error deleting quick phrase:", error);
-      });
+    try {
+      const phraseRef = ref(database, `quickPhrases/${id}`);
+      remove(phraseRef)
+        .catch((error) => {
+          console.error("Error deleting quick phrase:", error);
+          toast.error("Quick Phrase konnte nicht gelöscht werden");
+        });
+    } catch (error) {
+      console.error("Error in deleteQuickPhrase:", error);
+      toast.error("Quick Phrase konnte nicht gelöscht werden");
+    }
   };
 
   const getQuickPhrasesForUser = (userId: string) => {

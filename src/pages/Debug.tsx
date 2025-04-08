@@ -15,6 +15,7 @@ const Debug = () => {
       }
     },
     "projects": {
+      ".indexOn": ["ownerId"],
       "$projectId": {
         ".read": "auth != null",
         ".write": "auth != null" 
@@ -27,11 +28,22 @@ const Debug = () => {
         ".write": "auth != null"
       }
     },
+    "quickPhrases": {
+      ".indexOn": ["userId"],
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
     "notes": {
+      ".indexOn": ["projectId"],
       ".read": "auth != null",
       ".write": "auth != null"
     },
     "messages": {
+      ".indexOn": ["projectId"],
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "projectStopwatches": {
       ".read": "auth != null",
       ".write": "auth != null"
     }
@@ -58,7 +70,7 @@ const Debug = () => {
           <CardHeader>
             <CardTitle>Firebase Datenbank-Regeln</CardTitle>
             <CardDescription>
-              Die Fehler beim Erstellen von Projekten werden durch fehlende Berechtigungen verursacht. 
+              Die Fehler beim Erstellen von Projekten werden durch fehlende Berechtigungen und fehlende Indizes verursacht. 
               Folgen Sie dieser Anleitung, um die Firebase Regeln zu konfigurieren.
             </CardDescription>
           </CardHeader>
@@ -97,8 +109,8 @@ const Debug = () => {
             <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 p-4 rounded">
               <h4 className="font-semibold text-blue-800 dark:text-blue-200">Wichtige Hinweise</h4>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                Der Eintrag <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">.indexOn: ["projectId", "userId"]</code> bei projectMembers ist erforderlich, 
-                damit die Abfragen nach Projekt-ID und Benutzer-ID korrekt funktionieren.
+                Die Indizes (<code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">.indexOn</code>) sind erforderlich, 
+                damit die Abfragen nach Projekt-ID, Benutzer-ID und anderen Feldern korrekt funktionieren und keine Performance-Warnungen erzeugen.
               </p>
             </div>
           </CardContent>

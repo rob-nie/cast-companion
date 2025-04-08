@@ -16,13 +16,20 @@ const firebaseConfig = {
 };
 
 // Firebase constants for data limitation
-export const QUERY_LIMIT = 20; // Reduced from 50 to 20 to prevent payload size issues
-export const RECENT_DATA_DAYS = 14; // Reduced from 30 to 14 days
+export const QUERY_LIMIT = 15; // Reduced from 20 to 15 to prevent payload size issues
+export const RECENT_DATA_DAYS = 7; // Reduced from 14 to 7 days to further limit data
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const database = getDatabase(app);
 export const storage = getStorage(app);
+
+// Function to get a date object for recent data filtering
+export const getRecentDateThreshold = () => {
+  const date = new Date();
+  date.setDate(date.getDate() - RECENT_DATA_DAYS);
+  return date;
+};
 
 export default app;

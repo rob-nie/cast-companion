@@ -22,7 +22,7 @@ export const getStopwatchesRef = (projectIds?: string[]) => {
       return getStopwatchRef(projectIds[0]);
     }
     
-    // For multiple specific projects, we'll handle filtering in the component
+    // For multiple specific projects, we handle only the first few to avoid payload issues
     return query(
       ref(database, 'projectStopwatches'),
       limitToLast(Math.min(projectIds.length, QUERY_LIMIT))
@@ -32,15 +32,20 @@ export const getStopwatchesRef = (projectIds?: string[]) => {
   // Default case: limit results 
   return query(
     ref(database, 'projectStopwatches'),
-    limitToLast(QUERY_LIMIT)
+    limitToLast(Math.min(QUERY_LIMIT, 5)) // Further limit to avoid payload issues
   );
 };
 
 export const updateStopwatchInFirebase = (projectId: string, stopwatch: ProjectStopwatch) => {
-  const stopwatchRef = getStopwatchRef(projectId);
-  return set(stopwatchRef, stopwatch)
-    .catch(error => {
-      console.error("Error updating stopwatch in Firebase:", error);
-      throw error;
-    });
+  try {
+    const stopwatchRef = getStopwatchRef(projectId);
+    return set(stopwatchRef, stopwatch)
+      .catch(error => {
+        console.error("Error updating stopwatch in Firebase:", error);
+        throw error;
+      });
+  } catch (error) {
+    console.error("Error in updateStopwatchInFirebase:", error);
+    throw error;
+  }
 };
