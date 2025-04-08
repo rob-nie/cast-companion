@@ -19,6 +19,7 @@ export type ProjectManagementContextType = {
   deleteProject: (id: string) => void;
   getUserProjects: () => Project[];
   getSharedProjects: () => Project[];
+  isLoading: boolean;
 };
 
 export type ProjectManagementProviderProps = {

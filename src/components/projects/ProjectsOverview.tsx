@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import ProjectCard from "./ProjectCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ProjectsOverview = () => {
-  const { getUserProjects, getSharedProjects, addProject } = useProjects();
+  const { getUserProjects, getSharedProjects, addProject, isLoading } = useProjects();
   const { isAuthenticated, user } = useUser();
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
@@ -44,6 +44,16 @@ const ProjectsOverview = () => {
         <PlusCircle className="h-4 w-4" />
         Projekt erstellen
       </Button>
+    </div>
+  );
+
+  const renderLoadingState = () => (
+    <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+      <LoaderCircle className="h-10 w-10 animate-spin text-muted-foreground mb-2" />
+      <h3 className="text-lg font-medium">Projekte werden geladen</h3>
+      <p className="text-muted-foreground mt-1">
+        Bitte warten Sie einen Moment...
+      </p>
     </div>
   );
 
@@ -121,7 +131,9 @@ const ProjectsOverview = () => {
           </TabsList>
           
           <TabsContent value="all">
-            {myProjects.length === 0 && sharedProjects.length === 0 ? (
+            {isLoading ? (
+              renderLoadingState()
+            ) : myProjects.length === 0 && sharedProjects.length === 0 ? (
               renderEmptyState("Noch keine Projekte")
             ) : (
               renderProjectGrid([...myProjects, ...sharedProjects])
@@ -129,7 +141,9 @@ const ProjectsOverview = () => {
           </TabsContent>
           
           <TabsContent value="my">
-            {myProjects.length === 0 ? (
+            {isLoading ? (
+              renderLoadingState()
+            ) : myProjects.length === 0 ? (
               renderEmptyState("Noch keine eigenen Projekte")
             ) : (
               renderProjectGrid(myProjects)
@@ -137,7 +151,9 @@ const ProjectsOverview = () => {
           </TabsContent>
           
           <TabsContent value="shared">
-            {sharedProjects.length === 0 ? (
+            {isLoading ? (
+              renderLoadingState()
+            ) : sharedProjects.length === 0 ? (
               renderEmptyState("Keine geteilten Projekte")
             ) : (
               renderProjectGrid(sharedProjects)

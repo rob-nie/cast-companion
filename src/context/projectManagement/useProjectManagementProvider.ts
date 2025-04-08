@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { onValue, query, orderByChild, equalTo, limitToLast } from "firebase/database";
+import { onValue, query, orderByChild, equalTo, limitToLast, get, ref } from "firebase/database";
 import { useUser } from "../UserContext";
 import { Project } from "./types";
 import { 
@@ -10,31 +10,33 @@ import {
   getProjectsRef 
 } from "./projectService";
 import { QUERY_LIMIT, database } from "@/lib/firebase";
-import { ref } from "firebase/database";
 
 export const useProjectManagementProvider = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { user, isAuthenticated, getProjectMembers } = useUser();
   const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Load projects owned by the user from Firebase when user is authenticated
   useEffect(() => {
     if (!isAuthenticated || !user) {
       setProjects([]);
       setCurrentProject(null);
+      setIsLoading(false);
       return;
     }
     
-    // Use the ownerId index to efficiently query projects owned by the user
+    // Use the ownerId index with a smaller limit
     const projectsRef = query(
       ref(database, 'projects'),
       orderByChild('ownerId'),
       equalTo(user.id),
-      limitToLast(Math.min(QUERY_LIMIT, 10))
+      limitToLast(5) // Reduced limit to avoid payload size issues
     );
     
     const unsubscribe = onValue(projectsRef, (snapshot) => {
+      setIsLoading(true);
       if (snapshot.exists()) {
         const projectsData = snapshot.val();
         const projectsList: Project[] = [];
@@ -53,28 +55,35 @@ export const useProjectManagementProvider = () => {
       } else {
         setProjects([]);
       }
+      setIsLoading(false);
     });
     
     return () => unsubscribe();
   }, [isAuthenticated, user]);
 
-  // Load shared projects
+  // Load shared projects - using a different approach to avoid large payloads
   useEffect(() => {
     if (!isAuthenticated || !user) {
       setSharedProjects([]);
+      setIsLoading(false);
       return;
     }
 
-    // Get all project memberships for the current user
+    setIsLoading(true);
+
+    // Get project memberships for the current user with a smaller limit
     const membershipsRef = query(
       ref(database, 'projectMembers'),
       orderByChild('userId'),
-      equalTo(user.id)
+      equalTo(user.id),
+      limitToLast(10)
     );
 
-    const unsubscribe = onValue(membershipsRef, async (snapshot) => {
+    // Using once() instead of onValue to reduce continuous listening overhead
+    get(membershipsRef).then((snapshot) => {
       if (!snapshot.exists()) {
         setSharedProjects([]);
+        setIsLoading(false);
         return;
       }
 
@@ -85,30 +94,39 @@ export const useProjectManagementProvider = () => {
 
       if (sharedProjectIds.length === 0) {
         setSharedProjects([]);
+        setIsLoading(false);
         return;
       }
 
-      // Fetch each shared project individually to avoid large payloads
-      const sharedProjectsList: Project[] = [];
+      // Fetch projects one by one to avoid large payloads
+      const sharedProjectPromises = sharedProjectIds.map((projectId) => 
+        get(ref(database, `projects/${projectId}`)).then((projectSnapshot) => {
+          if (!projectSnapshot.exists()) return null;
+          
+          const projectData = projectSnapshot.val();
+          return {
+            ...projectData,
+            id: projectId,
+            createdAt: new Date(projectData.createdAt),
+            lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
+          };
+        })
+      );
       
-      for (const projectId of sharedProjectIds) {
-        const projectRef = ref(database, `projects/${projectId}`);
-        onValue(projectRef, (projectSnapshot) => {
-          if (projectSnapshot.exists()) {
-            const projectData = projectSnapshot.val();
-            sharedProjectsList.push({
-              ...projectData,
-              id: projectId,
-              createdAt: new Date(projectData.createdAt),
-              lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
-            });
-            setSharedProjects([...sharedProjectsList]);
-          }
-        }, { onlyOnce: true });
-      }
+      // Wait for all promises to resolve
+      Promise.all(sharedProjectPromises).then((results) => {
+        const validResults = results.filter((project): project is Project => project !== null);
+        setSharedProjects(validResults);
+        setIsLoading(false);
+      }).catch(err => {
+        console.error("Error fetching shared projects:", err);
+        setIsLoading(false);
+      });
+    }).catch(err => {
+      console.error("Error fetching project memberships:", err);
+      setIsLoading(false);
     });
 
-    return () => unsubscribe();
   }, [isAuthenticated, user]);
   
   // Reset current project when user logs out
@@ -182,6 +200,7 @@ export const useProjectManagementProvider = () => {
     updateProject,
     deleteProject,
     getUserProjects,
-    getSharedProjects
+    getSharedProjects,
+    isLoading
   };
 };
