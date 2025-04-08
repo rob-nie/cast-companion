@@ -8,7 +8,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { ProjectProvider } from "@/context/ProjectContext";
 import { NotesProvider } from "@/context/NotesContext";
 import { MessagesProvider } from "@/context/MessagesContext";
-import { WatchProvider } from "@/context/WatchContext";
+import { WatchProvider } from "@/context/watch";
 import { UserProvider } from "@/context/UserContext";
 import AuthGuard from "@/components/auth/AuthGuard";
 
