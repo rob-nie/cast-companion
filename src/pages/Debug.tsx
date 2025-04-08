@@ -21,6 +21,7 @@ const Debug = () => {
       }
     },
     "projectMembers": {
+      ".indexOn": ["projectId", "userId"],
       "$memberId": {
         ".read": "auth != null",
         ".write": "auth != null"
@@ -90,6 +91,14 @@ const Debug = () => {
               <p className="text-sm text-yellow-700 dark:text-yellow-300">
                 Diese vereinfachten Regeln gewähren Zugriff für alle authentifizierten Benutzer und sind für die Testphase gedacht. 
                 Für den Produktivbetrieb sollten Sie detailliertere Regeln verwenden.
+              </p>
+            </div>
+            
+            <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500 p-4 rounded">
+              <h4 className="font-semibold text-blue-800 dark:text-blue-200">Wichtige Hinweise</h4>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Der Eintrag <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">.indexOn: ["projectId", "userId"]</code> bei projectMembers ist erforderlich, 
+                damit die Abfragen nach Projekt-ID und Benutzer-ID korrekt funktionieren.
               </p>
             </div>
           </CardContent>

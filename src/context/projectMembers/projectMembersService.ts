@@ -72,24 +72,21 @@ export const addMemberToProjectByUserId = async (projectId: string, userId: stri
     
     const userData = userSnapshot.val();
     
-    // Check if user is already a member
+    // Da wir keinen Index für userId haben, müssen wir alle Mitglieder abrufen und lokal filtern
     const membersRef = ref(database, 'projectMembers');
-    const memberQuery = query(
-      membersRef,
-      orderByChild('userId'),
-      equalTo(userId)
-    );
-    
-    const memberSnapshot = await get(memberQuery);
+    const snapshot = await get(membersRef);
     let isAlreadyMember = false;
     
-    if (memberSnapshot.exists()) {
-      memberSnapshot.forEach((childSnapshot) => {
-        const memberData = childSnapshot.val();
-        if (memberData.projectId === projectId) {
+    if (snapshot.exists()) {
+      // Lokal nach Mitgliedschaft suchen
+      const membersData = snapshot.val();
+      for (const key in membersData) {
+        const memberData = membersData[key];
+        if (memberData.projectId === projectId && memberData.userId === userId) {
           isAlreadyMember = true;
+          break;
         }
-      });
+      }
     }
     
     if (isAlreadyMember) {
@@ -145,18 +142,21 @@ export const addMemberToProject = async (projectId: string, email: string, role:
       throw new Error("Benutzer nicht gefunden");
     }
     
-    // Check if user is already a member
+    // Da wir keinen Index für userId haben, müssen wir alle Mitglieder abrufen und lokal filtern
     const membersRef = ref(database, 'projectMembers');
     const memberSnapshot = await get(membersRef);
     let isAlreadyMember = false;
     
     if (memberSnapshot.exists()) {
-      memberSnapshot.forEach((childSnapshot) => {
-        const memberData = childSnapshot.val();
+      // Lokal nach Mitgliedschaft suchen
+      const membersData = memberSnapshot.val();
+      for (const key in membersData) {
+        const memberData = membersData[key];
         if (memberData.projectId === projectId && memberData.userId === userId) {
           isAlreadyMember = true;
+          break;
         }
-      });
+      }
     }
     
     if (isAlreadyMember) {
@@ -184,25 +184,24 @@ export const addMemberToProject = async (projectId: string, email: string, role:
 
 export const removeMemberFromProject = async (projectId: string, userId: string) => {
   try {
-    // Find the member entry
+    // Da wir keinen Index für userId haben, müssen wir alle Mitglieder abrufen und lokal filtern
     const membersRef = ref(database, 'projectMembers');
-    const memberQuery = query(
-      membersRef,
-      orderByChild('userId'),
-      equalTo(userId)
-    );
-    
-    const snapshot = await get(memberQuery);
+    const snapshot = await get(membersRef);
     let memberKey = "";
     let memberRole = "";
     
-    snapshot.forEach((childSnapshot) => {
-      const memberData = childSnapshot.val();
-      if (memberData.projectId === projectId) {
-        memberKey = childSnapshot.key || "";
-        memberRole = memberData.role;
+    if (snapshot.exists()) {
+      // Lokal nach Mitgliedschaft suchen
+      const membersData = snapshot.val();
+      for (const key in membersData) {
+        const memberData = membersData[key];
+        if (memberData.projectId === projectId && memberData.userId === userId) {
+          memberKey = key;
+          memberRole = memberData.role;
+          break;
+        }
       }
-    });
+    }
     
     if (!memberKey) {
       toast.error("Mitglied nicht gefunden");
@@ -228,23 +227,22 @@ export const removeMemberFromProject = async (projectId: string, userId: string)
 
 export const updateMemberRole = async (projectId: string, userId: string, role: UserRole) => {
   try {
-    // Find the member entry
+    // Da wir keinen Index für userId haben, müssen wir alle Mitglieder abrufen und lokal filtern
     const membersRef = ref(database, 'projectMembers');
-    const memberQuery = query(
-      membersRef,
-      orderByChild('userId'),
-      equalTo(userId)
-    );
-    
-    const snapshot = await get(memberQuery);
+    const snapshot = await get(membersRef);
     let memberKey = "";
     
-    snapshot.forEach((childSnapshot) => {
-      const memberData = childSnapshot.val();
-      if (memberData.projectId === projectId) {
-        memberKey = childSnapshot.key || "";
+    if (snapshot.exists()) {
+      // Lokal nach Mitgliedschaft suchen
+      const membersData = snapshot.val();
+      for (const key in membersData) {
+        const memberData = membersData[key];
+        if (memberData.projectId === projectId && memberData.userId === userId) {
+          memberKey = key;
+          break;
+        }
       }
-    });
+    }
     
     if (!memberKey) {
       toast.error("Mitglied nicht gefunden");
