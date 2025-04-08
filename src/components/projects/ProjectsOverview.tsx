@@ -9,20 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjects } from "@/context/ProjectContext";
 import { useUser } from "@/context/UserContext";
 import ProjectCard from "./ProjectCard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ProjectsOverview = () => {
-  const { projects, addProject, getUserProjects, getSharedProjects } = useProjects();
+  const { getUserProjects, getSharedProjects, addProject } = useProjects();
   const { isAuthenticated, user } = useUser();
   const [newProject, setNewProject] = useState({ title: "", description: "" });
   const [isOpen, setIsOpen] = useState(false);
   
-  // Get all user-specific projects
+  // Get user-specific projects
   const myProjects = getUserProjects();
   const sharedProjects = getSharedProjects();
   
-  // Combine all projects for the unified view
-  const allProjects = [...myProjects, ...sharedProjects];
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newProject.title.trim()) {
@@ -31,6 +29,35 @@ const ProjectsOverview = () => {
       setIsOpen(false);
     }
   };
+
+  const renderEmptyState = (message: string) => (
+    <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
+      <h3 className="text-lg font-medium">{message}</h3>
+      <p className="text-muted-foreground mt-1 mb-4">
+        Erstelle dein erstes Projekt, um loszulegen
+      </p>
+      <Button
+        onClick={() => setIsOpen(true)}
+        variant="outline"
+        className="gap-1"
+      >
+        <PlusCircle className="h-4 w-4" />
+        Projekt erstellen
+      </Button>
+    </div>
+  );
+
+  const renderProjectGrid = (projects: any[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+      {projects.map((project) => (
+        <ProjectCard 
+          key={project.id} 
+          project={project} 
+          isOwned={user?.id === project.ownerId}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div>
@@ -86,64 +113,45 @@ const ProjectsOverview = () => {
       </div>
 
       {isAuthenticated ? (
-        <>
-          {allProjects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center mt-4">
-              <h3 className="text-lg font-medium">Noch keine Projekte</h3>
-              <p className="text-muted-foreground mt-1 mb-4">
-                Erstelle dein erstes Projekt, um loszulegen
-              </p>
-              <Button
-                onClick={() => setIsOpen(true)}
-                variant="outline"
-                className="gap-1"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Projekt erstellen
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-              {allProjects.map((project) => (
-                <ProjectCard 
-                  key={project.id} 
-                  project={project} 
-                  isOwned={user?.id === project.ownerId}
-                />
-              ))}
-            </div>
-          )}
-        </>
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="all">Alle Projekte</TabsTrigger>
+            <TabsTrigger value="my">Meine Projekte</TabsTrigger>
+            <TabsTrigger value="shared">Geteilte Projekte</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all">
+            {myProjects.length === 0 && sharedProjects.length === 0 ? (
+              renderEmptyState("Noch keine Projekte")
+            ) : (
+              renderProjectGrid([...myProjects, ...sharedProjects])
+            )}
+          </TabsContent>
+          
+          <TabsContent value="my">
+            {myProjects.length === 0 ? (
+              renderEmptyState("Noch keine eigenen Projekte")
+            ) : (
+              renderProjectGrid(myProjects)
+            )}
+          </TabsContent>
+          
+          <TabsContent value="shared">
+            {sharedProjects.length === 0 ? (
+              renderEmptyState("Keine geteilten Projekte")
+            ) : (
+              renderProjectGrid(sharedProjects)
+            )}
+          </TabsContent>
+        </Tabs>
       ) : (
-        // Show all projects if not authenticated
-        <>
-          {projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
-              <h3 className="text-lg font-medium">Noch keine Projekte</h3>
-              <p className="text-muted-foreground mt-1 mb-4">
-                Erstelle dein erstes Projekt, um loszulegen
-              </p>
-              <Button
-                onClick={() => setIsOpen(true)}
-                variant="outline"
-                className="gap-1"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Projekt erstellen
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
-                <ProjectCard 
-                  key={project.id} 
-                  project={project} 
-                  isOwned={false} // Non-authenticated users don't own any projects
-                />
-              ))}
-            </div>
-          )}
-        </>
+        // Show a message for non-authenticated users
+        <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-lg bg-muted/20 text-center">
+          <h3 className="text-lg font-medium">Bitte melde dich an</h3>
+          <p className="text-muted-foreground mt-1 mb-4">
+            Um deine Projekte zu sehen, musst du dich anmelden
+          </p>
+        </div>
       )}
     </div>
   );

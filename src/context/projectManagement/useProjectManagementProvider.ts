@@ -16,8 +16,9 @@ export const useProjectManagementProvider = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { user, isAuthenticated, getProjectMembers } = useUser();
+  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
   
-  // Load projects from Firebase when user is authenticated
+  // Load projects owned by the user from Firebase when user is authenticated
   useEffect(() => {
     if (!isAuthenticated || !user) {
       setProjects([]);
@@ -25,12 +26,12 @@ export const useProjectManagementProvider = () => {
       return;
     }
     
-    // Use the new ownerId index to efficiently query projects owned by the user
+    // Use the ownerId index to efficiently query projects owned by the user
     const projectsRef = query(
       ref(database, 'projects'),
       orderByChild('ownerId'),
       equalTo(user.id),
-      limitToLast(Math.min(QUERY_LIMIT, 10)) // Further limit to avoid payload issues
+      limitToLast(Math.min(QUERY_LIMIT, 10))
     );
     
     const unsubscribe = onValue(projectsRef, (snapshot) => {
@@ -54,6 +55,59 @@ export const useProjectManagementProvider = () => {
       }
     });
     
+    return () => unsubscribe();
+  }, [isAuthenticated, user]);
+
+  // Load shared projects
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      setSharedProjects([]);
+      return;
+    }
+
+    // Get all project memberships for the current user
+    const membershipsRef = query(
+      ref(database, 'projectMembers'),
+      orderByChild('userId'),
+      equalTo(user.id)
+    );
+
+    const unsubscribe = onValue(membershipsRef, async (snapshot) => {
+      if (!snapshot.exists()) {
+        setSharedProjects([]);
+        return;
+      }
+
+      const memberships = snapshot.val();
+      const sharedProjectIds = Object.values(memberships)
+        .filter((member: any) => member.userId === user.id && member.role !== "owner")
+        .map((member: any) => member.projectId);
+
+      if (sharedProjectIds.length === 0) {
+        setSharedProjects([]);
+        return;
+      }
+
+      // Fetch each shared project individually to avoid large payloads
+      const sharedProjectsList: Project[] = [];
+      
+      for (const projectId of sharedProjectIds) {
+        const projectRef = ref(database, `projects/${projectId}`);
+        onValue(projectRef, (projectSnapshot) => {
+          if (projectSnapshot.exists()) {
+            const projectData = projectSnapshot.val();
+            sharedProjectsList.push({
+              ...projectData,
+              id: projectId,
+              createdAt: new Date(projectData.createdAt),
+              lastAccessed: projectData.lastAccessed ? new Date(projectData.lastAccessed) : undefined,
+            });
+            setSharedProjects([...sharedProjectsList]);
+          }
+        }, { onlyOnce: true });
+      }
+    });
+
     return () => unsubscribe();
   }, [isAuthenticated, user]);
   
@@ -111,25 +165,17 @@ export const useProjectManagementProvider = () => {
   // Get projects owned by the current user
   const getUserProjects = () => {
     if (!user) return [];
-    return projects.filter(project => project.ownerId === user.id);
+    return projects;
   };
 
   // Get projects shared with the current user
   const getSharedProjects = () => {
     if (!user) return [];
-    
-    // Get projects not owned by the user
-    const notOwnedProjects = projects.filter(project => project.ownerId !== user.id);
-    
-    // Check which projects have the user as a member
-    return notOwnedProjects.filter(project => {
-      const members = getProjectMembers(project.id);
-      return members.some(member => member.userId === user.id);
-    });
+    return sharedProjects;
   };
 
   return {
-    projects,
+    projects: [...projects, ...sharedProjects],
     currentProject,
     setCurrentProject,
     addProject,
