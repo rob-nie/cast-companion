@@ -1,10 +1,10 @@
 
 import { createContext, useContext, ReactNode } from "react";
-import { ProjectManagementProvider, useProjectManagement, Project } from "./ProjectManagementContext";
+import { ProjectManagementProvider, useProjectManagement } from "./projectManagement";
 import { ProjectSharingProvider, useProjectSharing } from "./ProjectSharingContext";
 
 // Re-export types
-export type { Project };
+export type { Project } from "./projectManagement";
 
 // Combined project context
 const ProjectContext = createContext<ReturnType<typeof useProjectCombined> | undefined>(undefined);

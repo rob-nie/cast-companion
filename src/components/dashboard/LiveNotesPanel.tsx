@@ -1,10 +1,9 @@
-
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/context/notes';
 import { useProjects } from '@/context/ProjectContext';
-import { useWatch } from '@/context/WatchContext';
+import { useWatch } from '@/context/watch';
 import { cn } from '@/lib/utils';
 import NoteItem from './notes/NoteItem';
 import EmptyNoteState from './notes/EmptyNoteState';
