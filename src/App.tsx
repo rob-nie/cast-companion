@@ -30,14 +30,14 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <UserProvider>
-        <ProjectProvider>
-          <NotesProvider>
-            <MessagesProvider>
-              <WatchProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
+        <BrowserRouter>
+          <ProjectProvider>
+            <NotesProvider>
+              <MessagesProvider>
+                <WatchProvider>
+                  <TooltipProvider>
+                    <Toaster />
+                    <Sonner />
                     <Routes>
                       <Route path="/" element={<Index />} />
                       <Route path="/login" element={<Login />} />
@@ -55,12 +55,12 @@ const App = () => (
                       
                       <Route path="*" element={<NotFound />} />
                     </Routes>
-                  </BrowserRouter>
-                </TooltipProvider>
-              </WatchProvider>
-            </MessagesProvider>
-          </NotesProvider>
-        </ProjectProvider>
+                  </TooltipProvider>
+                </WatchProvider>
+              </MessagesProvider>
+            </NotesProvider>
+          </ProjectProvider>
+        </BrowserRouter>
       </UserProvider>
     </ThemeProvider>
   </QueryClientProvider>
