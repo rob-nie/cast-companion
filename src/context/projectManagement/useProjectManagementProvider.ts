@@ -3,10 +3,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useUser } from "../UserContext";
 import { Project } from "./types";
 import { 
-  fetchProjects,
-  addProjectToFirebase, 
-  updateProjectInFirebase, 
-  deleteProjectFromFirebase
+  fetchUserProjects,
+  createProject as addProjectToSupabase, 
+  updateProject as updateProjectInSupabase, 
+  deleteProject as deleteProjectFromSupabase
 } from "./projectService";
 import { toast } from "sonner";
 
@@ -19,39 +19,32 @@ export const useProjectManagementProvider = () => {
   
   // Load projects when user is authenticated
   useEffect(() => {
-    let unsubscribe: () => void = () => {};
-    
     if (!isAuthenticated || !user) {
       setProjects([]);
       setCurrentProject(null);
       setIsLoading(false);
-      return () => {};
+      return;
     }
     
-    setIsLoading(true);
-    setLoadError(null);
-    
-    try {
-      console.log("Loading projects for user:", user.id);
+    const loadProjects = async () => {
+      setIsLoading(true);
+      setLoadError(null);
       
-      // Callback from service for project updates
-      const handleProjectsUpdate = (loadedProjects: Project[]) => {
+      try {
+        console.log("Loading projects for user:", user.id);
+        
+        const loadedProjects = await fetchUserProjects();
         setProjects(loadedProjects);
-        setIsLoading(false);
         console.log(`${loadedProjects.length} projects loaded`);
-      };
-      
-      // Subscribe to project updates
-      unsubscribe = fetchProjects(user.id, handleProjectsUpdate);
-    } catch (error) {
-      console.error("Error setting up project subscription:", error);
-      setLoadError("Projects could not be loaded");
-      setIsLoading(false);
-    }
-    
-    return () => {
-      if (unsubscribe) unsubscribe();
+      } catch (error) {
+        console.error("Error loading projects:", error);
+        setLoadError("Projects could not be loaded");
+      } finally {
+        setIsLoading(false);
+      }
     };
+    
+    loadProjects();
   }, [isAuthenticated, user]);
   
   // Reset current project when user logs out
@@ -66,8 +59,8 @@ export const useProjectManagementProvider = () => {
     if (!user) return;
     
     try {
-      await addProjectToFirebase(project, user.id);
-      // Real-time updates will add the project to the list
+      const newProject = await addProjectToSupabase(project);
+      setProjects(prev => [...prev, newProject]);
     } catch (error) {
       console.error("Error adding project:", error);
     }
@@ -76,20 +69,18 @@ export const useProjectManagementProvider = () => {
   // Update project
   const updateProject = useCallback(async (id: string, projectUpdate: Partial<Project>, silent: boolean = false) => {
     try {
-      const success = await updateProjectInFirebase(id, projectUpdate, silent);
+      const updatedProject = await updateProjectInSupabase(id, projectUpdate, silent);
       
-      if (success) {
-        // Update local state
-        setProjects((prev) =>
-          prev.map((project) =>
-            project.id === id ? { ...project, ...projectUpdate } : project
-          )
-        );
-        
-        // Also update current project if it's the same
-        if (currentProject?.id === id) {
-          setCurrentProject(prev => prev ? { ...prev, ...projectUpdate } : null);
-        }
+      // Update local state
+      setProjects((prev) =>
+        prev.map((project) =>
+          project.id === id ? updatedProject : project
+        )
+      );
+      
+      // Also update current project if it's the same
+      if (currentProject?.id === id) {
+        setCurrentProject(updatedProject);
       }
     } catch (error) {
       console.error("Error updating project:", error);
@@ -107,7 +98,7 @@ export const useProjectManagementProvider = () => {
     }
     
     try {
-      const success = await deleteProjectFromFirebase(id);
+      const success = await deleteProjectFromSupabase(id);
       
       if (success) {
         // Update local state

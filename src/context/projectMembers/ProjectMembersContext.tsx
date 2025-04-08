@@ -5,8 +5,8 @@ import { ProjectMembersContextType } from "./types";
 import { MembershipStatus, ProjectMembershipCacheType } from "./serviceTypes";
 import { 
   fetchProjectMembers as fetchMembers,
-  addMemberToProject, 
-  addMemberToProjectByUserId,
+  addMemberByEmail, 
+  addMemberByUserId,
   removeMemberFromProject, 
   updateMemberRole 
 } from "./projectMembersService";
@@ -25,7 +25,7 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
     };
   }, []);
 
-  // Verbesserte Set-Methode mit Cache-Invalidierung
+  // Set method with cache invalidation
   const setMembersForProject = useCallback((projectId: string, members: ProjectMember[]) => {
     setMembershipCache(prev => {
       const newMap = new Map(prev);
@@ -42,8 +42,8 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
     });
   }, []);
 
-  // Verbesserte Get-Methode mit Ladestatusmanagement
-  const getProjectMembers = useCallback((projectId: string): ProjectMember[] => {
+  // Get method with loading status management
+  const getProjectMembers = useCallback(async (projectId: string): Promise<ProjectMember[]> => {
     // Check if we already have data and it's not loading
     const currentStatus = membershipCache.get(projectId);
     
@@ -67,38 +67,36 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
       });
       
       // Fetch the data
-      fetchMembers(projectId, setMembersForProject)
-        .then(cleanup => {
-          // Store cleanup function for later
-          return () => {
-            if (cleanup) cleanup();
-          };
-        })
-        .catch(error => {
-          console.error("Fehler beim Einrichten des Mitgliederabrufs:", error);
-          setMembershipCache(prev => {
-            const newMap = new Map(prev);
-            const current = newMap.get(projectId) || { isLoading: false, error: null, members: [] };
-            
-            newMap.set(projectId, {
-              ...current,
-              isLoading: false,
-              error: "Fehler beim Laden der Mitglieder"
-            });
-            
-            return newMap;
+      try {
+        const members = await fetchMembers(projectId);
+        setMembersForProject(projectId, members);
+        return members;
+      } catch (error) {
+        console.error("Error fetching members:", error);
+        setMembershipCache(prev => {
+          const newMap = new Map(prev);
+          const current = newMap.get(projectId) || { isLoading: false, error: null, members: [] };
+          
+          newMap.set(projectId, {
+            ...current,
+            isLoading: false,
+            error: "Error loading members"
           });
+          
+          return newMap;
         });
+        return [];
+      }
     }
     
     // Return cached members while loading, or empty array if no cache
     return (currentStatus && currentStatus.members) || [];
-  }, [membershipCache]);
+  }, [membershipCache, setMembersForProject]);
 
-  // Optimierte Methoden zur Mitgliederverwaltung
+  // Optimized methods for member management
   const addProjectMember = useCallback(async (projectId: string, email: string, role: UserRole) => {
     try {
-      await addMemberToProject(projectId, email, role);
+      await addMemberByEmail(projectId, email, role);
       
       // Invalidate cache to trigger reload
       setMembershipCache(prev => {
@@ -115,17 +113,18 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
         return newMap;
       });
       
-      // Mitglieder nach einer erfolgreichen Operation neu laden
-      await fetchMembers(projectId, setMembersForProject);
+      // Reload members after successful operation
+      const updatedMembers = await fetchMembers(projectId);
+      setMembersForProject(projectId, updatedMembers);
     } catch (error) {
-      console.error("Fehler beim Hinzufügen des Mitglieds:", error);
+      console.error("Error adding member:", error);
       throw error;
     }
   }, [setMembersForProject]);
 
   const addProjectMemberByUserId = useCallback(async (projectId: string, userId: string, role: UserRole) => {
     try {
-      await addMemberToProjectByUserId(projectId, userId, role);
+      await addMemberByUserId(projectId, userId, role);
       
       // Invalidate cache to trigger reload
       setMembershipCache(prev => {
@@ -142,10 +141,11 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
         return newMap;
       });
       
-      // Mitglieder nach einer erfolgreichen Operation neu laden
-      await fetchMembers(projectId, setMembersForProject);
+      // Reload members after successful operation
+      const updatedMembers = await fetchMembers(projectId);
+      setMembersForProject(projectId, updatedMembers);
     } catch (error) {
-      console.error("Fehler beim Hinzufügen des Mitglieds über Benutzer-ID:", error);
+      console.error("Error adding member by user ID:", error);
       throw error;
     }
   }, [setMembersForProject]);
@@ -154,7 +154,7 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
     try {
       await removeMemberFromProject(projectId, userId);
       
-      // Mitglieder aus dem lokalen Cache entfernen für sofortige Rückmeldung
+      // Remove member from local cache for immediate feedback
       setMembershipCache(prev => {
         const newMap = new Map(prev);
         const current = newMap.get(projectId);
@@ -169,7 +169,7 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
         return newMap;
       });
     } catch (error) {
-      console.error("Fehler beim Entfernen des Mitglieds:", error);
+      console.error("Error removing member:", error);
       throw error;
     }
   }, []);
@@ -178,7 +178,7 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
     try {
       await updateMemberRole(projectId, userId, role);
       
-      // Mitgliederrolle im lokalen Cache aktualisieren für sofortige Rückmeldung
+      // Update member role in local cache for immediate feedback
       setMembershipCache(prev => {
         const newMap = new Map(prev);
         const current = newMap.get(projectId);
@@ -195,7 +195,7 @@ export const ProjectMembersProvider = ({ children }: { children: ReactNode }) =>
         return newMap;
       });
     } catch (error) {
-      console.error("Fehler beim Aktualisieren der Mitgliedsrolle:", error);
+      console.error("Error updating member role:", error);
       throw error;
     }
   }, []);

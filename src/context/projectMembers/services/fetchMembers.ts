@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ProjectMember } from "@/types/user";
+import { ProjectMember, UserRole } from "@/types/user";
 
 /**
  * Fetches all members of a specific project
@@ -31,7 +31,7 @@ export const fetchProjectMembers = async (projectId: string): Promise<ProjectMem
     return data.map(item => ({
       userId: item.user_id,
       projectId: item.project_id,
-      role: item.role,
+      role: item.role as UserRole,
       name: item.profiles?.name || 'Unknown User',
       email: item.profiles?.email || '',
       avatar: item.profiles?.avatar

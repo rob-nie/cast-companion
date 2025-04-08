@@ -35,18 +35,6 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
       return [];
     }
     
-    // For each project, check if there are any members
-    for (const project of projectsData) {
-      const { data: membersData, error: membersError } = await supabase
-        .from('project_members')
-        .select('count(*)', { count: 'exact' })
-        .eq('project_id', project.id);
-        
-      if (!membersError) {
-        project.memberCount = membersData ? membersData.length : 0;
-      }
-    }
-    
     // Convert to our model
     return projectsData.map(mapDbProjectToProject);
   } catch (error) {
@@ -132,7 +120,7 @@ export const updateProject = async (id: string, updateData: Partial<Project>, si
 /**
  * Delete a project
  */
-export const deleteProject = async (id: string): Promise<void> => {
+export const deleteProject = async (id: string): Promise<boolean> => {
   try {
     // Delete project (cascade will handle deleting members)
     const { error } = await supabase
@@ -146,9 +134,10 @@ export const deleteProject = async (id: string): Promise<void> => {
     }
     
     toast.success("Project deleted");
+    return true;
   } catch (error) {
     console.error("Error deleting project:", error);
-    throw error;
+    return false;
   }
 };
 
@@ -216,9 +205,9 @@ export const addProjectMember = async (projectId: string, userId: string, role: 
       userId,
       projectId,
       role,
-      name: userData.name,
-      email: userData.email,
-      avatar: userData.avatar
+      name: userData.name || 'Unknown User',
+      email: userData.email || '',
+      avatar: userData.avatar || undefined
     };
   } catch (error) {
     console.error("Error adding project member:", error);
@@ -257,7 +246,7 @@ export const fetchProjectMembers = async (projectId: string): Promise<ProjectMem
       role: member.role as UserRole,
       name: member.profiles?.name || 'Unknown User',
       email: member.profiles?.email || '',
-      avatar: member.profiles?.avatar
+      avatar: member.profiles?.avatar || undefined
     }));
   } catch (error) {
     console.error("Error fetching project members:", error);
@@ -268,7 +257,7 @@ export const fetchProjectMembers = async (projectId: string): Promise<ProjectMem
 /**
  * Remove a member from a project
  */
-export const removeProjectMember = async (projectId: string, userId: string): Promise<void> => {
+export const removeProjectMember = async (projectId: string, userId: string): Promise<boolean> => {
   try {
     // Check if user is the owner
     const { data: projectData, error: projectError } = await supabase
@@ -297,16 +286,17 @@ export const removeProjectMember = async (projectId: string, userId: string): Pr
     }
     
     toast.success("Member removed");
+    return true;
   } catch (error) {
     console.error("Error removing project member:", error);
-    throw error;
+    return false;
   }
 };
 
 /**
  * Update a member's role
  */
-export const updateMemberRole = async (projectId: string, userId: string, role: UserRole): Promise<void> => {
+export const updateMemberRole = async (projectId: string, userId: string, role: UserRole): Promise<boolean> => {
   try {
     // Check if user is the owner
     const { data: projectData, error: projectError } = await supabase
@@ -336,8 +326,9 @@ export const updateMemberRole = async (projectId: string, userId: string, role: 
     }
     
     toast.success("Role updated");
+    return true;
   } catch (error) {
     console.error("Error updating member role:", error);
-    throw error;
+    return false;
   }
 };
