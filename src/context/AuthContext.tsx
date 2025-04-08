@@ -30,35 +30,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("Auth state changed:", firebaseUser);
       if (firebaseUser) {
-        // Get user data from database
-        const userRef = ref(database, `users/${firebaseUser.uid}`);
-        const snapshot = await get(userRef);
-        
-        if (snapshot.exists()) {
-          const userData = snapshot.val();
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email || "",
-            name: userData.name || firebaseUser.displayName || "",
-            avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-            createdAt: new Date(userData.createdAt)
-          });
-        } else {
-          // Create user data if it doesn't exist
-          const newUser = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || "",
-            name: firebaseUser.displayName || "",
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
-            createdAt: new Date().toISOString()
-          };
+        try {
+          // Get user data from database
+          const userRef = ref(database, `users/${firebaseUser.uid}`);
+          const snapshot = await get(userRef);
           
-          await set(userRef, newUser);
-          setUser({
-            ...newUser,
-            createdAt: new Date(newUser.createdAt)
-          });
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: userData.name || firebaseUser.displayName || "",
+              avatar: userData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
+              createdAt: new Date(userData.createdAt)
+            });
+          } else {
+            // Create user data if it doesn't exist
+            const newUser = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              name: firebaseUser.displayName || "",
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.email}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            await set(userRef, newUser);
+            setUser({
+              ...newUser,
+              createdAt: new Date(newUser.createdAt)
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          toast.error("Fehler beim Laden der Benutzerdaten");
         }
       } else {
         setUser(null);
@@ -72,9 +78,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      console.log("Attempting login with:", email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login successful:", userCredential.user.uid);
       toast.success("Erfolgreich angemeldet");
+      return userCredential.user;
     } catch (error: any) {
+      console.error("Login error:", error);
       let errorMessage = "Anmeldung fehlgeschlagen";
       if (error.code === "auth/invalid-email" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
         errorMessage = "Ungültige E-Mail oder Passwort";
@@ -107,6 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       await set(ref(database, `users/${firebaseUser.uid}`), newUser);
       toast.success("Konto erfolgreich erstellt");
+      return firebaseUser;
     } catch (error: any) {
       let errorMessage = "Registrierung fehlgeschlagen";
       if (error.code === "auth/email-already-in-use") {

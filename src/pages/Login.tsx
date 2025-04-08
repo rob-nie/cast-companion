@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useUser } from "@/context/UserContext";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -44,10 +45,12 @@ const Login = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       await login(values.email, values.password);
+      console.log("Login successful, navigating to:", from);
+      toast.success("Erfolgreich angemeldet");
       navigate(from, { replace: true });
     } catch (error) {
-      // Error is already handled in the UserContext
       console.error("Login failed:", error);
+      // Error is already handled in the UserContext
     }
   };
 
