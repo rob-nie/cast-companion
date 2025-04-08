@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   // Listen for auth state changes
   useEffect(() => {
+    console.log("Setting up auth state listener");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log("Auth state changed:", firebaseUser);
       if (firebaseUser) {
@@ -75,19 +76,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       console.log("Attempting login with:", email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log("Login successful:", userCredential.user.uid);
       toast.success("Erfolgreich angemeldet");
-      return userCredential.user;
+      // Don't return the user here, just let the auth state listener handle it
     } catch (error: any) {
       console.error("Login error:", error);
       let errorMessage = "Anmeldung fehlgeschlagen";
       if (error.code === "auth/invalid-email" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
         errorMessage = "Ungültige E-Mail oder Passwort";
+      } else if (error.code === "auth/api-key-not-valid.-please-pass-a-valid-api-key.") {
+        errorMessage = "Firebase-Konfigurationsfehler. Bitte kontaktieren Sie den Administrator.";
       }
       toast.error(errorMessage);
       throw error;
@@ -96,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
       // Create user in Firebase Auth
@@ -117,11 +120,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       await set(ref(database, `users/${firebaseUser.uid}`), newUser);
       toast.success("Konto erfolgreich erstellt");
-      return firebaseUser;
+      // Don't return the user here, just let the auth state listener handle it
     } catch (error: any) {
       let errorMessage = "Registrierung fehlgeschlagen";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "E-Mail wird bereits verwendet";
+      } else if (error.code === "auth/api-key-not-valid.-please-pass-a-valid-api-key.") {
+        errorMessage = "Firebase-Konfigurationsfehler. Bitte kontaktieren Sie den Administrator.";
       }
       toast.error(errorMessage);
       throw error;
