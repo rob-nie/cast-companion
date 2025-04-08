@@ -42,6 +42,8 @@ const App = () => (
                       <Route path="/" element={<Index />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/register" element={<Register />} />
+                      <Route path="/debug" element={<Debug />} />
+                      <Route path="/database-rules" element={<DatabaseRules />} />
                       
                       {/* Protected routes */}
                       <Route element={<AuthGuard />}>
@@ -49,8 +51,6 @@ const App = () => (
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/dashboard" element={<InterviewDashboard />} />
                         <Route path="/project-sharing" element={<ProjectSharing />} />
-                        <Route path="/database-rules" element={<DatabaseRules />} />
-                        <Route path="/debug" element={<Debug />} />
                       </Route>
                       
                       <Route path="*" element={<NotFound />} />
