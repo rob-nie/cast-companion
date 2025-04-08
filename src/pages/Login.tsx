@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +16,7 @@ import {
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { toast } from "sonner";
+import LoadingScreen from "@/components/auth/LoadingScreen";
 
 const formSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
@@ -26,7 +26,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
-  const { login, isLoading } = useUser();
+  const { login, isLoading, isAuthenticated, user } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -42,6 +42,14 @@ const Login = () => {
       password: "",
     },
   });
+
+  // Redirect already authenticated users
+  useEffect(() => {
+    if (isAuthenticated && user && !isLoading) {
+      console.log("User already authenticated, redirecting to:", from);
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, user, isLoading, navigate, from]);
 
   const onSubmit = async (values: FormValues) => {
     if (submitting) return;
@@ -61,6 +69,13 @@ const Login = () => {
       // Error is already handled in the AuthContext
     }
   };
+
+  console.log("Login rendering - isAuthenticated:", isAuthenticated, "isLoading:", isLoading, "user:", user);
+
+  // Don't render the form if user is already authenticated
+  if (isAuthenticated && user && !submitting) {
+    return <LoadingScreen />;
+  }
 
   // Determine if we should show loading state
   const isProcessing = isLoading || submitting;
@@ -84,7 +99,12 @@ const Login = () => {
                 <FormItem>
                   <FormLabel>E-Mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="email@example.com" {...field} disabled={isProcessing} />
+                    <Input 
+                      placeholder="email@example.com"
+                      autoComplete="email" 
+                      {...field} 
+                      disabled={isProcessing} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -102,6 +122,7 @@ const Login = () => {
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="******"
+                        autoComplete="current-password"
                         {...field}
                         disabled={isProcessing}
                       />

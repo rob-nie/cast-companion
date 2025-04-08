@@ -5,7 +5,7 @@ import LoadingScreen from "./LoadingScreen";
 import { useEffect, useState } from "react";
 
 const AuthGuard = () => {
-  const { isAuthenticated, isLoading } = useUser();
+  const { isAuthenticated, isLoading, user } = useUser();
   const location = useLocation();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -15,13 +15,13 @@ const AuthGuard = () => {
       // Give a small delay to ensure all auth states are synchronized
       const timer = setTimeout(() => {
         setIsCheckingAuth(false);
-      }, 200);
+      }, 300);
       
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
 
-  console.log("AuthGuard - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "isCheckingAuth:", isCheckingAuth);
+  console.log("AuthGuard - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "isCheckingAuth:", isCheckingAuth, "user:", user);
 
   // Show loading screen while checking authentication
   if (isLoading || isCheckingAuth) {
@@ -29,8 +29,8 @@ const AuthGuard = () => {
   }
 
   // If not authenticated, redirect to login
-  if (!isAuthenticated) {
-    console.log("Not authenticated, redirecting to login");
+  if (!isAuthenticated || !user) {
+    console.log("Not authenticated or user not found, redirecting to login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

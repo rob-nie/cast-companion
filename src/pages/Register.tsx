@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useUser } from "@/context/UserContext";
+import LoadingScreen from "@/components/auth/LoadingScreen";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name muss mindestens 2 Zeichen lang sein"),
@@ -30,7 +31,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
-  const { register, isLoading } = useUser();
+  const { register, isLoading, isAuthenticated, user } = useUser();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +45,14 @@ const Register = () => {
       confirmPassword: "",
     },
   });
+
+  // Redirect already authenticated users
+  useEffect(() => {
+    if (isAuthenticated && user && !isLoading) {
+      console.log("User already authenticated, redirecting to projects");
+      navigate("/projects", { replace: true });
+    }
+  }, [isAuthenticated, user, isLoading, navigate]);
 
   const onSubmit = async (values: FormValues) => {
     if (submitting) return;
@@ -62,6 +71,13 @@ const Register = () => {
       // Error is already handled in the UserContext
     }
   };
+
+  console.log("Register rendering - isAuthenticated:", isAuthenticated, "isLoading:", isLoading, "user:", user);
+
+  // Don't render the form if user is already authenticated
+  if (isAuthenticated && user && !submitting) {
+    return <LoadingScreen />;
+  }
 
   // Determine if we should show loading state
   const isProcessing = isLoading || submitting;
@@ -85,7 +101,12 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Max Mustermann" {...field} disabled={isProcessing} />
+                    <Input 
+                      placeholder="Max Mustermann" 
+                      autoComplete="name"
+                      {...field} 
+                      disabled={isProcessing} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -99,7 +120,12 @@ const Register = () => {
                 <FormItem>
                   <FormLabel>E-Mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="email@example.com" {...field} disabled={isProcessing} />
+                    <Input 
+                      placeholder="email@example.com" 
+                      autoComplete="email"
+                      {...field} 
+                      disabled={isProcessing} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -117,6 +143,7 @@ const Register = () => {
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="******"
+                        autoComplete="new-password"
                         {...field}
                         disabled={isProcessing}
                       />
@@ -151,6 +178,7 @@ const Register = () => {
                     <Input 
                       type="password" 
                       placeholder="******" 
+                      autoComplete="new-password"
                       {...field} 
                       disabled={isProcessing} 
                     />
