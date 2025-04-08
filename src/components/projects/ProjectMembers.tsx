@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/card";
 import { useUser } from "@/context/UserContext";
 import { useProjects } from "@/context/ProjectContext";
+import { useProjectMembers } from "@/context/projectMembers";
 import AddMemberDialog from "./members/AddMemberDialog";
 import MembersList from "./members/MembersList";
 import { ProjectMember } from "@/types/user";
@@ -22,8 +23,14 @@ const ProjectMembers = () => {
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
-  // Get these functions from the context
-  const { getProjectMembers, addProjectMember, addProjectMemberByUserId, removeProjectMember, updateProjectMemberRole } = useProjects();
+  // Get member management functions from ProjectMembersContext
+  const { 
+    getProjectMembers, 
+    addProjectMember, 
+    addProjectMemberByUserId, 
+    removeProjectMember, 
+    updateProjectMemberRole 
+  } = useProjectMembers();
   
   const loadMembers = useCallback(async () => {
     if (!currentProject || !currentProject.id) {

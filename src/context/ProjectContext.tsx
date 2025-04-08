@@ -1,18 +1,21 @@
 
-import { createContext, useContext, ReactNode, useState } from "react";
+import { createContext, useContext, ReactNode } from "react";
 import { ProjectManagementProvider, useProjectManagement, Project } from "./projectManagement";
+import { ProjectMembersProvider } from "./projectMembers";
 
 // Create the context with undefined as initial value
 const ProjectContext = createContext<ReturnType<typeof useProjectManagement> | undefined>(undefined);
 
 // Provider
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
-  // Only wrap everything in ProjectManagementProvider, then access the context
+  // Wrap everything in both providers
   return (
     <ProjectManagementProvider>
-      <ProjectContextConsumer>
-        {children}
-      </ProjectContextConsumer>
+      <ProjectMembersProvider>
+        <ProjectContextConsumer>
+          {children}
+        </ProjectContextConsumer>
+      </ProjectMembersProvider>
     </ProjectManagementProvider>
   );
 };
