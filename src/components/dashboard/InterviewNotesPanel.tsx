@@ -2,70 +2,85 @@
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNotes } from '@/context/notes';
-import { useProjects } from '@/context/ProjectContext';
-import { useUser } from '@/context/UserContext';
+import { useAuth } from '@/context/AuthContext';
 import RichTextEditor from './RichTextEditor';
 import LiveNotesPanel from './LiveNotesPanel';
 import { FilePenLine, MessageSquare } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface InterviewNotesPanelProps {
   showLiveNotes: boolean;
   setShowLiveNotes: (show: boolean) => void;
+  projectId: string;
 }
 
 const InterviewNotesPanel = ({ 
   showLiveNotes, 
-  setShowLiveNotes 
+  setShowLiveNotes,
+  projectId
 }: InterviewNotesPanelProps) => {
-  const { currentProject } = useProjects();
-  const { user } = useUser();
-  const { interviewNotes, addNote, updateNote } = useNotes();
+  const { user } = useAuth();
+  const { interviewNotes, liveNotes, addNote, updateNote, loadNotes } = useNotes();
   const [content, setContent] = useState('');
   const [activeTab, setActiveTab] = useState(showLiveNotes ? 'live' : 'notes');
-  const { toast } = useToast();
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const currentUserId = user?.id || "user-1";
+  const currentUserId = user?.id || "";
   
-  // Initialize content from project notes or with a template
+  // Notizen für das aktuelle Projekt laden
   useEffect(() => {
-    if (interviewNotes) {
-      setContent(interviewNotes.content);
-    } else if (currentProject) {
-      // Create default interview notes if none exist for this user
-      const userName = user?.name || user?.email || "User";
-      const defaultContent = `<h1>${currentProject.title}</h1><p>${userName}'s Interview Notes</p>`;
-      setContent(defaultContent);
-      addNote({
-        projectId: currentProject.id,
-        content: defaultContent,
-        isLiveNote: false,
+    if (projectId && currentUserId) {
+      loadNotes(projectId).catch(error => {
+        console.error("Fehler beim Laden der Notizen:", error);
+        toast.error("Notizen konnten nicht geladen werden");
       });
     }
-  }, [currentProject, interviewNotes, addNote, user]);
+  }, [projectId, currentUserId, loadNotes]);
+  
+  // Inhalt aus Projektnotizen initialisieren oder eine Vorlage verwenden
+  useEffect(() => {
+    if (interviewNotes && !isInitialized) {
+      setContent(interviewNotes.content);
+      setIsInitialized(true);
+    } else if (projectId && currentUserId && !isInitialized) {
+      // Standardnotizen erstellen, wenn keine für diesen Benutzer existieren
+      const userName = user?.name || user?.email || "Benutzer";
+      const defaultContent = `<h1>Interview-Notizen</h1><p>${userName}'s Notizen zum Interview</p>`;
+      setContent(defaultContent);
+      
+      addNote({
+        projectId,
+        content: defaultContent,
+        isLiveNote: false,
+      }).catch(error => {
+        console.error("Fehler beim Erstellen der Standardnotizen:", error);
+      });
+      
+      setIsInitialized(true);
+    }
+  }, [interviewNotes, projectId, currentUserId, addNote, user, isInitialized]);
 
-  // Handle tab changes
+  // Tab-Änderungen behandeln
   useEffect(() => {
     setShowLiveNotes(activeTab === 'live');
   }, [activeTab, setShowLiveNotes]);
 
-  // Save notes when they're updated
+  // Notizen speichern, wenn sie aktualisiert werden
   const handleContentChange = (newContent: string) => {
-    // Only update if content has actually changed
+    // Nur aktualisieren, wenn sich der Inhalt tatsächlich geändert hat
     if (content !== newContent && interviewNotes) {
       setContent(newContent);
-      updateNote(interviewNotes.id, { content: newContent });
-      
-      // Show toast notification when content is saved
-      toast({
-        title: "Notizen gespeichert",
-        description: "Ihre Notizen wurden erfolgreich gespeichert.",
-        duration: 3000,
-      });
+      updateNote(interviewNotes.id, { content: newContent })
+        .then(() => {
+          // Toast-Benachrichtigung anzeigen, wenn Inhalt gespeichert wird
+          toast.success("Notizen gespeichert");
+        })
+        .catch(error => {
+          console.error("Fehler beim Speichern der Notizen:", error);
+          toast.error("Notizen konnten nicht gespeichert werden");
+        });
     }
   };
-
-  if (!currentProject) return null;
 
   return (
     <div className="tile flex flex-col h-full overflow-hidden">
@@ -78,11 +93,11 @@ const InterviewNotesPanel = ({
           <TabsList className="grid grid-cols-2 w-64">
             <TabsTrigger value="notes" className="flex items-center gap-1">
               <FilePenLine className="h-4 w-4" />
-              <span>Interview Notes</span>
+              <span>Interview-Notizen</span>
             </TabsTrigger>
             <TabsTrigger value="live" className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" />
-              <span>Live Notes</span>
+              <span>Live-Notizen</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -95,7 +110,7 @@ const InterviewNotesPanel = ({
         </TabsContent>
         
         <TabsContent value="live" className="flex-1 mt-0 overflow-auto h-full">
-          <LiveNotesPanel />
+          <LiveNotesPanel projectId={projectId} />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,68 +1,90 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useMessages } from '@/context/messages';
-import { useProjects } from '@/context/ProjectContext';
-import { useUser } from '@/context/UserContext';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 import MessageList from '../messenger/MessageList';
 import MessageInput from '../messenger/MessageInput';
 import QuickPhrases from '../messenger/QuickPhrases';
 import ImportantMessageDialog from '../messenger/ImportantMessageDialog';
 import { Message } from '@/types/messenger';
 
-// Mock partner ID - would come from project data in a real app
-const OTHER_USER = "user-2";
-
-// Mock user names mapping - would come from a users service in a real app
+// Namen-Mapping für Benutzer - würde in einer echten App aus einem Benutzerdienst kommen
 const USER_NAMES: Record<string, string> = {
-  "user-1": "Du",
-  "user-2": "Gesprächspartner"
+  "default": "Gesprächspartner"
 };
 
-const MessengerTile = () => {
-  const { currentProject } = useProjects();
-  const { user } = useUser();
+interface MessengerTileProps {
+  projectId: string;
+}
+
+const MessengerTile = ({ projectId }: MessengerTileProps) => {
+  const { user } = useAuth();
   const { 
-    currentMessages, 
+    getMessagesForProject,
     addMessage, 
     markAsRead, 
     toggleImportant, 
     getQuickPhrasesForUser 
   } = useMessages();
-  const { toast } = useToast();
-  const lastMessageCountRef = useRef(currentMessages.length);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const lastMessageCountRef = useRef(0);
   const [isImportant, setIsImportant] = useState(false);
   const [showQuickPhrases, setShowQuickPhrases] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [importantMessage, setImportantMessage] = useState<Message | null>(null);
   
-  const currentUserId = user?.id || "user-1"; // Use authenticated user ID if available
+  const currentUserId = user?.id || "";
   
-  // Track new messages for notification and important messages
+  // Nachrichten für das aktuelle Projekt laden
   useEffect(() => {
-    if (currentMessages.length > lastMessageCountRef.current) {
-      // Check if the newest message is from the other user
-      const newestMessage = currentMessages[currentMessages.length - 1];
+    if (!projectId || !currentUserId) {
+      setMessages([]);
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const projectMessages = getMessagesForProject(projectId);
+      setMessages(projectMessages);
+      lastMessageCountRef.current = projectMessages.length;
+    } catch (error) {
+      console.error("Fehler beim Laden der Nachrichten:", error);
+      toast.error("Nachrichten konnten nicht geladen werden");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [projectId, currentUserId, getMessagesForProject]);
+  
+  // Neue Nachrichten für Benachrichtigungen verfolgen
+  useEffect(() => {
+    if (messages.length > lastMessageCountRef.current) {
+      // Prüfen, ob die neueste Nachricht vom anderen Benutzer ist
+      const newestMessage = messages[messages.length - 1];
       if (newestMessage && newestMessage.sender !== currentUserId) {
-        // Show regular notification for new message
+        // Reguläre Benachrichtigung für neue Nachricht anzeigen
         toast({
           description: "Neue Nachricht erhalten",
           duration: 3000,
         });
         
-        // If the message is important and not read, show the important message dialog
+        // Wenn die Nachricht wichtig und nicht gelesen ist, wichtige Nachricht-Dialog anzeigen
         if (newestMessage.isImportant && !newestMessage.isRead) {
           setImportantMessage(newestMessage);
         }
       }
     }
-    lastMessageCountRef.current = currentMessages.length;
-  }, [currentMessages, toast, currentUserId]);
+    lastMessageCountRef.current = messages.length;
+  }, [messages, currentUserId]);
   
-  // Check for any important unread messages when component mounts
+  // Auf wichtige ungelesene Nachrichten prüfen, wenn die Komponente mountet
   useEffect(() => {
-    // Find the most recent important unread message from another user
-    const importantUnread = currentMessages
+    // Die neueste wichtige ungelesene Nachricht vom anderen Benutzer finden
+    const importantUnread = messages
       .filter(msg => 
         msg.isImportant && 
         !msg.isRead && 
@@ -73,62 +95,73 @@ const MessengerTile = () => {
     if (importantUnread) {
       setImportantMessage(importantUnread);
     }
-  }, [currentMessages, currentUserId]);
+  }, [messages, currentUserId]);
   
-  if (!currentProject) return null;
-  
-  const userQuickPhrases = getQuickPhrasesForUser(currentUserId);
-  
-  // Handler functions
+  // Handler-Funktionen
   const handleMarkAsRead = (id: string) => {
-    console.log('MessengerTile: marking message as read:', id);
+    console.log('MessengerTile: Nachricht als gelesen markieren:', id);
     markAsRead(id);
     
-    // Clear the important message if it was the one marked as read
+    // Wichtige Nachricht löschen, wenn sie als gelesen markiert wurde
     if (importantMessage && importantMessage.id === id) {
       setImportantMessage(null);
     }
   };
   
   const handleToggleImportant = (id: string) => {
-    console.log('MessengerTile: toggling message importance:', id);
+    console.log('MessengerTile: Nachricht-Wichtigkeit umschalten:', id);
     toggleImportant(id);
   };
   
   const handleSendMessage = (content: string) => {
-    if (!content.trim() || !currentProject) return;
+    if (!content.trim() || !projectId) return;
     
     addMessage({
-      projectId: currentProject.id,
+      projectId,
       sender: currentUserId,
       content,
       isImportant,
     });
     
-    // Reset important flag after sending an important message
+    // Wichtig-Flag nach dem Senden einer wichtigen Nachricht zurücksetzen
     if (isImportant) {
       setIsImportant(false);
     }
   };
   
-  // Handler for quick phrases - copy to input instead of sending
+  // Handler für schnelle Phrasen - in Eingabe kopieren statt zu senden
   const handleSelectQuickPhrase = (content: string) => {
     setInputValue(content);
   };
   
+  // Benutzername basierend auf ID bekommen
+  const getUserName = (userId: string): string => {
+    if (userId === currentUserId) {
+      return "Du";
+    }
+    
+    if (USER_NAMES[userId]) {
+      return USER_NAMES[userId];
+    }
+    
+    return USER_NAMES.default || "Gesprächspartner";
+  };
+  
   return (
     <div className="tile flex flex-col h-full overflow-hidden">
-      {/* Message list with fixed height container - taking remaining space */}
+      {/* Nachrichtenliste mit Container mit fester Höhe - verbleibenden Platz einnehmen */}
       <div className="flex-1 overflow-hidden">
         <MessageList 
-          messages={currentMessages}
+          messages={messages}
           currentUserId={currentUserId}
+          isLoading={isLoading}
           markAsRead={handleMarkAsRead}
           toggleImportant={handleToggleImportant}
+          getUserName={getUserName}
         />
       </div>
       
-      {/* Message input and quick phrases positioned at the bottom */}
+      {/* Nachrichteneingabe und schnelle Phrasen am unteren Rand positionieren */}
       <div className="mt-auto pt-3 border-t border-border/30 flex-shrink-0">
         <MessageInput 
           onSendMessage={handleSendMessage}
@@ -136,17 +169,18 @@ const MessengerTile = () => {
           setIsImportant={setIsImportant}
           inputValue={inputValue}
           setInputValue={setInputValue}
+          disabled={!currentUserId || !projectId}
         />
         
         <QuickPhrases 
-          quickPhrases={userQuickPhrases}
+          quickPhrases={getQuickPhrasesForUser(currentUserId)}
           onSelectPhrase={handleSelectQuickPhrase}
           showQuickPhrases={showQuickPhrases}
           setShowQuickPhrases={setShowQuickPhrases}
         />
       </div>
       
-      {/* Important message dialog */}
+      {/* Wichtige Nachricht-Dialog */}
       <ImportantMessageDialog 
         message={importantMessage}
         onMarkAsRead={handleMarkAsRead}

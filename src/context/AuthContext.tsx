@@ -7,11 +7,13 @@ import { Session, AuthError } from '@supabase/supabase-js';
 
 type AuthContextType = {
   user: User | null;
+  session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,16 +34,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     console.log("Setting up auth state listener");
     
-    // Set up auth state listener first
+    // Set up auth state listener first to avoid missing events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, newSession) => {
         console.log("Auth state changed:", event);
-        setSession(session);
+        setSession(newSession);
         
-        if (session?.user) {
-          // Fetch user profile in a separate call to avoid deadlocks
+        if (newSession?.user) {
+          // Use setTimeout to avoid potential deadlocks with Supabase client
           setTimeout(() => {
-            fetchUserProfile(session.user.id);
+            fetchUserProfile(newSession.user.id);
           }, 0);
         } else {
           setUser(null);
@@ -50,12 +52,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
     
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
       
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
+      if (existingSession?.user) {
+        fetchUserProfile(existingSession.user.id);
       } else {
         setIsLoading(false);
       }
@@ -76,7 +78,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', userId)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        toast.error("Fehler beim Laden des Profils");
+        setUser(null);
+        return;
+      }
       
       if (data) {
         setUser({
@@ -84,12 +91,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           email: data.email,
           name: data.name,
           avatar: data.avatar,
-          createdAt: new Date(data.created_at)
+          createdAt: new Date(data.created_at || Date.now())
         });
       }
     } catch (error) {
-      console.error("Error fetching user profile:", error);
-      toast.error("Error loading user profile");
+      console.error("Fehler beim Laden des Nutzerprofils:", error);
+      toast.error("Fehler beim Laden des Nutzerprofils");
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      console.log("Attempting login with:", email);
+      console.log("Login-Versuch mit:", email);
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -106,15 +114,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
       
-      console.log("Login successful");
+      console.log("Login erfolgreich");
+      toast.success("Erfolgreich angemeldet");
       // Auth state listener will handle the rest
     } catch (error: any) {
-      console.error("Login error:", error);
-      let errorMessage = "Login failed";
+      console.error("Login-Fehler:", error);
+      let errorMessage = "Login fehlgeschlagen";
       
       if (error instanceof AuthError) {
         if (error.message.includes("Invalid login")) {
-          errorMessage = "Invalid email or password";
+          errorMessage = "Ungültige E-Mail oder Passwort";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "E-Mail wurde noch nicht bestätigt";
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Zu viele Anfragen. Bitte später erneut versuchen.";
         }
       }
       
@@ -130,12 +143,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Pre-validate the email before sending to Supabase
       if (!isValidEmail(email)) {
-        throw new Error("Please enter a valid email address");
+        throw new Error("Bitte geben Sie eine gültige E-Mail-Adresse ein");
       }
       
       // Check for test/example domains that Supabase might reject
       if (email.endsWith('@example.com')) {
-        throw new Error("Please use a real email address instead of example.com");
+        throw new Error("Bitte verwenden Sie eine echte E-Mail-Adresse statt example.com");
       }
       
       // Create user in Supabase Auth
@@ -153,22 +166,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       
       if (!user) {
-        throw new Error("Failed to create user");
+        throw new Error("Benutzer konnte nicht erstellt werden");
       }
       
-      toast.success("Account created successfully");
+      toast.success("Konto erfolgreich erstellt");
       // The trigger function will create the profile and the auth state listener will handle the rest
     } catch (error: any) {
-      console.error("Registration failed:", error);
-      let errorMessage = "Registration failed";
+      console.error("Registrierung fehlgeschlagen:", error);
+      let errorMessage = "Registrierung fehlgeschlagen";
       
       if (error instanceof AuthError) {
         if (error.message.includes("already registered")) {
-          errorMessage = "Email already registered";
+          errorMessage = "E-Mail bereits registriert";
         } else if (error.message.includes("invalid")) {
-          errorMessage = "Invalid email format";
+          errorMessage = "Ungültiges E-Mail-Format";
         } else if (error.message.includes("email address")) {
-          errorMessage = "Email address is not accepted. Please use a different email.";
+          errorMessage = "E-Mail-Adresse wird nicht akzeptiert. Bitte verwenden Sie eine andere E-Mail.";
+        } else if (error.message.includes("weak password")) {
+          errorMessage = "Passwort zu schwach. Bitte verwenden Sie mindestens 6 Zeichen.";
         }
       } else if (error instanceof Error) {
         // Handle our custom errors
@@ -188,22 +203,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) throw error;
       
-      toast.success("Successfully logged out");
+      toast.success("Erfolgreich abgemeldet");
       // Auth state listener will handle the rest
     } catch (error: any) {
-      toast.error("Failed to log out");
-      console.error("Logout error:", error);
+      console.error("Logout-Fehler:", error);
+      toast.error("Abmelden fehlgeschlagen");
       setIsLoading(false);
+    }
+  };
+
+  const refreshSession = async (): Promise<void> => {
+    try {
+      const { error } = await supabase.auth.refreshSession();
+      if (error) {
+        console.error("Fehler beim Aktualisieren der Sitzung:", error);
+      }
+    } catch (error) {
+      console.error("Fehler beim Aktualisieren der Sitzung:", error);
     }
   };
 
   const contextValue = {
     user,
+    session,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!session,
     login,
     register,
-    logout
+    logout,
+    refreshSession
   };
 
   return (

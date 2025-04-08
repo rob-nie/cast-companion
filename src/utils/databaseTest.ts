@@ -4,86 +4,98 @@ import { toast } from "sonner";
 
 interface TestResult {
   success: boolean;
+  message?: string;
   error?: string;
 }
 
-// Test-Methode für die Supabase-Datenbankverbindung
+/**
+ * Testet die Verbindung zur Supabase-Datenbank und prüft grundlegende Berechtigungen
+ */
 export const testSupabaseConnection = async (): Promise<TestResult> => {
   try {
     // Prüfen, ob eine gültige Supabase-Session existiert
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: sessionData } = await supabase.auth.getSession();
     
-    if (!session) {
-      toast.error("Nicht angemeldet. Bitte melden Sie sich an, um die Datenbankverbindung zu testen.");
+    if (!sessionData.session) {
+      console.log("Keine aktive Sitzung gefunden");
       return { 
         success: false,
-        error: "Keine aktive Sitzung gefunden"
+        message: "Nicht angemeldet",
+        error: "Bitte melden Sie sich an, um die Datenbankverbindung zu testen."
       };
     }
 
-    console.log("Teste Supabase-Verbindung...");
+    console.log("Supabase-Session gefunden, teste Datenbankverbindung...");
     
-    // Versuchen, ein einfaches Profil abzurufen, um die Verbindung zu testen
-    const { data, error } = await supabase
+    // Versuchen, das eigene Profil abzurufen, um die Verbindung zu testen
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('id, name')
-      .eq('id', session.user.id)
+      .eq('id', sessionData.session.user.id)
       .single();
     
-    if (error) {
-      console.error("Datenbankabfragefehler:", error);
+    if (profileError) {
+      console.error("Datenbankabfragefehler:", profileError);
       
       let errorMessage = "";
       
-      if (error.message.includes("JWTError")) {
+      if (profileError.code === 'PGRST116') {
+        errorMessage = "Ihr Profil wurde nicht gefunden. Bitte kontaktieren Sie den Support.";
+      } else if (profileError.message.includes("JWTError")) {
         errorMessage = "Authentifizierungsproblem: Ungültiges oder abgelaufenes Token.";
-        toast.error(errorMessage);
-      } else if (error.message.includes("permission denied")) {
+      } else if (profileError.message.includes("permission denied")) {
         errorMessage = "Berechtigungsproblem: Die Datenbankregeln verhindern den Zugriff.";
-        toast.error(errorMessage);
-      } else if (error.message.includes("recursion detected")) {
-        errorMessage = "Rekursionsproblem in den RLS-Richtlinien.";
-        toast.error(errorMessage);
+      } else if (profileError.message.includes("recursion detected")) {
+        errorMessage = "Rekursionsproblem in den Datenbankregeln. Bitte kontaktieren Sie den Support.";
       } else {
-        errorMessage = `Datenbankfehler: ${error.message}`;
-        toast.error(errorMessage);
+        errorMessage = `Datenbankfehler: ${profileError.message}`;
       }
       
       return {
         success: false,
+        message: "Verbindungsproblem",
         error: errorMessage
       };
     }
     
-    console.log("Supabase-Verbindung erfolgreich getestet:", data);
-    toast.success("Datenbankverbindung ist aktiv und funktioniert!");
-    return { success: true };
+    // Versuchen, ein Projekt abzurufen, um die Projektberechtigungen zu testen
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('id, title')
+      .limit(1);
+      
+    if (projectError) {
+      console.error("Projektabfragefehler:", projectError);
+      
+      return {
+        success: false,
+        message: "Problem mit Projektabfragen",
+        error: `Projektdaten konnten nicht abgerufen werden: ${projectError.message}`
+      };
+    }
+    
+    console.log("Supabase-Verbindung erfolgreich getestet");
+    return { 
+      success: true,
+      message: "Datenbankverbindung ist aktiv",
+    };
   } catch (error: any) {
     console.error("Supabase-Verbindungsfehler:", error);
     
     let errorMessage = "";
     
-    // Detaillierte Fehlermeldung
     if (error.message?.includes("JWT")) {
       errorMessage = "Authentifizierungsfehler: Problem mit dem Zugriffstoken.";
-      toast.error(errorMessage);
     } else if (error.message?.includes("network error")) {
       errorMessage = "Netzwerkfehler: Keine Verbindung zu Supabase möglich.";
-      toast.error(errorMessage);
-    } else if (error.message?.includes("recursion")) {
-      errorMessage = "Rekursionsproblem in den RLS-Richtlinien.";
-      toast.error(errorMessage);
     } else {
-      errorMessage = `Supabase-Fehler: ${error.message || "Unbekannter Fehler"}`;
-      toast.error(errorMessage);
+      errorMessage = error.message || "Unbekannter Fehler";
     }
     
     return {
       success: false,
+      message: "Verbindungsfehler",
       error: errorMessage
     };
   }
 };
-
-// Keep the firebase test method for backward compatibility
-export const testDatabaseConnection = testSupabaseConnection;

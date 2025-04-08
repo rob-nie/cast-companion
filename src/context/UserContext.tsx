@@ -7,7 +7,7 @@ import { User, ProjectMember } from "@/types/user";
 // Re-export types
 export type { User, ProjectMember };
 
-// Combined provider
+// Kombinierter Provider für Benutzer-bezogene Funktionalität
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AuthProvider>
@@ -18,7 +18,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Combined hook
+// Kombinierter Hook für Benutzer-bezogene Funktionalität
 export const useUser = () => {
   const auth = useAuth();
   const profile = useProfile();

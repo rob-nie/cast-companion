@@ -1,93 +1,167 @@
 
-import { createContext, useContext, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import { ProjectMember, UserRole } from "@/types/user";
 import { ProjectMembersContextType } from "./types";
-import {
-  fetchProjectMembers,
-  addMemberByEmail,
-  addMemberByUserId,
-  removeMemberFromProject,
-  updateMemberRole,
+import { 
+  fetchProjectMembers, 
+  addMemberByEmail, 
+  addMemberByUserId, 
+  updateMemberRole, 
+  removeMember
 } from "./projectMembersService";
 
-// Create the context
 const ProjectMembersContext = createContext<ProjectMembersContextType | undefined>(undefined);
 
-// Provider component
 export const ProjectMembersProvider = ({ children }: { children: ReactNode }) => {
-  // Get project members
-  const getProjectMembers = useCallback(async (projectId: string): Promise<ProjectMember[]> => {
+  // Hook für zwischengespeicherte Mitgliederdaten
+  const [memberCache, setMemberCache] = useState<Map<string, ProjectMember[]>>(new Map());
+  
+  /**
+   * Mitglieder eines Projekts laden
+   */
+  const getProjectMembers = useCallback(async (projectId: string) => {
     try {
-      return await fetchProjectMembers(projectId);
+      const members = await fetchProjectMembers(projectId);
+      // Aktualisieren des Caches
+      setMemberCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(projectId, members);
+        return newCache;
+      });
+      return members;
     } catch (error) {
-      console.error("Error fetching project members:", error);
-      return [];
-    }
-  }, []);
-
-  // Add member by email
-  const addProjectMember = useCallback(async (projectId: string, email: string, role: UserRole): Promise<void> => {
-    try {
-      await addMemberByEmail(projectId, email, role);
-    } catch (error) {
-      console.error("Error adding project member:", error);
+      console.error('Fehler beim Laden der Projektmitglieder:', error);
       throw error;
     }
   }, []);
 
-  // Add member by user ID
-  const addProjectMemberByUserId = useCallback(async (projectId: string, userId: string, role: UserRole): Promise<void> => {
+  /**
+   * Mitglied per E-Mail hinzufügen
+   */
+  const addProjectMember = useCallback(async (projectId: string, email: string, role: UserRole) => {
     try {
-      await addMemberByUserId(projectId, userId, role);
+      const newMember = await addMemberByEmail(projectId, email, role);
+      // Cache aktualisieren, falls das Mitglied hinzugefügt wurde
+      if (newMember) {
+        setMemberCache(prev => {
+          const newCache = new Map(prev);
+          const existingMembers = newCache.get(projectId) || [];
+          newCache.set(projectId, [...existingMembers, newMember]);
+          return newCache;
+        });
+      }
+      return newMember;
     } catch (error) {
-      console.error("Error adding project member by user ID:", error);
+      console.error('Fehler beim Hinzufügen eines Projektmitglieds:', error);
       throw error;
     }
   }, []);
 
-  // Remove member
-  const removeProjectMember = useCallback(async (projectId: string, userId: string): Promise<void> => {
+  /**
+   * Mitglied per Benutzer-ID hinzufügen
+   */
+  const addProjectMemberByUserId = useCallback(async (projectId: string, userId: string, role: UserRole) => {
     try {
-      await removeMemberFromProject(projectId, userId);
+      const newMember = await addMemberByUserId(projectId, userId, role);
+      // Cache aktualisieren, falls das Mitglied hinzugefügt wurde
+      if (newMember) {
+        setMemberCache(prev => {
+          const newCache = new Map(prev);
+          const existingMembers = newCache.get(projectId) || [];
+          newCache.set(projectId, [...existingMembers, newMember]);
+          return newCache;
+        });
+      }
+      return newMember;
     } catch (error) {
-      console.error("Error removing project member:", error);
+      console.error('Fehler beim Hinzufügen eines Projektmitglieds per ID:', error);
       throw error;
     }
   }, []);
 
-  // Update member role
-  const updateProjectMemberRole = useCallback(async (projectId: string, userId: string, role: UserRole): Promise<void> => {
+  /**
+   * Mitglied aus einem Projekt entfernen
+   */
+  const removeProjectMember = useCallback(async (projectId: string, userId: string) => {
     try {
-      await updateMemberRole(projectId, userId, role);
+      const success = await removeMember(projectId, userId);
+      // Cache aktualisieren, falls das Mitglied entfernt wurde
+      if (success) {
+        setMemberCache(prev => {
+          const newCache = new Map(prev);
+          const existingMembers = newCache.get(projectId) || [];
+          newCache.set(
+            projectId, 
+            existingMembers.filter(member => member.userId !== userId)
+          );
+          return newCache;
+        });
+      }
+      return success;
     } catch (error) {
-      console.error("Error updating project member role:", error);
+      console.error('Fehler beim Entfernen eines Projektmitglieds:', error);
       throw error;
     }
   }, []);
 
-  // The context value
-  const contextValue: ProjectMembersContextType = {
-    getProjectMembers,
-    addProjectMember,
-    addProjectMemberByUserId,
-    removeProjectMember,
-    updateProjectMemberRole,
-  };
+  /**
+   * Die Rolle eines Projektmitglieds ändern
+   */
+  const updateProjectMemberRole = useCallback(async (projectId: string, userId: string, role: UserRole) => {
+    try {
+      const success = await updateMemberRole(projectId, userId, role);
+      // Cache aktualisieren, falls die Rolle geändert wurde
+      if (success) {
+        setMemberCache(prev => {
+          const newCache = new Map(prev);
+          const existingMembers = newCache.get(projectId) || [];
+          newCache.set(
+            projectId, 
+            existingMembers.map(member => 
+              member.userId === userId ? { ...member, role } : member
+            )
+          );
+          return newCache;
+        });
+      }
+      return success;
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren der Mitgliederrolle:', error);
+      throw error;
+    }
+  }, []);
+
+  /**
+   * Cache für ein bestimmtes Projekt löschen
+   */
+  const clearProjectCache = useCallback((projectId: string) => {
+    setMemberCache(prev => {
+      const newCache = new Map(prev);
+      newCache.delete(projectId);
+      return newCache;
+    });
+  }, []);
 
   return (
-    <ProjectMembersContext.Provider value={contextValue}>
+    <ProjectMembersContext.Provider
+      value={{
+        getProjectMembers,
+        addProjectMember,
+        addProjectMemberByUserId,
+        removeProjectMember,
+        updateProjectMemberRole,
+        clearProjectCache
+      }}
+    >
       {children}
     </ProjectMembersContext.Provider>
   );
 };
 
-// Hook to use the context
-export const useProjectMembers = (): ProjectMembersContextType => {
+export const useProjectMembers = () => {
   const context = useContext(ProjectMembersContext);
-  
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useProjectMembers must be used within a ProjectMembersProvider");
   }
-  
   return context;
 };

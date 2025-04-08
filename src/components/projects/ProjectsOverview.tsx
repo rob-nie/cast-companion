@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useProjects } from "@/context/ProjectContext";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import CreateProjectDialog from "./CreateProjectDialog";
 import ProjectsSearch from "./ProjectsSearch";
@@ -12,21 +12,21 @@ import ProjectsGrid from "./ProjectsGrid";
 import { Project } from "@/context/projectManagement";
 
 const ProjectsOverview = () => {
-  const { projects, isLoading } = useProjects();
-  const { isAuthenticated, user } = useUser();
-  const [isOpen, setIsOpen] = useState(false);
+  const { projects, isLoading, loadError, refresh } = useProjects();
+  const { isAuthenticated, user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
-  const [retryCount, setRetryCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   
-  // Filter projects when search term or projects change
+  // Projekte filtern, wenn sich der Suchbegriff oder die Projekte ändern
   useEffect(() => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       setFilteredProjects(
         projects.filter(
-          project => project.title.toLowerCase().includes(term) || 
-                     project.description?.toLowerCase().includes(term)
+          project => 
+            project.title.toLowerCase().includes(term) || 
+            (project.description?.toLowerCase().includes(term) || false)
         )
       );
     } else {
@@ -34,29 +34,44 @@ const ProjectsOverview = () => {
     }
   }, [searchTerm, projects]);
 
-  // Log the number of projects loaded for debugging
+  // Anzahl der geladenen Projekte für Debugging protokollieren
   useEffect(() => {
-    console.log(`ProjectsOverview: Loaded ${projects.length} total projects`);
+    console.log(`ProjectsOverview: ${projects.length} Projekte geladen`);
   }, [projects]);
   
-  const handleRetryLoading = () => {
-    setRetryCount(prev => prev + 1);
-    toast.info("Reloading projects...");
-    // The effect will re-run because we're changing the key on useProjects below
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    toast.info("Projekte werden neu geladen...");
+    
+    try {
+      await refresh();
+      toast.success("Projekte erfolgreich aktualisiert");
+    } catch (error) {
+      console.error("Fehler beim Neuladen der Projekte:", error);
+      toast.error("Projekte konnten nicht aktualisiert werden");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const renderContent = () => {
     if (!isAuthenticated) {
       return (
         <ProjectsEmptyState 
-          message="Bitte melde dich an" 
-          description="Um deine Projekte zu sehen, musst du dich anmelden" 
+          message="Bitte melden Sie sich an" 
+          description="Um Ihre Projekte zu sehen, müssen Sie sich anmelden" 
         />
       );
     }
     
     if (isLoading) {
-      return <ProjectsLoadingState retryCount={retryCount} />;
+      return <ProjectsLoadingState />;
+    }
+    
+    if (loadError) {
+      return <ProjectsErrorState error={loadError} onRetry={handleRefresh} />;
     }
     
     if (filteredProjects.length === 0) {
@@ -72,7 +87,7 @@ const ProjectsOverview = () => {
       return (
         <ProjectsEmptyState 
           message="Noch keine Projekte" 
-          onCreateClick={() => setIsOpen(true)}
+          description="Erstellen Sie ein neues Projekt, um zu beginnen"
         />
       );
     }
@@ -96,8 +111,8 @@ const ProjectsOverview = () => {
         <ProjectsSearch 
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
-          isLoading={isLoading}
-          onRefresh={handleRetryLoading}
+          isLoading={isLoading || refreshing}
+          onRefresh={handleRefresh}
         />
       )}
       

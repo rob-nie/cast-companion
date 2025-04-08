@@ -3,71 +3,62 @@ import { supabase } from "@/integrations/supabase/client";
 import { Project } from "./types";
 import { toast } from "sonner";
 
+/**
+ * Lädt alle Projekte des aktuellen Benutzers
+ * Berücksichtigt sowohl eigene als auch geteilte Projekte
+ */
 export const fetchUserProjects = async (): Promise<Project[]> => {
   try {
-    // Get the current user session
+    console.log("Lade Projekte für den aktuellen Benutzer...");
+    
+    // Überprüfen, ob der Benutzer angemeldet ist
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      throw new Error("No authenticated user found");
+      console.warn("Kein authentifizierter Benutzer gefunden");
+      return [];
     }
 
-    console.log("Fetching projects for user:", session.user.id);
-
-    // First fetch projects owned by the user - without nesting project_members
-    const { data: ownedProjects, error: ownedError } = await supabase
+    // Laden aller eigenen Projekte
+    const { data: projects, error } = await supabase
       .from('projects')
-      .select('*')
-      .eq('owner_id', session.user.id);
-
-    if (ownedError) {
-      console.error("Error fetching owned projects:", ownedError);
-      throw ownedError;
-    }
-
-    // Then fetch project IDs where user is a member but not owner
-    const { data: memberProjects, error: memberError } = await supabase
-      .from('project_members')
       .select(`
-        role,
-        project_id
+        id,
+        title,
+        description,
+        owner_id,
+        created_at,
+        last_accessed
       `)
-      .eq('user_id', session.user.id);
+      .order('last_accessed', { ascending: false, nullsLast: true })
+      .order('created_at', { ascending: false });
 
-    if (memberError) {
-      console.error("Error fetching member project IDs:", memberError);
-      throw memberError;
+    if (error) {
+      console.error("Fehler beim Laden der Projekte:", error);
+      throw error;
     }
-
-    // If there are member projects, fetch their full details
-    let memberProjectsDetails: any[] = [];
-    if (memberProjects && memberProjects.length > 0) {
-      // Extract project IDs where user is a member
-      const memberProjectIds = memberProjects.map(item => item.project_id);
+    
+    // Lade Projektrollen für geteilte Projekte
+    const { data: memberRoles, error: memberError } = await supabase
+      .from('project_members')
+      .select('project_id, role')
+      .eq('user_id', session.user.id);
       
-      // Get the full details of these projects
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*')
-        .in('id', memberProjectIds);
-        
-      if (projectsError) {
-        console.error("Error fetching member project details:", projectsError);
-        throw projectsError;
-      }
-      
-      // Combine project details with roles
-      memberProjectsDetails = (projectsData || []).map(project => {
-        // Find the matching member entry to get the role
-        const memberEntry = memberProjects.find(m => m.project_id === project.id);
-        return {
-          ...project,
-          memberRole: memberEntry?.role
-        };
+    if (memberError) {
+      console.error("Fehler beim Laden der Mitgliederrollen:", memberError);
+      // Wir fahren trotzdem fort, da wir zumindest die Projekte haben
+    }
+    
+    // Mapping der Rollen zu Projekten
+    const roleMap = new Map();
+    if (memberRoles) {
+      memberRoles.forEach(member => {
+        roleMap.set(member.project_id, member.role);
       });
     }
-
-    // Process owned projects into expected format
-    const ownedProjectsList = (ownedProjects || []).map(project => {
+    
+    // Transformiere die Daten in das erwartete Format
+    const formattedProjects = (projects || []).map(project => {
+      const isOwner = project.owner_id === session.user.id;
       return {
         id: project.id,
         title: project.title,
@@ -75,72 +66,47 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
         ownerId: project.owner_id,
         createdAt: new Date(project.created_at),
         lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined,
-        role: 'owner' // Set explicitly for owned projects
+        role: isOwner ? 'owner' : roleMap.get(project.id) || 'viewer'
       };
     });
 
-    // Process projects where user is a member
-    const memberProjectsList = memberProjectsDetails.map(project => {
-      return {
-        id: project.id,
-        title: project.title,
-        description: project.description || '',
-        ownerId: project.owner_id,
-        createdAt: new Date(project.created_at),
-        lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined,
-        role: project.memberRole // Use the role we stored earlier
-      };
-    });
-
-    // Combine lists, avoiding duplicates (owned projects take precedence)
-    const projectsMap = new Map();
-    
-    // Add owned projects first
-    ownedProjectsList.forEach(project => {
-      projectsMap.set(project.id, project);
-    });
-    
-    // Add member projects if not already in the map
-    memberProjectsList.forEach(project => {
-      if (!projectsMap.has(project.id)) {
-        projectsMap.set(project.id, project);
-      }
-    });
-    
-    const allProjects = Array.from(projectsMap.values());
-    console.log("Fetched total projects:", allProjects.length);
-    return allProjects;
+    console.log(`${formattedProjects.length} Projekte geladen`);
+    return formattedProjects;
   } catch (error) {
-    console.error("Error fetching projects:", error);
+    console.error("Fehler beim Laden der Projekte:", error);
     toast.error("Fehler beim Laden der Projekte. Bitte versuchen Sie es später erneut.");
     throw error;
   }
 };
 
-// Rest of the file stays the same
-export const createProject = async (project: Omit<Project, "id" | "createdAt" | "ownerId">): Promise<Project> => {
+/**
+ * Erstellt ein neues Projekt für den aktuellen Benutzer
+ */
+export const createProject = async (project: Omit<Project, "id" | "createdAt" | "ownerId" | "role">): Promise<Project> => {
   try {
-    // Get the current user session
+    // Session des aktuellen Benutzers laden
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user;
     
     if (!user) {
-      throw new Error("No authenticated user found");
+      throw new Error("Kein authentifizierter Benutzer gefunden");
     }
 
     const { data, error } = await supabase
       .from('projects')
-      .insert([
-        {
-          title: project.title,
-          description: project.description,
-          owner_id: user.id,
-        },
-      ])
+      .insert({
+        title: project.title,
+        description: project.description,
+        owner_id: user.id,
+        last_accessed: new Date().toISOString()
+      })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Fehler beim Erstellen des Projekts:", error);
+      throw error;
+    }
 
     return {
       id: data.id,
@@ -149,29 +115,49 @@ export const createProject = async (project: Omit<Project, "id" | "createdAt" | 
       ownerId: data.owner_id,
       createdAt: new Date(data.created_at),
       lastAccessed: data.last_accessed ? new Date(data.last_accessed) : undefined,
+      role: 'owner'
     };
   } catch (error) {
-    console.error("Error creating project:", error);
+    console.error("Fehler beim Erstellen des Projekts:", error);
+    toast.error("Projekt konnte nicht erstellt werden");
     throw error;
   }
 };
 
-export const updateProject = async (id: string, projectUpdate: Partial<Project>, silent: boolean = false): Promise<Project> => {
+/**
+ * Aktualisiert ein bestehendes Projekt
+ */
+export const updateProject = async (
+  id: string, 
+  projectUpdate: Partial<Project>, 
+  silent: boolean = false
+): Promise<Project> => {
   try {
+    const updateObj: Record<string, any> = {};
+    
+    if (projectUpdate.title !== undefined) {
+      updateObj.title = projectUpdate.title;
+    }
+    
+    if (projectUpdate.description !== undefined) {
+      updateObj.description = projectUpdate.description;
+    }
+    
+    if (projectUpdate.lastAccessed || projectUpdate.updateLastAccessed) {
+      updateObj.last_accessed = new Date().toISOString();
+    }
+    
     const { data, error } = await supabase
       .from('projects')
-      .update({
-        title: projectUpdate.title,
-        description: projectUpdate.description,
-        last_accessed: projectUpdate.lastAccessed ? projectUpdate.lastAccessed.toISOString() : null,
-      })
+      .update(updateObj)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
       if (!silent) {
-        console.error("Error updating project:", error);
+        console.error("Fehler beim Aktualisieren des Projekts:", error);
+        toast.error("Projekt konnte nicht aktualisiert werden");
       }
       throw error;
     }
@@ -183,25 +169,62 @@ export const updateProject = async (id: string, projectUpdate: Partial<Project>,
       ownerId: data.owner_id,
       createdAt: new Date(data.created_at),
       lastAccessed: data.last_accessed ? new Date(data.last_accessed) : undefined,
+      role: 'owner' // Dies wird später durch den useProjectManagement-Hook korrekt gesetzt
     };
   } catch (error) {
-    console.error("Error updating project:", error);
+    console.error("Fehler beim Aktualisieren des Projekts:", error);
+    if (!silent) {
+      toast.error("Projekt konnte nicht aktualisiert werden");
+    }
     throw error;
   }
 };
 
+/**
+ * Löscht ein Projekt
+ */
 export const deleteProject = async (id: string): Promise<boolean> => {
   try {
+    // Überprüfen, ob der aktuelle Benutzer Eigentümer ist
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("Nicht angemeldet");
+      return false;
+    }
+    
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('owner_id')
+      .eq('id', id)
+      .single();
+      
+    if (projectError) {
+      console.error("Fehler beim Laden des Projekts:", projectError);
+      toast.error("Projekt konnte nicht geladen werden");
+      return false;
+    }
+    
+    if (project.owner_id !== session.user.id) {
+      toast.error("Sie haben keine Berechtigung, dieses Projekt zu löschen");
+      return false;
+    }
+    
     const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Fehler beim Löschen des Projekts:", error);
+      toast.error("Projekt konnte nicht gelöscht werden");
+      return false;
+    }
 
+    toast.success("Projekt erfolgreich gelöscht");
     return true;
   } catch (error) {
-    console.error("Error deleting project:", error);
+    console.error("Fehler beim Löschen des Projekts:", error);
+    toast.error("Projekt konnte nicht gelöscht werden");
     return false;
   }
 };

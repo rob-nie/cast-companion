@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWatch } from '@/context/watch';
-import { useProjects } from '@/context/ProjectContext';
+import { toast } from 'sonner';
 
 interface WatchTileProps {
   showLiveNotes: boolean;
+  projectId: string;
 }
 
-const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
-  const { currentProject } = useProjects();
+const WatchTile = ({ showLiveNotes, projectId }: WatchTileProps) => {
   const { 
     getProjectStopwatch,
     startStopwatch, 
@@ -22,7 +22,7 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
   
   const [timeDisplay, setTimeDisplay] = useState('');
   
-  // Update clock display every second
+  // Clock-Display jede Sekunde aktualisieren
   useEffect(() => {
     setTimeDisplay(
       currentTime.toLocaleTimeString([], { 
@@ -30,36 +30,63 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
         minute: '2-digit'
       })
     );
+    
+    const timeInterval = setInterval(() => {
+      setTimeDisplay(
+        new Date().toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit'
+        })
+      );
+    }, 1000);
+    
+    return () => clearInterval(timeInterval);
   }, [currentTime]);
   
-  // Format date as day, month day
+  // Datum formatieren als Tag, Monat Tag
   const currentDateStr = currentTime.toLocaleDateString([], {
     weekday: 'short',
     month: 'short',
     day: 'numeric'
   });
 
-  // Use a default project id if none is selected
-  const projectId = currentProject?.id || 'default';
+  // Stoppuhr für das aktuelle Projekt abrufen
   const stopwatch = getProjectStopwatch(projectId);
   const { isRunning, elapsedTime } = stopwatch;
   
   const handleStart = () => {
-    if (currentProject) {
-      startStopwatch(currentProject.id);
+    if (!projectId) {
+      toast.error("Kein Projekt ausgewählt");
+      return;
     }
+    
+    startStopwatch(projectId);
+    toast.success("Stoppuhr gestartet");
   };
   
   const handleStop = () => {
-    if (currentProject) {
-      stopStopwatch(currentProject.id);
+    if (!projectId) {
+      return;
     }
+    
+    stopStopwatch(projectId);
+    toast.info("Stoppuhr angehalten");
   };
   
   const handleReset = () => {
-    if (currentProject) {
-      resetStopwatch(currentProject.id);
+    if (!projectId) {
+      return;
     }
+    
+    // Bestätigung vor dem Zurücksetzen anfordern, wenn Zeit vergangen ist
+    if (elapsedTime > 60000) { // Mehr als eine Minute
+      if (!window.confirm("Möchten Sie die Stoppuhr wirklich zurücksetzen?")) {
+        return;
+      }
+    }
+    
+    resetStopwatch(projectId);
+    toast.info("Stoppuhr zurückgesetzt");
   };
   
   return (
@@ -118,7 +145,7 @@ const WatchTile = ({ showLiveNotes }: WatchTileProps) => {
       
       {!showLiveNotes && elapsedTime > 0 && (
         <p className="text-xs text-muted-foreground mt-2 text-center animate-fade-in">
-          Switch to Live Notes for timestamped entries
+          Zu Live-Notizen wechseln für Zeitstempel-Einträge
         </p>
       )}
     </div>

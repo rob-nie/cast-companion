@@ -5,7 +5,7 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import { useProjects } from "@/context/ProjectContext";
 import { useProjectMembers } from "@/context/projectMembers";
 import AddMemberDialog from "./members/AddMemberDialog";
@@ -18,12 +18,12 @@ import { toast } from "sonner";
 
 const ProjectMembers = () => {
   const { currentProject } = useProjects();
-  const { user } = useUser();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
-  // Get member management functions from ProjectMembersContext
+  // Member management functions from ProjectMembersContext
   const { 
     getProjectMembers, 
     addProjectMember, 
@@ -33,7 +33,7 @@ const ProjectMembers = () => {
   } = useProjectMembers();
   
   const loadMembers = useCallback(async () => {
-    if (!currentProject || !currentProject.id) {
+    if (!currentProject?.id || !user) {
       setMembers([]);
       return;
     }
@@ -44,14 +44,14 @@ const ProjectMembers = () => {
     try {
       const projectMembers = await getProjectMembers(currentProject.id);
       setMembers(projectMembers);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fehler beim Laden der Mitglieder:", error);
-      setError("Mitglieder konnten nicht geladen werden");
+      setError("Mitglieder konnten nicht geladen werden: " + (error.message || "Unbekannter Fehler"));
       toast.error("Fehler beim Laden der Projektmitglieder");
     } finally {
       setIsLoading(false);
     }
-  }, [currentProject, getProjectMembers]);
+  }, [currentProject?.id, getProjectMembers, user]);
   
   useEffect(() => {
     if (currentProject?.id) {
@@ -66,72 +66,90 @@ const ProjectMembers = () => {
   const isOwner = currentProject.ownerId === user.id;
   
   const handleAddMember = async (email: string, role: "editor" | "viewer") => {
+    if (!currentProject?.id) return;
+    
     setIsLoading(true);
     try {
       await addProjectMember(currentProject.id, email, role);
-      loadMembers(); // Reload the members list
+      await loadMembers(); // Mitgliederliste neu laden
       toast.success("Mitglied erfolgreich hinzugefügt");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fehler beim Hinzufügen des Mitglieds:", error);
-      setError("Mitglied konnte nicht hinzugefügt werden");
+      const errorMessage = error.message || "Unbekannter Fehler";
+      setError(`Mitglied konnte nicht hinzugefügt werden: ${errorMessage}`);
+      toast.error(`Fehler: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
   };
   
   const handleAddMemberById = async (userId: string, role: "editor" | "viewer") => {
+    if (!currentProject?.id) return;
+    
     setIsLoading(true);
     try {
       await addProjectMemberByUserId(currentProject.id, userId, role);
-      loadMembers(); // Reload the members list
+      await loadMembers(); // Mitgliederliste neu laden
       toast.success("Mitglied erfolgreich hinzugefügt");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fehler beim Hinzufügen des Mitglieds über ID:", error);
-      setError("Mitglied konnte nicht hinzugefügt werden");
+      setError(`Mitglied konnte nicht hinzugefügt werden: ${error.message || "Unbekannter Fehler"}`);
     } finally {
       setIsLoading(false);
     }
   };
   
   const handleRemoveMember = async (userId: string) => {
+    if (!currentProject?.id) return;
+    
+    if (userId === user.id) {
+      toast.error("Sie können sich nicht selbst entfernen");
+      return;
+    }
+    
     setIsLoading(true);
     try {
       await removeProjectMember(currentProject.id, userId);
-      // Update the local state without requiring a new API call
+      
+      // Lokalen Status aktualisieren ohne neuen API-Aufruf
       setMembers(prev => prev.filter(m => m.userId !== userId));
       toast.success("Mitglied erfolgreich entfernt");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fehler beim Entfernen des Mitglieds:", error);
-      setError("Mitglied konnte nicht entfernt werden");
-      loadMembers(); // Reload to ensure consistency
+      setError(`Mitglied konnte nicht entfernt werden: ${error.message || "Unbekannter Fehler"}`);
+      await loadMembers(); // Bei Fehler neu laden, um Konsistenz zu gewährleisten
     } finally {
       setIsLoading(false);
     }
   };
   
   const handleUpdateRole = async (userId: string, newRole: "owner" | "editor" | "viewer") => {
+    if (!currentProject?.id) return;
+    
     setIsLoading(true);
     try {
       await updateProjectMemberRole(currentProject.id, userId, newRole);
-      // Update the local state without requiring a new API call
+      
+      // Lokalen Status aktualisieren ohne neuen API-Aufruf
       setMembers(prev => 
         prev.map(m => m.userId === userId ? { ...m, role: newRole } : m)
       );
       toast.success("Rolle erfolgreich aktualisiert");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Fehler beim Aktualisieren der Rolle:", error);
-      setError("Rolle konnte nicht aktualisiert werden");
-      loadMembers(); // Reload to ensure consistency
+      setError(`Rolle konnte nicht aktualisiert werden: ${error.message || "Unbekannter Fehler"}`);
+      await loadMembers(); // Bei Fehler neu laden, um Konsistenz zu gewährleisten
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Card>
+    <Card className="mb-6">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <div className="flex justify-between items-center w-full">
           <div>
+            <h2 className="text-lg font-semibold">Projektmitglieder</h2>
             <p className="text-muted-foreground text-sm">
               Verwalte Zugriff und Berechtigungen
             </p>
@@ -151,6 +169,7 @@ const ProjectMembers = () => {
               <AddMemberDialog 
                 onAddMember={handleAddMember} 
                 onAddMemberById={handleAddMemberById}
+                disabled={isLoading}
               />
             )}
           </div>

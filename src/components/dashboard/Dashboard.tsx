@@ -5,20 +5,44 @@ import { useNavigate } from "react-router-dom";
 import InterviewNotesPanel from "./InterviewNotesPanel";
 import MessengerTile from "./MessengerTile";
 import WatchTile from "./WatchTile";
+import { toast } from "sonner";
 
 const Dashboard = () => {
-  const { currentProject } = useProjects();
+  const { currentProject, updateProject } = useProjects();
   const navigate = useNavigate();
   const [showLiveNotes, setShowLiveNotes] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Redirect if no project is selected
+  // Wenn kein Projekt ausgewählt ist, zur Projektseite weiterleiten
   useEffect(() => {
     if (!currentProject) {
+      toast.info("Bitte wählen Sie ein Projekt aus");
       navigate("/projects");
+      return;
     }
-  }, [currentProject, navigate]);
+    
+    // Letzten Zugriffszeitpunkt aktualisieren
+    const updateAccess = async () => {
+      if (isUpdating || !currentProject) return;
+      
+      try {
+        setIsUpdating(true);
+        await updateProject(
+          currentProject.id, 
+          { updateLastAccessed: true }, 
+          true
+        );
+      } catch (error) {
+        console.error("Fehler beim Aktualisieren des Zugriffszeitpunkts:", error);
+      } finally {
+        setIsUpdating(false);
+      }
+    };
+    
+    updateAccess();
+  }, [currentProject, navigate, updateProject, isUpdating]);
 
-  // Don't render anything if there's no current project
+  // Nichts rendern, wenn kein Projekt ausgewählt ist
   if (!currentProject) {
     return null;
   }
@@ -30,15 +54,21 @@ const Dashboard = () => {
           <InterviewNotesPanel 
             showLiveNotes={showLiveNotes} 
             setShowLiveNotes={setShowLiveNotes} 
+            projectId={currentProject.id}
           />
         </div>
         
         <div className="flex flex-col gap-6 h-full overflow-hidden">
           <div className="flex-shrink-0">
-            <WatchTile showLiveNotes={showLiveNotes} />
+            <WatchTile 
+              showLiveNotes={showLiveNotes} 
+              projectId={currentProject.id}
+            />
           </div>
           <div className="flex-1 overflow-hidden">
-            <MessengerTile />
+            <MessengerTile 
+              projectId={currentProject.id}
+            />
           </div>
         </div>
       </div>

@@ -98,7 +98,7 @@ export type Database = {
     }
     Functions: {
       get_user_project_role: {
-        Args: { project_id: string; user_id: string }
+        Args: { p_project_id: string; p_user_id: string }
         Returns: string
       }
     }

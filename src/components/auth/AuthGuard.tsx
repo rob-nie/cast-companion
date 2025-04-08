@@ -1,41 +1,54 @@
 
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useUser } from "@/context/UserContext";
+import { useAuth } from "@/context/AuthContext";
 import LoadingScreen from "./LoadingScreen";
 import { useEffect, useState } from "react";
 
+/**
+ * Schützt Routen, die eine Authentifizierung erfordern
+ * Leitet nicht authentifizierte Benutzer zur Login-Seite weiter
+ */
 const AuthGuard = () => {
-  const { isAuthenticated, isLoading, user } = useUser();
+  const { isAuthenticated, isLoading, user, session, refreshSession } = useAuth();
   const location = useLocation();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // This effect helps ensure we only redirect after auth check is complete
+    // Session bei Bedarf aktualisieren
+    if (!isLoading && !isAuthenticated && !authChecked) {
+      refreshSession().catch(console.error);
+      setAuthChecked(true);
+    }
+  }, [isLoading, isAuthenticated, authChecked, refreshSession]);
+
+  useEffect(() => {
+    // Dieser Effekt stellt sicher, dass wir erst weiterleiten, nachdem die Authentifizierungsprüfung abgeschlossen ist
     if (!isLoading) {
-      // Give a small delay to ensure all auth states are synchronized
+      // Eine kleine Verzögerung, um sicherzustellen, dass alle Auth-Zustände synchronisiert sind
       const timer = setTimeout(() => {
         setIsCheckingAuth(false);
-      }, 300);
+      }, 500);
       
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
 
-  console.log("AuthGuard - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "isCheckingAuth:", isCheckingAuth, "user:", user);
+  console.log("AuthGuard - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "user:", !!user, "session:", !!session);
 
-  // Show loading screen while checking authentication
+  // Ladebildschirm während der Authentifizierungsprüfung anzeigen
   if (isLoading || isCheckingAuth) {
-    return <LoadingScreen />;
+    return <LoadingScreen message="Authentifizierung wird überprüft..." />;
   }
 
-  // If not authenticated, redirect to login
-  if (!isAuthenticated || !user) {
-    console.log("Not authenticated or user not found, redirecting to login");
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  // Wenn nicht authentifiziert, zur Login-Seite weiterleiten
+  if (!isAuthenticated || !user || !session) {
+    console.log("Nicht authentifiziert, Weiterleitung zur Login-Seite");
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // User is authenticated, render the protected route
-  console.log("User is authenticated, rendering outlet");
+  // Benutzer ist authentifiziert, geschützte Route rendern
+  console.log("Benutzer ist authentifiziert, Route wird gerendert");
   return <Outlet />;
 };
 
