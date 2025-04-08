@@ -1,15 +1,24 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface TestResult {
+  success: boolean;
+  error?: string;
+}
+
 // Test-Methode für die Supabase-Datenbankverbindung
-export const testSupabaseConnection = async (): Promise<boolean> => {
+export const testSupabaseConnection = async (): Promise<TestResult> => {
   try {
     // Prüfen, ob eine gültige Supabase-Session existiert
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
       toast.error("Nicht angemeldet. Bitte melden Sie sich an, um die Datenbankverbindung zu testen.");
-      return false;
+      return { 
+        success: false,
+        error: "Keine aktive Sitzung gefunden"
+      };
     }
 
     console.log("Teste Supabase-Verbindung...");
@@ -24,33 +33,55 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
     if (error) {
       console.error("Datenbankabfragefehler:", error);
       
+      let errorMessage = "";
+      
       if (error.message.includes("JWTError")) {
-        toast.error("Authentifizierungsproblem: Ungültiges oder abgelaufenes Token.");
+        errorMessage = "Authentifizierungsproblem: Ungültiges oder abgelaufenes Token.";
+        toast.error(errorMessage);
       } else if (error.message.includes("permission denied")) {
-        toast.error("Berechtigungsproblem: Die Datenbankregeln verhindern den Zugriff.");
+        errorMessage = "Berechtigungsproblem: Die Datenbankregeln verhindern den Zugriff.";
+        toast.error(errorMessage);
+      } else if (error.message.includes("recursion detected")) {
+        errorMessage = "Rekursionsproblem in den RLS-Richtlinien.";
+        toast.error(errorMessage);
       } else {
-        toast.error(`Datenbankfehler: ${error.message}`);
+        errorMessage = `Datenbankfehler: ${error.message}`;
+        toast.error(errorMessage);
       }
       
-      return false;
+      return {
+        success: false,
+        error: errorMessage
+      };
     }
     
     console.log("Supabase-Verbindung erfolgreich getestet:", data);
     toast.success("Datenbankverbindung ist aktiv und funktioniert!");
-    return true;
+    return { success: true };
   } catch (error: any) {
     console.error("Supabase-Verbindungsfehler:", error);
     
+    let errorMessage = "";
+    
     // Detaillierte Fehlermeldung
     if (error.message?.includes("JWT")) {
-      toast.error("Authentifizierungsfehler: Problem mit dem Zugriffstoken.");
+      errorMessage = "Authentifizierungsfehler: Problem mit dem Zugriffstoken.";
+      toast.error(errorMessage);
     } else if (error.message?.includes("network error")) {
-      toast.error("Netzwerkfehler: Keine Verbindung zu Supabase möglich.");
+      errorMessage = "Netzwerkfehler: Keine Verbindung zu Supabase möglich.";
+      toast.error(errorMessage);
+    } else if (error.message?.includes("recursion")) {
+      errorMessage = "Rekursionsproblem in den RLS-Richtlinien.";
+      toast.error(errorMessage);
     } else {
-      toast.error(`Supabase-Fehler: ${error.message || "Unbekannter Fehler"}`);
+      errorMessage = `Supabase-Fehler: ${error.message || "Unbekannter Fehler"}`;
+      toast.error(errorMessage);
     }
     
-    return false;
+    return {
+      success: false,
+      error: errorMessage
+    };
   }
 };
 

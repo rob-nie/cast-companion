@@ -13,15 +13,10 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
 
     console.log("Fetching projects for user:", session.user.id);
 
-    // First fetch projects owned by the user
+    // First fetch projects owned by the user - without nesting project_members
     const { data: ownedProjects, error: ownedError } = await supabase
       .from('projects')
-      .select(`
-        *,
-        project_members!project_members_project_id_fkey (
-          role
-        )
-      `)
+      .select('*')
       .eq('owner_id', session.user.id);
 
     if (ownedError) {
@@ -29,23 +24,46 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
       throw ownedError;
     }
 
-    // Then fetch projects where user is a member but not owner
+    // Then fetch project IDs where user is a member but not owner
     const { data: memberProjects, error: memberError } = await supabase
       .from('project_members')
       .select(`
         role,
-        projects:project_id (
-          *,
-          project_members!project_members_project_id_fkey (
-            role
-          )
-        )
+        project_id
       `)
       .eq('user_id', session.user.id);
 
     if (memberError) {
-      console.error("Error fetching member projects:", memberError);
+      console.error("Error fetching member project IDs:", memberError);
       throw memberError;
+    }
+
+    // If there are member projects, fetch their full details
+    let memberProjectsDetails: any[] = [];
+    if (memberProjects && memberProjects.length > 0) {
+      // Extract project IDs where user is a member
+      const memberProjectIds = memberProjects.map(item => item.project_id);
+      
+      // Get the full details of these projects
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .in('id', memberProjectIds);
+        
+      if (projectsError) {
+        console.error("Error fetching member project details:", projectsError);
+        throw projectsError;
+      }
+      
+      // Combine project details with roles
+      memberProjectsDetails = (projectsData || []).map(project => {
+        // Find the matching member entry to get the role
+        const memberEntry = memberProjects.find(m => m.project_id === project.id);
+        return {
+          ...project,
+          memberRole: memberEntry?.role
+        };
+      });
     }
 
     // Process owned projects into expected format
@@ -62,20 +80,17 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
     });
 
     // Process projects where user is a member
-    const memberProjectsList = (memberProjects || [])
-      .filter(item => item.projects) // Filter out any null projects
-      .map(item => {
-        const project = item.projects;
-        return {
-          id: project.id,
-          title: project.title,
-          description: project.description || '',
-          ownerId: project.owner_id,
-          createdAt: new Date(project.created_at),
-          lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined,
-          role: item.role // Use the role from the project_members table
-        };
-      });
+    const memberProjectsList = memberProjectsDetails.map(project => {
+      return {
+        id: project.id,
+        title: project.title,
+        description: project.description || '',
+        ownerId: project.owner_id,
+        createdAt: new Date(project.created_at),
+        lastAccessed: project.last_accessed ? new Date(project.last_accessed) : undefined,
+        role: project.memberRole // Use the role we stored earlier
+      };
+    });
 
     // Combine lists, avoiding duplicates (owned projects take precedence)
     const projectsMap = new Map();
