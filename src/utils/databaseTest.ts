@@ -14,33 +14,32 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 
     const uid = auth.currentUser.uid;
     
-    // 1. Test: Versuche Daten zu lesen
-    console.log("Teste Datenbank-Lesezugriff...");
-    const readTestRef = ref(database, '.info/connected');
-    const connectedSnapshot = await get(readTestRef);
-    const isConnected = connectedSnapshot.val();
-    
-    if (isConnected) {
-      console.log("Datenbank-Verbindung hergestellt!");
-    } else {
-      console.error("Datenbank nicht verbunden.");
-      toast.error("Keine Verbindung zur Datenbank.");
-      return false;
-    }
-    
-    // 2. Test: Versuche Daten zu schreiben
+    // 1. Test: Direkter Schreibzugriff
     console.log("Teste Datenbank-Schreibzugriff...");
     const testRef = ref(database, `users/${uid}/connectionTest`);
     
     // Aktuelle Zeit als Test-Daten
-    await set(testRef, {
+    const testData = {
       timestamp: new Date().toISOString(),
       message: "Test erfolgreich"
-    });
+    };
     
+    await set(testRef, testData);
     console.log("Schreibvorgang erfolgreich!");
-    toast.success("Datenbankverbindung ist aktiv und funktioniert!");
-    return true;
+    
+    // 2. Test: Lesezugriff auf die gerade geschriebenen Daten
+    console.log("Teste Datenbank-Lesezugriff...");
+    const snapshot = await get(testRef);
+    
+    if (snapshot.exists()) {
+      console.log("Lesezugriff erfolgreich:", snapshot.val());
+      toast.success("Datenbankverbindung ist aktiv und funktioniert!");
+      return true;
+    } else {
+      console.error("Keine Daten gefunden, obwohl gerade geschrieben wurde.");
+      toast.error("Datenproblem: Daten wurden geschrieben, konnten aber nicht gelesen werden.");
+      return false;
+    }
   } catch (error) {
     console.error("Datenbankfehler:", error);
     
