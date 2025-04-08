@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { ref, set, push, remove, update, get, query, limitToLast, orderByChild, equalTo } from "firebase/database";
 import { database, QUERY_LIMIT } from "@/lib/firebase";
 import { Project } from "./types";
+import { UserRole } from "@/types/user";
 
 export const addProjectToFirebase = async (
   project: Omit<Project, "id" | "createdAt" | "ownerId">, 
@@ -19,19 +20,16 @@ export const addProjectToFirebase = async (
     id: newProjectRef.key!, // Firebase generated ID
     createdAt: new Date().toISOString(),
     ownerId: userId,
+    members: {
+      [userId]: {
+        role: "owner"
+      }
+    }
   };
   
   try {
     await set(newProjectRef, newProject);
     toast.success("Projekt erstellt");
-    
-    // Also add the creator as owner in projectMembers
-    const memberRef = push(ref(database, 'projectMembers'));
-    await set(memberRef, {
-      userId: userId,
-      projectId: newProjectRef.key,
-      role: "owner"
-    });
     
     return { ...newProject, createdAt: new Date(newProject.createdAt) };
   } catch (error) {
@@ -78,7 +76,7 @@ export const deleteProjectFromFirebase = async (id: string) => {
     await remove(projectRef);
     toast.success("Projekt gelöscht");
     
-    // Also remove project members entries
+    // Also remove any additional project data that might not be in the projects node
     await cleanupProjectData(id);
     return true;
   } catch (error) {
@@ -91,21 +89,6 @@ export const deleteProjectFromFirebase = async (id: string) => {
 // Helper function to clean up related data when a project is deleted
 export const cleanupProjectData = async (projectId: string) => {
   try {
-    // Remove project members
-    const membersRef = query(
-      ref(database, 'projectMembers'),
-      orderByChild('projectId'),
-      equalTo(projectId)
-    );
-    
-    const memberSnapshot = await get(membersRef);
-    if (memberSnapshot.exists()) {
-      const membersData = memberSnapshot.val();
-      Object.keys(membersData).forEach(async (key) => {
-        await remove(ref(database, `projectMembers/${key}`));
-      });
-    }
-    
     // Remove notes with batching to avoid large operations
     const notesRef = query(
       ref(database, 'notes'),
@@ -152,4 +135,176 @@ export const getProjectsRef = () => {
     ref(database, 'projects'),
     limitToLast(QUERY_LIMIT)
   );
+};
+
+// Project members functions
+
+export const addMemberToProject = async (projectId: string, email: string, role: UserRole) => {
+  try {
+    // Get all users and filter locally to find by email
+    const usersRef = ref(database, 'users');
+    const snapshot = await get(usersRef);
+    
+    if (!snapshot.exists()) {
+      toast.error("Keine Benutzer gefunden");
+      throw new Error("Keine Benutzer gefunden");
+    }
+    
+    // Search for the email on client side
+    let userId = "";
+    let userData = null;
+    let userFound = false;
+    
+    snapshot.forEach((childSnapshot) => {
+      const user = childSnapshot.val();
+      if (user.email === email) {
+        userId = childSnapshot.key || "";
+        userData = user;
+        userFound = true;
+      }
+    });
+    
+    if (!userFound || !userId) {
+      toast.error("Benutzer nicht gefunden");
+      throw new Error("Benutzer nicht gefunden");
+    }
+    
+    // Check if project exists
+    const projectRef = ref(database, `projects/${projectId}`);
+    const projectSnapshot = await get(projectRef);
+    
+    if (!projectSnapshot.exists()) {
+      toast.error("Projekt nicht gefunden");
+      throw new Error("Projekt nicht gefunden");
+    }
+    
+    const projectData = projectSnapshot.val();
+    
+    // Check if user is already a member
+    if (projectData.members && projectData.members[userId]) {
+      toast.error("Benutzer ist bereits Mitglied dieses Projekts");
+      throw new Error("Benutzer ist bereits Mitglied dieses Projekts");
+    }
+    
+    // Add member to project
+    await update(ref(database, `projects/${projectId}/members/${userId}`), { role });
+    
+    toast.success(`${userData.name} wurde zum Projekt hinzugefügt`);
+  } catch (error: any) {
+    console.error("Failed to add member:", error);
+    if (!error.message.includes("bereits Mitglied") && !error.message.includes("nicht gefunden")) {
+      toast.error("Fehler beim Hinzufügen des Mitglieds");
+    }
+    throw error;
+  }
+};
+
+export const addMemberToProjectByUserId = async (projectId: string, userId: string, role: UserRole) => {
+  try {
+    // Check if user exists
+    const userRef = ref(database, `users/${userId}`);
+    const userSnapshot = await get(userRef);
+    
+    if (!userSnapshot.exists()) {
+      toast.error("Benutzer nicht gefunden");
+      throw new Error("Benutzer nicht gefunden");
+    }
+    
+    const userData = userSnapshot.val();
+    
+    // Check if project exists
+    const projectRef = ref(database, `projects/${projectId}`);
+    const projectSnapshot = await get(projectRef);
+    
+    if (!projectSnapshot.exists()) {
+      toast.error("Projekt nicht gefunden");
+      throw new Error("Projekt nicht gefunden");
+    }
+    
+    const projectData = projectSnapshot.val();
+    
+    // Check if user is already a member
+    if (projectData.members && projectData.members[userId]) {
+      toast.error("Benutzer ist bereits Mitglied dieses Projekts");
+      throw new Error("Benutzer ist bereits Mitglied dieses Projekts");
+    }
+    
+    // Add member to project
+    await update(ref(database, `projects/${projectId}/members/${userId}`), { role });
+    
+    toast.success(`${userData.name || "Benutzer"} wurde zum Projekt hinzugefügt`);
+  } catch (error: any) {
+    console.error("Failed to add member by ID:", error);
+    if (!error.message.includes("bereits Mitglied") && !error.message.includes("nicht gefunden")) {
+      toast.error("Fehler beim Hinzufügen des Mitglieds");
+    }
+    throw error;
+  }
+};
+
+export const removeMemberFromProject = async (projectId: string, userId: string) => {
+  try {
+    // Check if project exists
+    const projectRef = ref(database, `projects/${projectId}`);
+    const projectSnapshot = await get(projectRef);
+    
+    if (!projectSnapshot.exists()) {
+      toast.error("Projekt nicht gefunden");
+      throw new Error("Projekt nicht gefunden");
+    }
+    
+    const projectData = projectSnapshot.val();
+    
+    // Check if user is a member
+    if (!projectData.members || !projectData.members[userId]) {
+      toast.error("Benutzer ist kein Mitglied dieses Projekts");
+      throw new Error("Benutzer ist kein Mitglied dieses Projekts");
+    }
+    
+    // Check if removing owner
+    if (projectData.members[userId].role === "owner") {
+      toast.error("Der Projektinhaber kann nicht entfernt werden");
+      throw new Error("Der Projektinhaber kann nicht entfernt werden");
+    }
+    
+    // Remove member from project
+    await remove(ref(database, `projects/${projectId}/members/${userId}`));
+    
+    toast.success("Mitglied entfernt");
+  } catch (error: any) {
+    console.error("Failed to remove member:", error);
+    if (!error.message.includes("kein Mitglied") && !error.message.includes("Projektinhaber")) {
+      toast.error("Fehler beim Entfernen des Mitglieds");
+    }
+    throw error;
+  }
+};
+
+export const updateMemberRole = async (projectId: string, userId: string, role: UserRole) => {
+  try {
+    // Check if project exists
+    const projectRef = ref(database, `projects/${projectId}`);
+    const projectSnapshot = await get(projectRef);
+    
+    if (!projectSnapshot.exists()) {
+      toast.error("Projekt nicht gefunden");
+      throw new Error("Projekt nicht gefunden");
+    }
+    
+    const projectData = projectSnapshot.val();
+    
+    // Check if user is a member
+    if (!projectData.members || !projectData.members[userId]) {
+      toast.error("Benutzer ist kein Mitglied dieses Projekts");
+      throw new Error("Benutzer ist kein Mitglied dieses Projekts");
+    }
+    
+    // Update role
+    await update(ref(database, `projects/${projectId}/members/${userId}`), { role });
+    
+    toast.success("Rolle aktualisiert");
+  } catch (error) {
+    toast.error("Fehler beim Aktualisieren der Rolle");
+    throw error;
+  }
 };

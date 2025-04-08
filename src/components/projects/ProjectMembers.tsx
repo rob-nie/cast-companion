@@ -12,8 +12,8 @@ import MembersList from "./members/MembersList";
 import { ProjectMember } from "@/types/user";
 
 const ProjectMembers = () => {
-  const { currentProject, shareProject, shareProjectByUserId, revokeAccess, changeRole } = useProjects();
-  const { user, getProjectMembers } = useUser();
+  const { currentProject, shareProject, shareProjectByUserId, revokeAccess, changeRole, getProjectMembers } = useProjects();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   
@@ -22,10 +22,19 @@ const ProjectMembers = () => {
     
     const loadMembers = async () => {
       if (currentProject) {
-        // Get the members
-        const projectMembers = getProjectMembers(currentProject.id);
-        if (isMounted) {
-          setMembers(projectMembers);
+        setIsLoading(true);
+        try {
+          // Get the members from the current project
+          const projectMembers = await getProjectMembers(currentProject.id);
+          if (isMounted) {
+            setMembers(projectMembers);
+          }
+        } catch (error) {
+          console.error("Failed to load members:", error);
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
+          }
         }
       }
     };

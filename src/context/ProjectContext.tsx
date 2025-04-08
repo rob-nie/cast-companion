@@ -1,48 +1,27 @@
 
 import { createContext, useContext, ReactNode } from "react";
 import { ProjectManagementProvider, useProjectManagement } from "./projectManagement";
-import { ProjectSharingProvider, useProjectSharing } from "./projectSharing";
 
 // Re-export types
 export type { Project } from "./projectManagement";
 
-// Combined project context
-const ProjectContext = createContext<ReturnType<typeof useProjectCombined> | undefined>(undefined);
+// Project context
+const ProjectContext = createContext<ReturnType<typeof useProjectManagement> | undefined>(undefined);
 
-// Combined hook
-const useProjectCombined = () => {
-  const projectManagement = useProjectManagement();
-  const projectSharing = useProjectSharing();
-  
-  return {
-    ...projectManagement,
-    ...projectSharing
-  };
-};
-
-// Combined provider - ensuring proper nesting order
+// Provider
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
+  const projectState = useProjectManagement();
+  
   return (
     <ProjectManagementProvider>
-      <ProjectSharingProvider>
-        <ProjectContextProvider>{children}</ProjectContextProvider>
-      </ProjectSharingProvider>
+      <ProjectContext.Provider value={projectState}>
+        {children}
+      </ProjectContext.Provider>
     </ProjectManagementProvider>
   );
 };
 
-// Internal provider that combines the contexts
-const ProjectContextProvider = ({ children }: { children: ReactNode }) => {
-  const combinedContext = useProjectCombined();
-  
-  return (
-    <ProjectContext.Provider value={combinedContext}>
-      {children}
-    </ProjectContext.Provider>
-  );
-};
-
-// Hook to use the combined context
+// Hook to use the context
 export const useProjects = () => {
   const context = useContext(ProjectContext);
   if (context === undefined) {

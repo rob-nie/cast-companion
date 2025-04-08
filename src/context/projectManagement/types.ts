@@ -1,30 +1,31 @@
 
-import { Dispatch, SetStateAction } from "react";
+import { ProjectMember, UserRole } from "@/types/user";
 
-export type Project = {
+// Define project structure
+export interface Project {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   createdAt: Date;
   lastAccessed?: Date;
   ownerId: string;
-};
+  members?: Record<string, { role: UserRole }>;
+}
 
+// Context type for ProjectManagement
 export type ProjectManagementContextType = {
   projects: Project[];
   currentProject: Project | null;
-  setCurrentProject: (project: Project) => void;
+  setCurrentProject: (project: Project | null) => void;
   addProject: (project: Omit<Project, "id" | "createdAt" | "ownerId">) => void;
-  updateProject: (id: string, project: Partial<Project>, silent?: boolean) => void;
+  updateProject: (id: string, projectUpdate: Partial<Project>, silent?: boolean) => Promise<void>;
   deleteProject: (id: string) => void;
   getUserProjects: () => Project[];
   getSharedProjects: () => Project[];
+  getProjectMembers: (projectId: string) => ProjectMember[];
+  shareProject: (projectId: string, email: string, role: "editor" | "viewer") => Promise<void>;
+  shareProjectByUserId: (projectId: string, userId: string, role: "editor" | "viewer") => Promise<void>;
+  revokeAccess: (projectId: string, userId: string) => Promise<void>;
+  changeRole: (projectId: string, userId: string, newRole: UserRole) => Promise<void>;
   isLoading: boolean;
-};
-
-export type ProjectManagementProviderProps = {
-  projects: Project[];
-  setProjects: Dispatch<SetStateAction<Project[]>>;
-  currentProject: Project | null;
-  setCurrentProject: Dispatch<SetStateAction<Project | null>>;
 };
