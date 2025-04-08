@@ -2,15 +2,29 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import LoadingScreen from "./LoadingScreen";
+import { useEffect, useState } from "react";
 
 const AuthGuard = () => {
   const { isAuthenticated, isLoading } = useUser();
   const location = useLocation();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  console.log("AuthGuard - isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
+  useEffect(() => {
+    // This effect helps ensure we only redirect after auth check is complete
+    if (!isLoading) {
+      // Give a small delay to ensure all auth states are synchronized
+      const timer = setTimeout(() => {
+        setIsCheckingAuth(false);
+      }, 200);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
+  console.log("AuthGuard - isLoading:", isLoading, "isAuthenticated:", isAuthenticated, "isCheckingAuth:", isCheckingAuth);
 
   // Show loading screen while checking authentication
-  if (isLoading) {
+  if (isLoading || isCheckingAuth) {
     return <LoadingScreen />;
   }
 
