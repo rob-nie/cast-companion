@@ -1,12 +1,36 @@
 
-import { useState, useEffect } from "react";
-import { ref, onValue } from "firebase/database";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { ref, onValue, set, get } from "firebase/database";
 import { database } from "@/lib/firebase";
-import { useUser } from "../UserContext";
-import { ProjectStopwatch, defaultStopwatch } from "./types";
-import { updateStopwatchInFirebase } from "./watchService";
+import { useUser } from "./UserContext";
 
-export const useWatchProvider = () => {
+type ProjectStopwatch = {
+  isRunning: boolean;
+  startTime: number | null;
+  elapsedTime: number;
+  lastUpdatedBy: string | null;
+};
+
+type WatchContextType = {
+  projectStopwatches: Record<string, ProjectStopwatch>;
+  currentTime: Date;
+  startStopwatch: (projectId: string) => void;
+  stopStopwatch: (projectId: string) => void;
+  resetStopwatch: (projectId: string) => void;
+  formatStopwatchTime: (timeMs: number) => string;
+  getProjectStopwatch: (projectId: string) => ProjectStopwatch;
+};
+
+const WatchContext = createContext<WatchContextType | undefined>(undefined);
+
+const defaultStopwatch: ProjectStopwatch = {
+  isRunning: false,
+  startTime: null,
+  elapsedTime: 0,
+  lastUpdatedBy: null,
+};
+
+export const WatchProvider = ({ children }: { children: ReactNode }) => {
   const [projectStopwatches, setProjectStopwatches] = useState<Record<string, ProjectStopwatch>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
   const { user } = useUser();
@@ -19,7 +43,6 @@ export const useWatchProvider = () => {
     
     const unsubscribe = onValue(stopwatchesRef, (snapshot) => {
       if (snapshot.exists()) {
-        console.log("Firebase stopwatch data updated:", snapshot.val());
         const stopwatchData = snapshot.val();
         setProjectStopwatches(stopwatchData);
       }
@@ -59,13 +82,20 @@ export const useWatchProvider = () => {
     return projectStopwatches[projectId] || defaultStopwatch;
   };
 
-  const startStopwatch = async (projectId: string) => {
+  // Update stopwatch in Firebase
+  const updateStopwatchInFirebase = (projectId: string, stopwatch: ProjectStopwatch) => {
+    const stopwatchRef = ref(database, `projectStopwatches/${projectId}`);
+    set(stopwatchRef, stopwatch)
+      .catch(error => {
+        console.error("Error updating stopwatch in Firebase:", error);
+      });
+  };
+
+  const startStopwatch = (projectId: string) => {
     // Get current stopwatch state
     const current = getProjectStopwatch(projectId);
     
     if (current.isRunning) return;
-    
-    console.log("Starting stopwatch for project:", projectId);
     
     // Create updated stopwatch
     const updatedStopwatch: ProjectStopwatch = {
@@ -75,23 +105,21 @@ export const useWatchProvider = () => {
       lastUpdatedBy: currentUserId
     };
     
+    // Update Firebase (will trigger the onValue subscription in other clients)
+    updateStopwatchInFirebase(projectId, updatedStopwatch);
+    
     // Update local state immediately for responsive UI
     setProjectStopwatches(prev => ({
       ...prev,
       [projectId]: updatedStopwatch
     }));
-    
-    // Update Firebase (will trigger the onValue subscription in other clients)
-    await updateStopwatchInFirebase(projectId, updatedStopwatch);
   };
 
-  const stopStopwatch = async (projectId: string) => {
+  const stopStopwatch = (projectId: string) => {
     // Get current stopwatch state
     const current = getProjectStopwatch(projectId);
     
     if (!current.isRunning) return;
-    
-    console.log("Stopping stopwatch for project:", projectId);
     
     // Calculate current elapsed time
     const elapsedTime = current.startTime 
@@ -106,19 +134,17 @@ export const useWatchProvider = () => {
       lastUpdatedBy: currentUserId
     };
     
+    // Update Firebase
+    updateStopwatchInFirebase(projectId, updatedStopwatch);
+    
     // Update local state immediately
     setProjectStopwatches(prev => ({
       ...prev,
       [projectId]: updatedStopwatch
     }));
-    
-    // Update Firebase
-    await updateStopwatchInFirebase(projectId, updatedStopwatch);
   };
 
-  const resetStopwatch = async (projectId: string) => {
-    console.log("Resetting stopwatch for project:", projectId);
-    
+  const resetStopwatch = (projectId: string) => {
     // Create reset stopwatch
     const resetStopwatch: ProjectStopwatch = {
       isRunning: false,
@@ -127,22 +153,46 @@ export const useWatchProvider = () => {
       lastUpdatedBy: currentUserId
     };
     
+    // Update Firebase
+    updateStopwatchInFirebase(projectId, resetStopwatch);
+    
     // Update local state immediately
     setProjectStopwatches(prev => ({
       ...prev,
       [projectId]: resetStopwatch
     }));
-    
-    // Update Firebase
-    await updateStopwatchInFirebase(projectId, resetStopwatch);
   };
 
-  return {
-    projectStopwatches,
-    currentTime,
-    startStopwatch,
-    stopStopwatch,
-    resetStopwatch,
-    getProjectStopwatch
+  const formatStopwatchTime = (timeMs: number) => {
+    // Format time as hh:mm:ss without milliseconds
+    const seconds = Math.floor((timeMs / 1000) % 60);
+    const minutes = Math.floor((timeMs / (1000 * 60)) % 60);
+    const hours = Math.floor(timeMs / (1000 * 60 * 60));
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
+
+  return (
+    <WatchContext.Provider
+      value={{
+        projectStopwatches,
+        currentTime,
+        startStopwatch,
+        stopStopwatch,
+        resetStopwatch,
+        formatStopwatchTime,
+        getProjectStopwatch,
+      }}
+    >
+      {children}
+    </WatchContext.Provider>
+  );
+};
+
+export const useWatch = () => {
+  const context = useContext(WatchContext);
+  if (context === undefined) {
+    throw new Error("useWatch must be used within a WatchProvider");
+  }
+  return context;
 };

@@ -3,7 +3,7 @@ import { createContext, useContext, useState, ReactNode, useEffect } from "react
 import { useProjects } from "./ProjectContext";
 import { useUser } from "./UserContext";
 import { Message, QuickPhrase } from "@/types/messenger";
-import { ref, push, update, remove, onValue, query, orderByChild, equalTo, set } from "firebase/database";
+import { ref, push, update, remove, onValue, query, orderByChild, equalTo } from "firebase/database";
 import { database } from "@/lib/firebase";
 
 type MessagesContextType = {
@@ -92,42 +92,26 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
   }, [currentProject, messages]);
 
   const addMessage = (message: Omit<Message, "id" | "timestamp" | "isRead">) => {
-    try {
-      console.log("Adding message:", message);
-      const currentUserId = user?.id || "user-1";
-      const newMessageRef = push(ref(database, 'messages'));
-      
-      if (!newMessageRef.key) {
-        console.error("Failed to generate key for new message");
-        return;
-      }
-      
-      const newMessage = {
-        ...message,
-        timestamp: new Date().toISOString(),
-        isRead: message.sender === currentUserId, // Messages from current user are automatically read
-      };
-      
-      // Use set instead of another push
-      set(newMessageRef, newMessage)
-        .then(() => {
-          console.log("Message added successfully with ID:", newMessageRef.key);
-        })
-        .catch((error) => {
-          console.error("Error adding message:", error);
-        });
-    } catch (error) {
-      console.error("Exception when adding message:", error);
-    }
+    const newMessageRef = push(ref(database, 'messages'));
+    const currentUserId = user?.id || "user-1";
+    
+    const newMessage = {
+      ...message,
+      id: newMessageRef.key!,
+      timestamp: new Date().toISOString(),
+      isRead: message.sender === currentUserId, // Messages from current user are automatically read
+    };
+    
+    push(ref(database, 'messages'), newMessage)
+      .catch((error) => {
+        console.error("Error adding message:", error);
+      });
   };
 
   const markAsRead = (id: string) => {
     console.log('MessagesContext: Marking message as read:', id);
     const messageRef = ref(database, `messages/${id}`);
     update(messageRef, { isRead: true })
-      .then(() => {
-        console.log("Message marked as read successfully:", id);
-      })
       .catch((error) => {
         console.error("Error marking message as read:", error);
       });
@@ -142,9 +126,6 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
     
     const messageRef = ref(database, `messages/${id}`);
     update(messageRef, { isImportant: !message.isImportant })
-      .then(() => {
-        console.log("Message importance toggled successfully:", id);
-      })
       .catch((error) => {
         console.error("Error toggling message importance:", error);
       });
@@ -157,11 +138,7 @@ export const MessagesProvider = ({ children }: { children: ReactNode }) => {
       content,
     };
     
-    // Use set instead of another push
-    set(newPhraseRef, newQuickPhrase)
-      .then(() => {
-        console.log("Quick phrase added successfully");
-      })
+    push(ref(database, 'quickPhrases'), newQuickPhrase)
       .catch((error) => {
         console.error("Error adding quick phrase:", error);
       });

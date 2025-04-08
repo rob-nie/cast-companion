@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/context/NotesContext';
 import { useProjects } from '@/context/ProjectContext';
-import { useWatch } from '@/context/watch';
+import { useWatch } from '@/context/WatchContext';
 import { cn } from '@/lib/utils';
 import NoteItem from './notes/NoteItem';
 import EmptyNoteState from './notes/EmptyNoteState';
@@ -28,22 +28,16 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
   const projectStopwatch = getProjectStopwatch(currentProject.id);
 
   const handleAddEmptyNote = () => {
-    console.log("Adding new empty note for project:", currentProject.id);
-    
-    const newNote = addNote({
+    const note = addNote({
       projectId: currentProject.id,
       content: '',
       stopwatchTime: projectStopwatch.elapsedTime,
       isLiveNote: true,
     });
-    
     // Auto-enter edit mode for the new note
-    if (newNote?.id) {
-      console.log("Created new note with ID:", newNote.id);
-      setEditingNoteId(newNote.id);
+    if (note?.id) {
+      setEditingNoteId(note.id);
       setEditingContent('');
-    } else {
-      console.error("Failed to create new note, returned value:", newNote);
     }
   };
   
@@ -138,7 +132,6 @@ const LiveNotesPanel = ({ className }: LiveNotesPanelProps) => {
           size="sm"
           className="w-full gap-1"
           onClick={handleAddEmptyNote}
-          type="button"
         >
           <Plus className="h-4 w-4" />
           New Live Note
