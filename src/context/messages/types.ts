@@ -12,5 +12,4 @@ export type MessagesContextType = {
   updateQuickPhrase: (id: string, content: string) => void;
   deleteQuickPhrase: (id: string) => void;
   getQuickPhrasesForUser: (userId: string) => QuickPhrase[];
-  getMessagesForProject: (projectId: string) => Message[]; // Adding this missing method
 };

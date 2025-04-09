@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useProjectManagement } from "@/context/projectManagement";
 import ProjectsGrid from "./ProjectsGrid";
 import ProjectsSearch from "./ProjectsSearch";
@@ -9,36 +9,33 @@ import ProjectsEmptyState from "./ProjectsEmptyState";
 import ProjectsErrorState from "./ProjectsErrorState";
 
 const ProjectsOverview = () => {
-  const { 
-    projects, 
-    isLoading, 
-    error, 
-    searchQuery, 
-    setSearchQuery, 
-    fetchProjects 
-  } = useProjectManagement();
+  const { projects, isLoading, loadError, refresh } = useProjectManagement();
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetchProjects().catch(console.error);
-  }, [fetchProjects]);
+    refresh().catch(console.error);
+  }, [refresh]);
 
   const filteredProjects = projects.filter(project => 
-    project.name.toLowerCase().includes(searchQuery.toLowerCase())
+    project.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Render Zustände
+  // Render loading state
   if (isLoading) {
     return <ProjectsLoadingState />;
   }
 
-  if (error) {
+  // Render error state
+  if (loadError) {
     return (
       <ProjectsErrorState 
-        onRetry={fetchProjects} 
+        message={loadError}
+        onRetry={refresh} 
       />
     );
   }
 
+  // Render empty state
   if (projects.length === 0) {
     return (
       <div className="space-y-4">
@@ -46,7 +43,10 @@ const ProjectsOverview = () => {
           <h2 className="text-2xl font-bold">Meine Projekte</h2>
           <CreateProjectDialog />
         </div>
-        <ProjectsEmptyState />
+        <ProjectsEmptyState 
+          message="Keine Projekte gefunden"
+          onCreateClick={() => document.getElementById("create-project-trigger")?.click()}
+        />
       </div>
     );
   }
@@ -59,10 +59,10 @@ const ProjectsOverview = () => {
       </div>
       
       <ProjectsSearch 
-        searchQuery={searchQuery} 
-        setSearchQuery={setSearchQuery} 
-        resultsCount={filteredProjects.length}
-        totalCount={projects.length}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        isLoading={isLoading}
+        onRefresh={refresh}
       />
       
       <ProjectsGrid projects={filteredProjects} />

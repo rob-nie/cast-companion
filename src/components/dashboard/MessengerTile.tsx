@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMessages } from "@/context/messages";
 import { useProjectMembers } from "@/context/projectMembers";
-import { useProject } from "@/context/ProjectContext";
+import { useProjects } from "@/context/ProjectContext";
 import { ProjectMember } from "@/types/user";
 import MessageList from "@/components/messenger/MessageList";
 import MessageInput from "@/components/messenger/MessageInput";
@@ -12,26 +12,32 @@ import QuickPhrases from "@/components/messenger/QuickPhrases";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Message } from "@/types/messenger";
+import { useUser } from "@/context/UserContext";
 
-const MessengerTile = () => {
-  const { currentProject } = useProject();
+interface MessengerTileProps {
+  projectId: string;
+}
+
+const MessengerTile = ({ projectId }: MessengerTileProps) => {
   const { messages, addMessage, markAsRead, toggleImportant, quickPhrases } = useMessages();
   const { getProjectMembers } = useProjectMembers();
+  const { user } = useUser();
   const [activeTab, setActiveTab] = useState("messages");
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [isImportant, setIsImportant] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showQuickPhrases, setShowQuickPhrases] = useState(false);
 
   // Filter messages for the current project
-  const projectMessages = messages.filter(msg => msg.projectId === currentProject?.id);
+  const projectMessages = messages.filter(msg => msg.projectId === projectId);
 
   // Load project members
   useEffect(() => {
-    if (currentProject) {
+    if (projectId) {
       setIsLoading(true);
-      getProjectMembers(currentProject.id)
+      getProjectMembers(projectId)
         .then(members => {
           setMembers(members);
           setIsLoading(false);
@@ -41,29 +47,34 @@ const MessengerTile = () => {
           setIsLoading(false);
         });
     }
-  }, [currentProject, getProjectMembers]);
+  }, [projectId, getProjectMembers]);
 
   // Helper to get user name from ID
   const getUserName = (userId: string): string => {
-    const member = members.find(m => m.id === userId);
+    const member = members.find(m => m.userId === userId);
     return member ? member.name : "Unbekannter Nutzer";
   };
 
   const handleSendMessage = (content: string) => {
-    if (!currentProject || !content.trim()) return;
+    if (!projectId || !content.trim() || !user?.id) return;
 
     addMessage({
-      projectId: currentProject.id,
+      projectId: projectId,
       content,
-      isImportant: isImportant
+      isImportant: isImportant,
+      sender: user.id
     });
 
     // Reset after sending
     setInputValue("");
     setIsImportant(false);
   };
+  
+  const handleSelectQuickPhrase = (content: string) => {
+    setInputValue(content);
+  };
 
-  if (!currentProject) {
+  if (!projectId) {
     return (
       <Card className="flex flex-col h-full">
         <CardContent className="flex items-center justify-center h-full p-6">
@@ -116,13 +127,19 @@ const MessengerTile = () => {
           <div className="flex-1 overflow-y-auto px-3">
             <MessageList
               messages={projectMessages}
-              currentUserId={currentProject.ownerId}
+              currentUserId={user?.id || ""}
               markAsRead={markAsRead}
               toggleImportant={toggleImportant}
             />
           </div>
 
           <div className="p-3 pt-1">
+            <QuickPhrases
+              quickPhrases={quickPhrases}
+              onSelectPhrase={handleSelectQuickPhrase}
+              showQuickPhrases={showQuickPhrases}
+              setShowQuickPhrases={setShowQuickPhrases}
+            />
             <MessageInput
               onSendMessage={handleSendMessage}
               isImportant={isImportant}
@@ -134,7 +151,12 @@ const MessengerTile = () => {
         </TabsContent>
 
         <TabsContent value="quick-phrases" className="flex-1 p-3 pt-1 overflow-y-auto">
-          <QuickPhrases quickPhrases={quickPhrases} />
+          <QuickPhrases
+            quickPhrases={quickPhrases}
+            onSelectPhrase={handleSelectQuickPhrase}
+            showQuickPhrases={true}
+            setShowQuickPhrases={setShowQuickPhrases}
+          />
         </TabsContent>
       </Tabs>
     </Card>

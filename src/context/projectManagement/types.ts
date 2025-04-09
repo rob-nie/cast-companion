@@ -8,7 +8,7 @@ export interface Project {
   ownerId: string;
   createdAt: Date;
   lastAccessed?: Date;
-  role?: UserRole; // Adding role as an optional property
+  role?: UserRole;
 }
 
 export interface ProjectManagementContextType {
