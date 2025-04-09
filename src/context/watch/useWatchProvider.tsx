@@ -161,8 +161,8 @@ export const useWatchProvider = () => {
         .upsert({
           project_id: projectId,
           is_running: true,
-          start_time: String(updatedStopwatch.startTime),
-          elapsed_time: String(updatedStopwatch.elapsedTime),
+          start_time: updatedStopwatch.startTime,
+          elapsed_time: updatedStopwatch.elapsedTime,
           last_updated_by: currentUserId
         });
       
@@ -203,7 +203,7 @@ export const useWatchProvider = () => {
           project_id: projectId,
           is_running: false,
           start_time: null,
-          elapsed_time: String(elapsedTime),
+          elapsed_time: elapsedTime,
           last_updated_by: currentUserId
         });
       
@@ -234,7 +234,7 @@ export const useWatchProvider = () => {
           project_id: projectId,
           is_running: false,
           start_time: null,
-          elapsed_time: '0',
+          elapsed_time: 0,
           last_updated_by: currentUserId
         });
       

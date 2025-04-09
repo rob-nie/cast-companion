@@ -151,7 +151,7 @@ export const useMessagesProvider = () => {
         .insert({
           content: message.content,
           sender: message.sender,
-          recipient: message.recipient,
+          recipient: message.recipient || null,
           project_id: message.projectId,
           is_important: message.isImportant || false,
           is_read: message.sender === currentUserId // Messages from current user are automatically read

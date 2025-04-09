@@ -7,6 +7,7 @@ export type Message = {
   timestamp: Date;
   isRead: boolean;
   isImportant: boolean;
+  recipient?: string;
 };
 
 export type QuickPhrase = {
