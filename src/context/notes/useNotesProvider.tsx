@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from "react";
-import { onValue } from "firebase/database";
 import { useProjects } from "../ProjectContext";
 import { useUser } from "../UserContext";
 import { Note } from "./types";
-import { fetchNotes, addNewNote, updateExistingNote, deleteExistingNote } from "./notesService";
 import { createCSVFromNotes } from "./notesUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const useNotesProvider = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -15,42 +15,45 @@ export const useNotesProvider = () => {
   const [liveNotes, setLiveNotes] = useState<Note[]>([]);
 
   // User ID for the current user
-  const currentUserId = user?.id || "user-1";
+  const currentUserId = user?.id || "";
 
   // Load notes for a specific project
   const loadNotes = async (projectId: string): Promise<Note[]> => {
     if (!user?.id) return [];
     
     try {
-      const notesRef = fetchNotes(currentUserId, projectId);
-      return new Promise((resolve) => {
-        const unsubscribe = onValue(notesRef, (snapshot) => {
-          unsubscribe(); // Unsubscribe after first load
-          
-          if (snapshot.exists()) {
-            const notesData = snapshot.val();
-            const notesList: Note[] = [];
-            
-            Object.keys(notesData).forEach((key) => {
-              const note = notesData[key];
-              notesList.push({
-                ...note,
-                id: key,
-                timestamp: note.timestamp ? new Date(note.timestamp) : undefined,
-              });
-            });
-            
-            setNotes(prev => {
-              // Merge with existing notes, replacing those for this project
-              const otherNotes = prev.filter(n => n.projectId !== projectId);
-              return [...otherNotes, ...notesList];
-            });
-            resolve(notesList);
-          } else {
-            resolve([]);
-          }
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error("Error loading notes:", error);
+        toast.error("Fehler beim Laden der Notizen");
+        return [];
+      }
+      
+      if (data) {
+        const notesList = data.map(note => ({
+          id: note.id,
+          content: note.content,
+          userId: note.user_id,
+          projectId: note.project_id,
+          isLiveNote: note.is_live_note,
+          timestamp: new Date(note.created_at),
+        }));
+        
+        setNotes(prev => {
+          // Merge with existing notes, replacing those for this project
+          const otherNotes = prev.filter(n => n.projectId !== projectId);
+          return [...otherNotes, ...notesList];
         });
-      });
+        
+        return notesList;
+      }
+      
+      return [];
     } catch (error) {
       console.error("Error loading notes:", error);
       return [];
@@ -91,36 +94,70 @@ export const useNotesProvider = () => {
   }, [currentProject, notes, currentUserId]);
 
   const addNote = async (note: Omit<Note, "id" | "timestamp" | "userId">): Promise<Note> => {
-    const { promise, noteId } = addNewNote(note, currentUserId);
+    if (!user?.id) {
+      throw new Error("User not authenticated");
+    }
+    
+    const { data, error } = await supabase
+      .from('notes')
+      .insert({
+        content: note.content,
+        project_id: note.projectId,
+        user_id: currentUserId,
+        is_live_note: note.isLiveNote
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      console.error("Error adding note:", error);
+      toast.error("Notiz konnte nicht gespeichert werden");
+      throw error;
+    }
     
     const newNote: Note = {
-      ...note,
-      id: noteId,
-      userId: currentUserId,
-      timestamp: new Date(),
+      id: data.id,
+      content: data.content,
+      userId: data.user_id,
+      projectId: data.project_id,
+      isLiveNote: data.is_live_note,
+      timestamp: new Date(data.created_at),
     };
-    
-    await promise.catch((error) => {
-      console.error("Error adding note:", error);
-    });
     
     return newNote;
   };
 
   const updateNote = async (id: string, updates: Partial<Omit<Note, "id" | "userId">>): Promise<void> => {
-    // Prepare data for Firebase
-    const updateData: Record<string, any> = { ...updates };
+    // Prepare data for Supabase
+    const updateData: Record<string, any> = {};
     
-    // Convert Date objects to ISO strings for Firebase
-    if (updateData.timestamp instanceof Date) {
-      updateData.timestamp = updateData.timestamp.toISOString();
+    if (updates.content !== undefined) updateData.content = updates.content;
+    if (updates.isLiveNote !== undefined) updateData.is_live_note = updates.isLiveNote;
+    if (updates.projectId !== undefined) updateData.project_id = updates.projectId;
+    
+    const { error } = await supabase
+      .from('notes')
+      .update(updateData)
+      .eq('id', id);
+      
+    if (error) {
+      console.error("Error updating note:", error);
+      toast.error("Notiz konnte nicht aktualisiert werden");
+      throw error;
     }
-    
-    await updateExistingNote(id, updateData);
   };
   
   const deleteNote = async (id: string): Promise<void> => {
-    await deleteExistingNote(id);
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      console.error("Error deleting note:", error);
+      toast.error("Notiz konnte nicht gelöscht werden");
+      throw error;
+    }
   };
 
   const exportLiveNotesAsCSV = (projectId: string) => {

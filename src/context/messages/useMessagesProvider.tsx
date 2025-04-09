@@ -3,18 +3,8 @@ import { useState, useEffect } from "react";
 import { useProjects } from "../ProjectContext";
 import { useUser } from "../UserContext";
 import { Message, QuickPhrase } from "@/types/messenger";
-import { onValue } from "firebase/database";
 import { toast } from "sonner";
-import { 
-  getMessagesRef, 
-  getQuickPhrasesRef, 
-  addMessageToFirebase,
-  markMessageAsReadInFirebase,
-  toggleMessageImportanceInFirebase,
-  addQuickPhraseToFirebase,
-  updateQuickPhraseInFirebase,
-  deleteQuickPhraseFromFirebase
-} from "./messagesService";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useMessagesProvider = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -27,65 +17,107 @@ export const useMessagesProvider = () => {
   useEffect(() => {
     if (!user?.id || !currentProject?.id) return;
     
-    const messagesRef = getMessagesRef(currentProject.id);
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('project_id', currentProject.id)
+        .order('created_at', { ascending: true });
         
-    const unsubscribe = onValue(messagesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const messagesData = snapshot.val();
-        const messagesList: Message[] = [];
-        
-        Object.keys(messagesData).forEach((key) => {
-          const message = messagesData[key];
-          messagesList.push({
-            ...message,
-            id: key,
-            timestamp: new Date(message.timestamp),
-          });
-        });
-        
-        // Sort messages chronologically
-        messagesList.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-        setMessages(messagesList);
-      } else {
-        setMessages([]);
+      if (error) {
+        console.error("Error fetching messages:", error);
+        toast.error("Fehler beim Laden der Nachrichten");
+        return;
       }
-    }, error => {
-      console.error("Error fetching messages:", error);
-      toast.error("Fehler beim Laden der Nachrichten");
-    });
+      
+      if (data) {
+        const messagesList: Message[] = data.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          sender: msg.sender,
+          recipient: msg.recipient,
+          projectId: msg.project_id,
+          isRead: msg.is_read,
+          isImportant: msg.is_important,
+          timestamp: new Date(msg.created_at)
+        }));
+        
+        setMessages(prev => {
+          // Replace messages for this project
+          const otherMessages = prev.filter(m => m.projectId !== currentProject.id);
+          return [...otherMessages, ...messagesList];
+        });
+      }
+    };
     
-    return () => unsubscribe();
+    fetchMessages();
+    
+    // Set up real-time subscription for new messages
+    const channel = supabase
+      .channel('public:messages')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'messages',
+          filter: `project_id=eq.${currentProject.id}` 
+        }, 
+        (payload) => {
+          fetchMessages(); // Refresh messages when changes occur
+        })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentProject?.id, user?.id]);
   
   // Fetch quick phrases for the current user
   useEffect(() => {
     if (!user?.id) return;
     
-    const quickPhrasesRef = getQuickPhrasesRef(user.id);
-    
-    const unsubscribe = onValue(quickPhrasesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const phrasesData = snapshot.val();
-        const phrasesList: QuickPhrase[] = [];
+    const fetchQuickPhrases = async () => {
+      const { data, error } = await supabase
+        .from('quick_phrases')
+        .select('*')
+        .eq('user_id', user.id);
         
-        Object.keys(phrasesData).forEach((key) => {
-          const phrase = phrasesData[key];
-          phrasesList.push({
-            ...phrase,
-            id: key,
-          });
-        });
+      if (error) {
+        console.error("Error fetching quick phrases:", error);
+        return;
+      }
+      
+      if (data) {
+        const phrasesList: QuickPhrase[] = data.map(phrase => ({
+          id: phrase.id,
+          content: phrase.content,
+          userId: phrase.user_id
+        }));
         
         setQuickPhrases(phrasesList);
-      } else {
-        setQuickPhrases([]);
       }
-    }, error => {
-      console.error("Error fetching quick phrases:", error);
-      // Silent error - don't show toast for quick phrases loading issues
-    });
+    };
     
-    return () => unsubscribe();
+    fetchQuickPhrases();
+    
+    // Set up real-time subscription for quick phrases
+    const channel = supabase
+      .channel('public:quick_phrases')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'quick_phrases',
+          filter: `user_id=eq.${user.id}` 
+        }, 
+        (payload) => {
+          fetchQuickPhrases(); // Refresh phrases when changes occur
+        })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   // Update current messages when the project changes
@@ -100,33 +132,88 @@ export const useMessagesProvider = () => {
     }
   }, [currentProject, messages]);
 
-  const addMessage = (message: Omit<Message, "id" | "timestamp" | "isRead">) => {
-    const currentUserId = user?.id || "user-1";
-    addMessageToFirebase(message, currentUserId);
+  const addMessage = async (message: Omit<Message, "id" | "timestamp" | "isRead">) => {
+    if (!user?.id) return;
+    
+    const currentUserId = user.id;
+    
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        content: message.content,
+        sender: message.sender,
+        recipient: message.recipient,
+        project_id: message.projectId,
+        is_important: message.isImportant || false,
+        is_read: message.sender === currentUserId // Messages from current user are automatically read
+      });
+      
+    if (error) {
+      console.error("Error adding message:", error);
+      toast.error("Nachricht konnte nicht gesendet werden");
+    }
   };
 
-  const markAsRead = (id: string) => {
-    markMessageAsReadInFirebase(id);
+  const markAsRead = async (id: string) => {
+    const { error } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('id', id);
+      
+    if (error) {
+      console.error("Error marking message as read:", error);
+    }
   };
 
-  const toggleImportant = (id: string) => {
+  const toggleImportant = async (id: string) => {
     // First get current importance state
     const message = messages.find(m => m.id === id);
     if (!message) return;
     
-    toggleMessageImportanceInFirebase(id, message.isImportant);
+    const { error } = await supabase
+      .from('messages')
+      .update({ is_important: !message.isImportant })
+      .eq('id', id);
+      
+    if (error) {
+      console.error("Error toggling message importance:", error);
+      toast.error("Wichtiger Status konnte nicht geändert werden");
+    }
   };
 
-  const addQuickPhrase = (content: string, userId: string) => {
-    addQuickPhraseToFirebase(content, userId);
+  const addQuickPhrase = async (content: string, userId: string) => {
+    const { error } = await supabase
+      .from('quick_phrases')
+      .insert({ content, user_id: userId });
+      
+    if (error) {
+      console.error("Error adding quick phrase:", error);
+      toast.error("Quick Phrase konnte nicht hinzugefügt werden");
+    }
   };
 
-  const updateQuickPhrase = (id: string, content: string) => {
-    updateQuickPhraseInFirebase(id, content);
+  const updateQuickPhrase = async (id: string, content: string) => {
+    const { error } = await supabase
+      .from('quick_phrases')
+      .update({ content })
+      .eq('id', id);
+      
+    if (error) {
+      console.error("Error updating quick phrase:", error);
+      toast.error("Quick Phrase konnte nicht aktualisiert werden");
+    }
   };
 
-  const deleteQuickPhrase = (id: string) => {
-    deleteQuickPhraseFromFirebase(id);
+  const deleteQuickPhrase = async (id: string) => {
+    const { error } = await supabase
+      .from('quick_phrases')
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      console.error("Error deleting quick phrase:", error);
+      toast.error("Quick Phrase konnte nicht gelöscht werden");
+    }
   };
 
   const getQuickPhrasesForUser = (userId: string) => {

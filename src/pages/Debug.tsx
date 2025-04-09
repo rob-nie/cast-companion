@@ -2,65 +2,13 @@
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Code } from "@/components/ui/code";
 import DatabaseConnectionTest from "@/components/projects/DatabaseConnectionTest";
 import { useUser } from "@/context/UserContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Debug = () => {
   const { user, isAuthenticated } = useUser();
   
-  const firebaseRules = `{
-  "rules": {
-    "users": {
-      "$uid": {
-        ".read": "$uid === auth.uid || root.child('projectMembers').child(auth.uid).exists()",
-        ".write": "$uid === auth.uid"
-      }
-    },
-    "projects": {
-      ".indexOn": ["ownerId"],
-      "$projectId": {
-        ".read": "auth != null && (data.child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo($projectId).orderByChild('userId').equalTo(auth.uid).exists())",
-        ".write": "auth != null && (!data.exists() || data.child('ownerId').val() === auth.uid)"
-      }
-    },
-    "projectMembers": {
-      ".indexOn": ["projectId", "userId"],
-      "$memberId": {
-        ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid)"
-      }
-    },
-    "quickPhrases": {
-      ".indexOn": ["userId"],
-      "$phraseId": {
-        ".read": "auth != null && data.child('userId').val() === auth.uid",
-        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
-      }
-    },
-    "notes": {
-      ".indexOn": ["projectId"],
-      "$noteId": {
-        ".read": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).exists())",
-        ".write": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).child('role').val() === 'editor')"
-      }
-    },
-    "messages": {
-      ".indexOn": ["projectId"],
-      "$messageId": {
-        ".read": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).exists())",
-        ".write": "auth != null && (root.child('projects').child(data.child('projectId').val()).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo(data.child('projectId').val()).orderByChild('userId').equalTo(auth.uid).child('role').val() in ['owner', 'editor'])"
-      }
-    },
-    "projectStopwatches": {
-      "$projectId": {
-        ".read": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo($projectId).orderByChild('userId').equalTo(auth.uid).exists())",
-        ".write": "auth != null && (root.child('projects').child($projectId).child('ownerId').val() === auth.uid || root.child('projectMembers').orderByChild('projectId').equalTo($projectId).orderByChild('userId').equalTo(auth.uid).child('role').val() in ['owner', 'editor'])"
-      }
-    }
-  }
-}`;
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -88,12 +36,12 @@ const Debug = () => {
           </div>
           
           <div>
-            <h2 className="text-2xl font-semibold mb-4">Supabase-Migration</h2>
+            <h2 className="text-2xl font-semibold mb-4">Supabase-Integration</h2>
             <Card className="mb-4">
               <CardHeader>
                 <CardTitle>Supabase Datenbank</CardTitle>
                 <CardDescription>
-                  Die Anwendung verwendet jetzt Supabase für die Datenspeicherung. Firebase wird als Legacy-System unterstützt.
+                  Die Anwendung verwendet Supabase für die Datenspeicherung.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -111,25 +59,27 @@ const Debug = () => {
         
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Firebase Datenbank-Regeln (Legacy)</CardTitle>
+            <CardTitle>Supabase-Funktionen</CardTitle>
             <CardDescription>
-              Diese Regeln werden für die Legacy-Firebase-Integration verwendet.
+              Überprüfen Sie die Funktionen und die Verbindung mit der Datenbank.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 bg-muted rounded-md relative">
-              <pre className="text-sm whitespace-pre-wrap overflow-x-auto">
-                {firebaseRules}
-              </pre>
-              <Button 
-                onClick={() => copyToClipboard(firebaseRules)} 
-                size="sm" 
-                variant="secondary" 
-                className="absolute top-2 right-2"
-              >
-                Kopieren
-              </Button>
-            </div>
+            <Button 
+              onClick={async () => {
+                const { data, error } = await supabase.from('projects').select('id').limit(1);
+                console.log("Supabase Test:", { data, error });
+                if (error) {
+                  toast.error("Fehler bei der Supabase-Verbindung");
+                } else {
+                  toast.success("Supabase-Verbindung erfolgreich");
+                }
+              }} 
+              size="sm" 
+              variant="secondary"
+            >
+              Supabase-Verbindung testen
+            </Button>
           </CardContent>
         </Card>
       </div>

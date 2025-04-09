@@ -1,11 +1,18 @@
 
 import { useState, useEffect } from "react";
-import { onValue } from "firebase/database";
 import { useUser } from "../UserContext";
 import { useProjects } from "../ProjectContext";
 import { ProjectStopwatch } from "./types";
-import { defaultStopwatch, getStopwatchRef, getStopwatchesRef, updateStopwatchInFirebase } from "./watchService";
 import { formatStopwatchTime } from "./watchUtils";
+import { supabase } from "@/integrations/supabase/client";
+
+// Default stopwatch state
+const defaultStopwatch: ProjectStopwatch = {
+  isRunning: false,
+  startTime: null,
+  elapsedTime: 0,
+  lastUpdatedBy: null,
+};
 
 export const useWatchProvider = () => {
   const [projectStopwatches, setProjectStopwatches] = useState<Record<string, ProjectStopwatch>>({});
@@ -13,35 +20,89 @@ export const useWatchProvider = () => {
   const { user } = useUser();
   const { currentProject } = useProjects();
   
-  const currentUserId = user?.id || "user-1";
+  const currentUserId = user?.id || "";
 
-  // Load stopwatches from Firebase, optimized to only fetch current project when available
+  // Load stopwatches from Supabase
   useEffect(() => {
     if (!user?.id) return;
     
-    // If we have a current project, only fetch that specific stopwatch
-    const stopwatchRef = currentProject 
-      ? getStopwatchRef(currentProject.id) 
-      : getStopwatchesRef();
-    
-    const unsubscribe = onValue(stopwatchRef, (snapshot) => {
-      if (snapshot.exists()) {
-        if (currentProject) {
-          // Single project case
-          const stopwatchData = snapshot.val();
+    const loadStopwatch = async () => {
+      if (currentProject) {
+        // Load stopwatch for current project
+        const { data, error } = await supabase
+          .from('project_stopwatches')
+          .select('*')
+          .eq('project_id', currentProject.id)
+          .single();
+          
+        if (!error && data) {
           setProjectStopwatches(prev => ({
             ...prev,
-            [currentProject.id]: stopwatchData
+            [currentProject.id]: {
+              isRunning: data.is_running,
+              startTime: data.start_time ? Number(data.start_time) : null,
+              elapsedTime: data.elapsed_time ? Number(data.elapsed_time) : 0,
+              lastUpdatedBy: data.last_updated_by
+            }
           }));
-        } else {
-          // Multiple projects case
-          const stopwatchData = snapshot.val();
-          setProjectStopwatches(stopwatchData);
+        } else if (error && error.code !== 'PGRST116') { // Not found is ok
+          console.error("Error loading stopwatch:", error);
+        }
+      } else {
+        // Load stopwatches for all projects user has access to
+        const { data, error } = await supabase
+          .from('project_stopwatches')
+          .select('*')
+          .limit(10);
+          
+        if (!error && data) {
+          const stopwatches: Record<string, ProjectStopwatch> = {};
+          data.forEach(sw => {
+            stopwatches[sw.project_id] = {
+              isRunning: sw.is_running,
+              startTime: sw.start_time ? Number(sw.start_time) : null,
+              elapsedTime: sw.elapsed_time ? Number(sw.elapsed_time) : 0,
+              lastUpdatedBy: sw.last_updated_by
+            };
+          });
+          setProjectStopwatches(stopwatches);
+        } else if (error) {
+          console.error("Error loading stopwatches:", error);
         }
       }
-    });
+    };
     
-    return () => unsubscribe();
+    loadStopwatch();
+    
+    // Set up real-time subscription for stopwatches
+    const channel = supabase
+      .channel('public:project_stopwatches')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'project_stopwatches',
+          filter: currentProject ? `project_id=eq.${currentProject.id}` : undefined
+        }, 
+        (payload) => {
+          if (payload.new) {
+            const sw = payload.new as any;
+            setProjectStopwatches(prev => ({
+              ...prev,
+              [sw.project_id]: {
+                isRunning: sw.is_running,
+                startTime: sw.start_time ? Number(sw.start_time) : null,
+                elapsedTime: sw.elapsed_time ? Number(sw.elapsed_time) : 0,
+                lastUpdatedBy: sw.last_updated_by
+              }
+            }));
+          }
+        })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id, currentProject?.id]);
 
   // Update current time and running stopwatches every second
@@ -75,7 +136,7 @@ export const useWatchProvider = () => {
     return projectStopwatches[projectId] || defaultStopwatch;
   };
 
-  const startStopwatch = (projectId: string) => {
+  const startStopwatch = async (projectId: string) => {
     // Get current stopwatch state
     const current = getProjectStopwatch(projectId);
     
@@ -89,8 +150,16 @@ export const useWatchProvider = () => {
       lastUpdatedBy: currentUserId
     };
     
-    // Update Firebase (will trigger the onValue subscription in other clients)
-    updateStopwatchInFirebase(projectId, updatedStopwatch);
+    // Update Supabase
+    await supabase
+      .from('project_stopwatches')
+      .upsert({
+        project_id: projectId,
+        is_running: true,
+        start_time: String(updatedStopwatch.startTime),
+        elapsed_time: String(updatedStopwatch.elapsedTime),
+        last_updated_by: currentUserId
+      });
     
     // Update local state immediately for responsive UI
     setProjectStopwatches(prev => ({
@@ -99,7 +168,7 @@ export const useWatchProvider = () => {
     }));
   };
 
-  const stopStopwatch = (projectId: string) => {
+  const stopStopwatch = async (projectId: string) => {
     // Get current stopwatch state
     const current = getProjectStopwatch(projectId);
     
@@ -118,8 +187,16 @@ export const useWatchProvider = () => {
       lastUpdatedBy: currentUserId
     };
     
-    // Update Firebase
-    updateStopwatchInFirebase(projectId, updatedStopwatch);
+    // Update Supabase
+    await supabase
+      .from('project_stopwatches')
+      .upsert({
+        project_id: projectId,
+        is_running: false,
+        start_time: null,
+        elapsed_time: String(elapsedTime),
+        last_updated_by: currentUserId
+      });
     
     // Update local state immediately
     setProjectStopwatches(prev => ({
@@ -128,7 +205,7 @@ export const useWatchProvider = () => {
     }));
   };
 
-  const resetStopwatch = (projectId: string) => {
+  const resetStopwatch = async (projectId: string) => {
     // Create reset stopwatch
     const resetStopwatch: ProjectStopwatch = {
       isRunning: false,
@@ -137,8 +214,16 @@ export const useWatchProvider = () => {
       lastUpdatedBy: currentUserId
     };
     
-    // Update Firebase
-    updateStopwatchInFirebase(projectId, resetStopwatch);
+    // Update Supabase
+    await supabase
+      .from('project_stopwatches')
+      .upsert({
+        project_id: projectId,
+        is_running: false,
+        start_time: null,
+        elapsed_time: '0',
+        last_updated_by: currentUserId
+      });
     
     // Update local state immediately
     setProjectStopwatches(prev => ({
