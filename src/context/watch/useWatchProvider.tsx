@@ -27,48 +27,52 @@ export const useWatchProvider = () => {
     if (!user?.id) return;
     
     const loadStopwatch = async () => {
-      if (currentProject) {
-        // Load stopwatch for current project
-        const { data, error } = await supabase
-          .from('project_stopwatches')
-          .select('*')
-          .eq('project_id', currentProject.id)
-          .single();
-          
-        if (!error && data) {
-          setProjectStopwatches(prev => ({
-            ...prev,
-            [currentProject.id]: {
-              isRunning: data.is_running,
-              startTime: data.start_time ? Number(data.start_time) : null,
-              elapsedTime: data.elapsed_time ? Number(data.elapsed_time) : 0,
-              lastUpdatedBy: data.last_updated_by
-            }
-          }));
-        } else if (error && error.code !== 'PGRST116') { // Not found is ok
-          console.error("Error loading stopwatch:", error);
+      try {
+        if (currentProject) {
+          // Load stopwatch for current project
+          const { data, error } = await supabase
+            .from('project_stopwatches')
+            .select('*')
+            .eq('project_id', currentProject.id)
+            .single();
+            
+          if (!error && data) {
+            setProjectStopwatches(prev => ({
+              ...prev,
+              [currentProject.id]: {
+                isRunning: data.is_running || false,
+                startTime: data.start_time ? Number(data.start_time) : null,
+                elapsedTime: data.elapsed_time ? Number(data.elapsed_time) : 0,
+                lastUpdatedBy: data.last_updated_by
+              }
+            }));
+          } else if (error && error.code !== 'PGRST116') { // Not found is ok
+            console.error("Error loading stopwatch:", error);
+          }
+        } else {
+          // Load stopwatches for all projects user has access to
+          const { data, error } = await supabase
+            .from('project_stopwatches')
+            .select('*')
+            .limit(10);
+            
+          if (!error && data) {
+            const stopwatches: Record<string, ProjectStopwatch> = {};
+            data.forEach(sw => {
+              stopwatches[sw.project_id] = {
+                isRunning: sw.is_running || false,
+                startTime: sw.start_time ? Number(sw.start_time) : null,
+                elapsedTime: sw.elapsed_time ? Number(sw.elapsed_time) : 0,
+                lastUpdatedBy: sw.last_updated_by
+              };
+            });
+            setProjectStopwatches(stopwatches);
+          } else if (error) {
+            console.error("Error loading stopwatches:", error);
+          }
         }
-      } else {
-        // Load stopwatches for all projects user has access to
-        const { data, error } = await supabase
-          .from('project_stopwatches')
-          .select('*')
-          .limit(10);
-          
-        if (!error && data) {
-          const stopwatches: Record<string, ProjectStopwatch> = {};
-          data.forEach(sw => {
-            stopwatches[sw.project_id] = {
-              isRunning: sw.is_running,
-              startTime: sw.start_time ? Number(sw.start_time) : null,
-              elapsedTime: sw.elapsed_time ? Number(sw.elapsed_time) : 0,
-              lastUpdatedBy: sw.last_updated_by
-            };
-          });
-          setProjectStopwatches(stopwatches);
-        } else if (error) {
-          console.error("Error loading stopwatches:", error);
-        }
+      } catch (error) {
+        console.error("Error in loadStopwatch:", error);
       }
     };
     
@@ -90,7 +94,7 @@ export const useWatchProvider = () => {
             setProjectStopwatches(prev => ({
               ...prev,
               [sw.project_id]: {
-                isRunning: sw.is_running,
+                isRunning: sw.is_running || false,
                 startTime: sw.start_time ? Number(sw.start_time) : null,
                 elapsedTime: sw.elapsed_time ? Number(sw.elapsed_time) : 0,
                 lastUpdatedBy: sw.last_updated_by
@@ -137,99 +141,111 @@ export const useWatchProvider = () => {
   };
 
   const startStopwatch = async (projectId: string) => {
-    // Get current stopwatch state
-    const current = getProjectStopwatch(projectId);
-    
-    if (current.isRunning) return;
-    
-    // Create updated stopwatch
-    const updatedStopwatch: ProjectStopwatch = {
-      ...current,
-      isRunning: true,
-      startTime: Date.now() - current.elapsedTime,
-      lastUpdatedBy: currentUserId
-    };
-    
-    // Update Supabase
-    await supabase
-      .from('project_stopwatches')
-      .upsert({
-        project_id: projectId,
-        is_running: true,
-        start_time: String(updatedStopwatch.startTime),
-        elapsed_time: String(updatedStopwatch.elapsedTime),
-        last_updated_by: currentUserId
-      });
-    
-    // Update local state immediately for responsive UI
-    setProjectStopwatches(prev => ({
-      ...prev,
-      [projectId]: updatedStopwatch
-    }));
+    try {
+      // Get current stopwatch state
+      const current = getProjectStopwatch(projectId);
+      
+      if (current.isRunning) return;
+      
+      // Create updated stopwatch
+      const updatedStopwatch: ProjectStopwatch = {
+        ...current,
+        isRunning: true,
+        startTime: Date.now() - current.elapsedTime,
+        lastUpdatedBy: currentUserId
+      };
+      
+      // Update Supabase
+      await supabase
+        .from('project_stopwatches')
+        .upsert({
+          project_id: projectId,
+          is_running: true,
+          start_time: String(updatedStopwatch.startTime),
+          elapsed_time: String(updatedStopwatch.elapsedTime),
+          last_updated_by: currentUserId
+        });
+      
+      // Update local state immediately for responsive UI
+      setProjectStopwatches(prev => ({
+        ...prev,
+        [projectId]: updatedStopwatch
+      }));
+    } catch (error) {
+      console.error("Error in startStopwatch:", error);
+    }
   };
 
   const stopStopwatch = async (projectId: string) => {
-    // Get current stopwatch state
-    const current = getProjectStopwatch(projectId);
-    
-    if (!current.isRunning) return;
-    
-    // Calculate current elapsed time
-    const elapsedTime = current.startTime 
-      ? Date.now() - current.startTime 
-      : current.elapsedTime;
-    
-    // Create updated stopwatch
-    const updatedStopwatch: ProjectStopwatch = {
-      ...current,
-      isRunning: false,
-      elapsedTime,
-      lastUpdatedBy: currentUserId
-    };
-    
-    // Update Supabase
-    await supabase
-      .from('project_stopwatches')
-      .upsert({
-        project_id: projectId,
-        is_running: false,
-        start_time: null,
-        elapsed_time: String(elapsedTime),
-        last_updated_by: currentUserId
-      });
-    
-    // Update local state immediately
-    setProjectStopwatches(prev => ({
-      ...prev,
-      [projectId]: updatedStopwatch
-    }));
+    try {
+      // Get current stopwatch state
+      const current = getProjectStopwatch(projectId);
+      
+      if (!current.isRunning) return;
+      
+      // Calculate current elapsed time
+      const elapsedTime = current.startTime 
+        ? Date.now() - current.startTime 
+        : current.elapsedTime;
+      
+      // Create updated stopwatch
+      const updatedStopwatch: ProjectStopwatch = {
+        ...current,
+        isRunning: false,
+        elapsedTime,
+        lastUpdatedBy: currentUserId
+      };
+      
+      // Update Supabase
+      await supabase
+        .from('project_stopwatches')
+        .upsert({
+          project_id: projectId,
+          is_running: false,
+          start_time: null,
+          elapsed_time: String(elapsedTime),
+          last_updated_by: currentUserId
+        });
+      
+      // Update local state immediately
+      setProjectStopwatches(prev => ({
+        ...prev,
+        [projectId]: updatedStopwatch
+      }));
+    } catch (error) {
+      console.error("Error in stopStopwatch:", error);
+    }
   };
 
   const resetStopwatch = async (projectId: string) => {
-    // Create reset stopwatch
-    const resetStopwatch: ProjectStopwatch = {
-      isRunning: false,
-      startTime: null,
-      elapsedTime: 0,
-      lastUpdatedBy: currentUserId
-    };
-    
-    // Update Supabase
-    await supabase
-      .from('project_stopwatches')
-      .upsert({
-        project_id: projectId,
-        is_running: false,
-        start_time: null,
-        elapsed_time: '0',
-        last_updated_by: currentUserId
-      });
-    
-    // Update local state immediately
-    setProjectStopwatches(prev => ({
-      ...prev,
-      [projectId]: resetStopwatch
-    }));
+    try {
+      // Create reset stopwatch
+      const resetStopwatch: ProjectStopwatch = {
+        isRunning: false,
+        startTime: null,
+        elapsedTime: 0,
+        lastUpdatedBy: currentUserId
+      };
+      
+      // Update Supabase
+      await supabase
+        .from('project_stopwatches')
+        .upsert({
+          project_id: projectId,
+          is_running: false,
+          start_time: null,
+          elapsed_time: '0',
+          last_updated_by: currentUserId
+        });
+      
+      // Update local state immediately
+      setProjectStopwatches(prev => ({
+        ...prev,
+        [projectId]: resetStopwatch
+      }));
+    } catch (error) {
+      console.error("Error in resetStopwatch:", error);
+    }
   };
 
   return {

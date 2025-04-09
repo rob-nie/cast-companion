@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import DatabaseConnectionTest from "@/components/projects/DatabaseConnectionTest";
 import { useUser } from "@/context/UserContext";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Debug = () => {
   const { user, isAuthenticated } = useUser();

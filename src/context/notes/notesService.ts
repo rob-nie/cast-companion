@@ -1,48 +1,25 @@
 
-import { ref, push, update, remove, query, orderByChild, equalTo, limitToLast, set } from "firebase/database";
-import { database, QUERY_LIMIT } from "@/lib/firebase";
-import { Note } from "./types";
+// This file is kept for reference but is no longer used.
+// All Firebase functionality has been migrated to Supabase.
 
-export const fetchNotes = (userId: string, projectId?: string) => {
-  // Load only notes for the current user, with project filter if available
-  return projectId
-    ? query(
-        ref(database, 'notes'),
-        orderByChild('projectId'),
-        equalTo(projectId),
-        limitToLast(QUERY_LIMIT)
-      )
-    : query(
-        ref(database, 'notes'),
-        orderByChild('userId'),
-        equalTo(userId),
-        limitToLast(QUERY_LIMIT)
-      );
+import { toast } from "sonner";
+
+export const getNotesRef = (projectId: string) => {
+  // Legacy reference
+  return null;
 };
 
-export const addNewNote = (note: Omit<Note, "id" | "timestamp" | "userId">, userId: string) => {
-  const newNoteRef = push(ref(database, 'notes'));
-  
-  // Prepare for Firebase
-  const firebaseNote = {
-    ...note,
-    userId,
-    timestamp: new Date().toISOString(),
-  };
-  
-  // Return a promise for the set operation
-  return {
-    promise: set(newNoteRef, firebaseNote),
-    noteId: newNoteRef.key!,
-  };
+export const addNoteToFirebase = (note: any) => {
+  console.warn("Firebase is no longer used. Use Supabase instead.");
+  return Promise.resolve();
 };
 
-export const updateExistingNote = (id: string, updates: Record<string, any>) => {
-  const noteRef = ref(database, `notes/${id}`);
-  return update(noteRef, updates);
+export const updateNoteInFirebase = (id: string, updates: Partial<any>) => {
+  console.warn("Firebase is no longer used. Use Supabase instead.");
+  return Promise.resolve();
 };
 
-export const deleteExistingNote = (id: string) => {
-  const noteRef = ref(database, `notes/${id}`);
-  return remove(noteRef);
+export const deleteNoteFromFirebase = (id: string) => {
+  console.warn("Firebase is no longer used. Use Supabase instead.");
+  return Promise.resolve();
 };

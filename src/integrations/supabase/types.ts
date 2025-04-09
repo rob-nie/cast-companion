@@ -9,6 +9,85 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_important: boolean | null
+          is_read: boolean | null
+          project_id: string
+          recipient: string | null
+          sender: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_important?: boolean | null
+          is_read?: boolean | null
+          project_id: string
+          recipient?: string | null
+          sender: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_important?: boolean | null
+          is_read?: boolean | null
+          project_id?: string
+          recipient?: string | null
+          sender?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_live_note: boolean
+          project_id: string
+          stopwatch_time: number | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_live_note?: boolean
+          project_id: string
+          stopwatch_time?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_live_note?: boolean
+          project_id?: string
+          stopwatch_time?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar: string | null
@@ -65,6 +144,44 @@ export type Database = {
           },
         ]
       }
+      project_stopwatches: {
+        Row: {
+          created_at: string | null
+          elapsed_time: number | null
+          id: string
+          is_running: boolean | null
+          last_updated_by: string | null
+          project_id: string
+          start_time: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          elapsed_time?: number | null
+          id?: string
+          is_running?: boolean | null
+          last_updated_by?: string | null
+          project_id: string
+          start_time?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          elapsed_time?: number | null
+          id?: string
+          is_running?: boolean | null
+          last_updated_by?: string | null
+          project_id?: string
+          start_time?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_stopwatches_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string | null
@@ -89,6 +206,27 @@ export type Database = {
           last_accessed?: string | null
           owner_id?: string
           title?: string
+        }
+        Relationships: []
+      }
+      quick_phrases: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
