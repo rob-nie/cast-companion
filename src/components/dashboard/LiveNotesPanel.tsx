@@ -58,32 +58,30 @@ const LiveNotesPanel = ({ className, projectId }: LiveNotesPanelProps) => {
     setEditingContent(content);
   };
   
-  const saveEditedNote = () => {
+  const saveEditedNote = async () => {
     if (editingNoteId) {
-      updateNote(editingNoteId, { content: editingContent })
-        .then(() => {
-          toast.success("Notiz gespeichert");
-          setEditingNoteId(null);
-          setEditingContent('');
-        })
-        .catch(error => {
-          console.error("Fehler beim Speichern der Notiz:", error);
-          toast.error("Notiz konnte nicht gespeichert werden");
-        });
-    }
-  };
-  
-  const saveNote = (noteId: string, content: string) => {
-    updateNote(noteId, { content })
-      .then(() => {
+      try {
+        await updateNote(editingNoteId, { content: editingContent });
         toast.success("Notiz gespeichert");
         setEditingNoteId(null);
         setEditingContent('');
-      })
-      .catch(error => {
+      } catch (error) {
         console.error("Fehler beim Speichern der Notiz:", error);
         toast.error("Notiz konnte nicht gespeichert werden");
-      });
+      }
+    }
+  };
+  
+  const saveNote = async (noteId: string, content: string) => {
+    try {
+      await updateNote(noteId, { content });
+      toast.success("Notiz gespeichert");
+      setEditingNoteId(null);
+      setEditingContent('');
+    } catch (error) {
+      console.error("Fehler beim Speichern der Notiz:", error);
+      toast.error("Notiz konnte nicht gespeichert werden");
+    }
   };
   
   const cancelEditing = () => {
@@ -91,15 +89,14 @@ const LiveNotesPanel = ({ className, projectId }: LiveNotesPanelProps) => {
     setEditingContent('');
   };
   
-  const handleDeleteNote = (noteId: string) => {
-    deleteNote(noteId)
-      .then(() => {
-        toast.success("Notiz gelöscht");
-      })
-      .catch(error => {
-        console.error("Fehler beim Löschen der Notiz:", error);
-        toast.error("Notiz konnte nicht gelöscht werden");
-      });
+  const handleDeleteNote = async (noteId: string) => {
+    try {
+      await deleteNote(noteId);
+      toast.success("Notiz gelöscht");
+    } catch (error) {
+      console.error("Fehler beim Löschen der Notiz:", error);
+      toast.error("Notiz konnte nicht gelöscht werden");
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

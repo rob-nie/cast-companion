@@ -29,7 +29,7 @@ const Dashboard = () => {
         setIsUpdating(true);
         await updateProject(
           currentProject.id, 
-          { updateLastAccessed: true }, 
+          { lastAccessed: new Date() }, 
           true
         );
       } catch (error) {

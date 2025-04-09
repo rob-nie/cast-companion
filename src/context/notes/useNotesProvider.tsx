@@ -17,34 +17,53 @@ export const useNotesProvider = () => {
   // User ID for the current user
   const currentUserId = user?.id || "user-1";
 
+  // Load notes for a specific project
+  const loadNotes = async (projectId: string): Promise<Note[]> => {
+    if (!user?.id) return [];
+    
+    try {
+      const notesRef = fetchNotes(currentUserId, projectId);
+      return new Promise((resolve) => {
+        const unsubscribe = onValue(notesRef, (snapshot) => {
+          unsubscribe(); // Unsubscribe after first load
+          
+          if (snapshot.exists()) {
+            const notesData = snapshot.val();
+            const notesList: Note[] = [];
+            
+            Object.keys(notesData).forEach((key) => {
+              const note = notesData[key];
+              notesList.push({
+                ...note,
+                id: key,
+                timestamp: note.timestamp ? new Date(note.timestamp) : undefined,
+              });
+            });
+            
+            setNotes(prev => {
+              // Merge with existing notes, replacing those for this project
+              const otherNotes = prev.filter(n => n.projectId !== projectId);
+              return [...otherNotes, ...notesList];
+            });
+            resolve(notesList);
+          } else {
+            resolve([]);
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Error loading notes:", error);
+      return [];
+    }
+  };
+
   // Optimized notes query
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !currentProject?.id) return;
     
-    const notesRef = fetchNotes(currentUserId, currentProject?.id);
+    loadNotes(currentProject.id).catch(console.error);
     
-    const unsubscribe = onValue(notesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const notesData = snapshot.val();
-        const notesList: Note[] = [];
-        
-        Object.keys(notesData).forEach((key) => {
-          const note = notesData[key];
-          notesList.push({
-            ...note,
-            id: key,
-            timestamp: note.timestamp ? new Date(note.timestamp) : undefined,
-          });
-        });
-        
-        setNotes(notesList);
-      } else {
-        setNotes([]);
-      }
-    });
-    
-    return () => unsubscribe();
-  }, [currentProject, currentUserId, user?.id]);
+  }, [currentProject?.id, user?.id]);
 
   // Update the current notes when the selected project or user changes
   useEffect(() => {
@@ -71,7 +90,7 @@ export const useNotesProvider = () => {
     }
   }, [currentProject, notes, currentUserId]);
 
-  const addNote = (note: Omit<Note, "id" | "timestamp" | "userId">) => {
+  const addNote = async (note: Omit<Note, "id" | "timestamp" | "userId">): Promise<Note> => {
     const { promise, noteId } = addNewNote(note, currentUserId);
     
     const newNote: Note = {
@@ -81,14 +100,14 @@ export const useNotesProvider = () => {
       timestamp: new Date(),
     };
     
-    promise.catch((error) => {
+    await promise.catch((error) => {
       console.error("Error adding note:", error);
     });
     
     return newNote;
   };
 
-  const updateNote = (id: string, updates: Partial<Omit<Note, "id" | "userId">>) => {
+  const updateNote = async (id: string, updates: Partial<Omit<Note, "id" | "userId">>): Promise<void> => {
     // Prepare data for Firebase
     const updateData: Record<string, any> = { ...updates };
     
@@ -97,17 +116,11 @@ export const useNotesProvider = () => {
       updateData.timestamp = updateData.timestamp.toISOString();
     }
     
-    updateExistingNote(id, updateData)
-      .catch((error) => {
-        console.error("Error updating note:", error);
-      });
+    await updateExistingNote(id, updateData);
   };
   
-  const deleteNote = (id: string) => {
-    deleteExistingNote(id)
-      .catch((error) => {
-        console.error("Error deleting note:", error);
-      });
+  const deleteNote = async (id: string): Promise<void> => {
+    await deleteExistingNote(id);
   };
 
   const exportLiveNotesAsCSV = (projectId: string) => {
@@ -129,5 +142,6 @@ export const useNotesProvider = () => {
     updateNote,
     deleteNote,
     exportLiveNotesAsCSV,
+    loadNotes
   };
 };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../AuthContext";
 import { Project } from "./types";
@@ -158,7 +157,7 @@ export const useProjectManagementProvider = () => {
     // Stille Aktualisierung, ohne Benachrichtigungen
     updateProjectInSupabase(
       projectId, 
-      { updateLastAccessed: true }, 
+      { lastAccessed: new Date() }, 
       true
     ).catch(error => {
       console.error("Fehler beim Aktualisieren des Zugriffszeitpunkts:", error);

@@ -133,6 +133,12 @@ export const useMessagesProvider = () => {
     return quickPhrases.filter(phrase => phrase.userId === userId);
   };
 
+  // Add this function to get messages for a specific project
+  const getMessagesForProject = (projectId: string): Message[] => {
+    return messages.filter(message => message.projectId === projectId)
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  };
+
   return {
     messages,
     quickPhrases,
@@ -144,5 +150,6 @@ export const useMessagesProvider = () => {
     updateQuickPhrase,
     deleteQuickPhrase,
     getQuickPhrasesForUser,
+    getMessagesForProject
   };
 };

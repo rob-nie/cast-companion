@@ -71,7 +71,7 @@ const ProjectsOverview = () => {
     }
     
     if (loadError) {
-      return <ProjectsErrorState error={loadError} onRetry={handleRefresh} />;
+      return <ProjectsErrorState errorMessage={loadError} onRetry={handleRefresh} />;
     }
     
     if (filteredProjects.length === 0) {

@@ -169,7 +169,6 @@ const ProjectMembers = () => {
               <AddMemberDialog 
                 onAddMember={handleAddMember} 
                 onAddMemberById={handleAddMemberById}
-                disabled={isLoading}
               />
             )}
           </div>

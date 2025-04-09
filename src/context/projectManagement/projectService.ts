@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Project } from "./types";
 import { toast } from "sonner";
@@ -29,7 +28,7 @@ export const fetchUserProjects = async (): Promise<Project[]> => {
         created_at,
         last_accessed
       `)
-      .order('last_accessed', { ascending: false, nullsLast: true })
+      .order('last_accessed', { ascending: false, nullsFirst: true })
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -114,8 +113,7 @@ export const createProject = async (project: Omit<Project, "id" | "createdAt" | 
       description: data.description || '',
       ownerId: data.owner_id,
       createdAt: new Date(data.created_at),
-      lastAccessed: data.last_accessed ? new Date(data.last_accessed) : undefined,
-      role: 'owner'
+      lastAccessed: data.last_accessed ? new Date(data.last_accessed) : undefined
     };
   } catch (error) {
     console.error("Fehler beim Erstellen des Projekts:", error);
@@ -143,7 +141,7 @@ export const updateProject = async (
       updateObj.description = projectUpdate.description;
     }
     
-    if (projectUpdate.lastAccessed || projectUpdate.updateLastAccessed) {
+    if (projectUpdate.lastAccessed) {
       updateObj.last_accessed = new Date().toISOString();
     }
     
@@ -168,8 +166,7 @@ export const updateProject = async (
       description: data.description || '',
       ownerId: data.owner_id,
       createdAt: new Date(data.created_at),
-      lastAccessed: data.last_accessed ? new Date(data.last_accessed) : undefined,
-      role: 'owner' // Dies wird später durch den useProjectManagement-Hook korrekt gesetzt
+      lastAccessed: data.last_accessed ? new Date(data.last_accessed) : undefined
     };
   } catch (error) {
     console.error("Fehler beim Aktualisieren des Projekts:", error);

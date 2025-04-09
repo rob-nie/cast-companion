@@ -28,8 +28,7 @@ export const ProjectSharingProvider = ({ children }: { children: ReactNode }) =>
         return;
       }
       
-      const member = await addProjectMember(projectId, email.trim().toLowerCase(), role);
-      return member;
+      return await addProjectMember(projectId, email.trim().toLowerCase(), role);
     } catch (error: any) {
       console.error("Fehler beim Teilen des Projekts:", error);
       
@@ -56,8 +55,7 @@ export const ProjectSharingProvider = ({ children }: { children: ReactNode }) =>
         return;
       }
       
-      const member = await addProjectMemberByUserId(projectId, userId.trim(), role);
-      return member;
+      return await addProjectMemberByUserId(projectId, userId.trim(), role);
     } catch (error: any) {
       console.error("Fehler beim Teilen des Projekts:", error);
       
@@ -84,8 +82,7 @@ export const ProjectSharingProvider = ({ children }: { children: ReactNode }) =>
         return false;
       }
       
-      const success = await removeProjectMember(projectId, userId);
-      return success;
+      return await removeProjectMember(projectId, userId);
     } catch (error: any) {
       console.error("Fehler beim Entziehen des Zugriffs:", error);
       
@@ -109,8 +106,7 @@ export const ProjectSharingProvider = ({ children }: { children: ReactNode }) =>
         return false;
       }
       
-      const success = await updateProjectMemberRole(projectId, userId, newRole);
-      return success;
+      return await updateProjectMemberRole(projectId, userId, newRole);
     } catch (error: any) {
       console.error("Fehler beim Ändern der Rolle:", error);
       

@@ -1,7 +1,9 @@
 
+import { UserRole } from "@/types/user";
+
 export type ProjectSharingContextType = {
-  shareProject: (projectId: string, email: string, role: "editor" | "viewer") => Promise<void>;
-  shareProjectByUserId: (projectId: string, userId: string, role: "editor" | "viewer") => Promise<void>;
-  revokeAccess: (projectId: string, userId: string) => Promise<void>;
-  changeRole: (projectId: string, userId: string, newRole: "owner" | "editor" | "viewer") => Promise<void>;
+  shareProject: (projectId: string, email: string, role: "editor" | "viewer") => Promise<any>;
+  shareProjectByUserId: (projectId: string, userId: string, role: "editor" | "viewer") => Promise<any>;
+  revokeAccess: (projectId: string, userId: string) => Promise<boolean | void>;
+  changeRole: (projectId: string, userId: string, newRole: UserRole) => Promise<boolean | void>;
 };

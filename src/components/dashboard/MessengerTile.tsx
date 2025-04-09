@@ -67,10 +67,7 @@ const MessengerTile = ({ projectId }: MessengerTileProps) => {
       const newestMessage = messages[messages.length - 1];
       if (newestMessage && newestMessage.sender !== currentUserId) {
         // Reguläre Benachrichtigung für neue Nachricht anzeigen
-        toast({
-          description: "Neue Nachricht erhalten",
-          duration: 3000,
-        });
+        toast("Neue Nachricht erhalten");
         
         // Wenn die Nachricht wichtig und nicht gelesen ist, wichtige Nachricht-Dialog anzeigen
         if (newestMessage.isImportant && !newestMessage.isRead) {
@@ -154,7 +151,6 @@ const MessengerTile = ({ projectId }: MessengerTileProps) => {
         <MessageList 
           messages={messages}
           currentUserId={currentUserId}
-          isLoading={isLoading}
           markAsRead={handleMarkAsRead}
           toggleImportant={handleToggleImportant}
           getUserName={getUserName}
@@ -169,7 +165,6 @@ const MessengerTile = ({ projectId }: MessengerTileProps) => {
           setIsImportant={setIsImportant}
           inputValue={inputValue}
           setInputValue={setInputValue}
-          disabled={!currentUserId || !projectId}
         />
         
         <QuickPhrases 

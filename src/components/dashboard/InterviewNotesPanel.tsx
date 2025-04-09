@@ -29,7 +29,7 @@ const InterviewNotesPanel = ({
   
   // Notizen für das aktuelle Projekt laden
   useEffect(() => {
-    if (projectId && currentUserId) {
+    if (projectId && currentUserId && loadNotes) {
       loadNotes(projectId).catch(error => {
         console.error("Fehler beim Laden der Notizen:", error);
         toast.error("Notizen konnten nicht geladen werden");
@@ -52,11 +52,11 @@ const InterviewNotesPanel = ({
         projectId,
         content: defaultContent,
         isLiveNote: false,
+      }).then(() => {
+        setIsInitialized(true);
       }).catch(error => {
         console.error("Fehler beim Erstellen der Standardnotizen:", error);
       });
-      
-      setIsInitialized(true);
     }
   }, [interviewNotes, projectId, currentUserId, addNote, user, isInitialized]);
 
