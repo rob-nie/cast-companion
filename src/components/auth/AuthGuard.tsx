@@ -38,7 +38,7 @@ const AuthGuard = () => {
 
   // Ladebildschirm während der Authentifizierungsprüfung anzeigen
   if (isLoading || isCheckingAuth) {
-    return <LoadingScreen messageText="Authentifizierung wird überprüft..." />;
+    return <LoadingScreen message="Authentifizierung wird überprüft..." />;
   }
 
   // Wenn nicht authentifiziert, zur Login-Seite weiterleiten
