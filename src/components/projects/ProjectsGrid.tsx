@@ -1,13 +1,15 @@
 
 import { Project } from "@/context/ProjectContext";
 import ProjectCard from "./ProjectCard";
+import { useAuth } from "@/context/AuthContext";
 
 interface ProjectsGridProps {
   projects: Project[];
-  currentUserId?: string;
 }
 
-const ProjectsGrid = ({ projects, currentUserId }: ProjectsGridProps) => {
+const ProjectsGrid = ({ projects }: ProjectsGridProps) => {
+  const { user } = useAuth();
+  
   if (projects.length === 0) {
     return null;
   }
@@ -18,7 +20,7 @@ const ProjectsGrid = ({ projects, currentUserId }: ProjectsGridProps) => {
         <ProjectCard 
           key={project.id} 
           project={project} 
-          isOwned={currentUserId === project.ownerId}
+          isOwned={user?.id === project.ownerId}
         />
       ))}
     </div>

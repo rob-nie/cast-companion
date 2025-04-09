@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useProjectManagement } from "@/context/projectManagement";
+import { useAuth } from "@/context/AuthContext";
 import ProjectsGrid from "./ProjectsGrid";
 import ProjectsSearch from "./ProjectsSearch";
 import CreateProjectDialog from "./CreateProjectDialog";
@@ -10,6 +11,7 @@ import ProjectsErrorState from "./ProjectsErrorState";
 
 const ProjectsOverview = () => {
   const { projects, isLoading, loadError, refresh } = useProjectManagement();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
